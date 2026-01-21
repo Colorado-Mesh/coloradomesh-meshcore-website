@@ -75,11 +75,6 @@ export function NetworkHealthCard({ refreshInterval = OBSERVER_REFRESH_INTERVAL 
     return () => clearInterval(interval);
   }, [fetchHealth, refreshInterval]);
 
-  const formatPercentage = (num: number | null | undefined): string => {
-    if (num === null || num === undefined) return '--';
-    return `${num.toFixed(1)}%`;
-  };
-
   const formatDecimal = (num: number | null | undefined, suffix = ''): string => {
     if (num === null || num === undefined) return '--';
     return `${num.toFixed(1)}${suffix}`;

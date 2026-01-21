@@ -36,10 +36,11 @@ export function useStats(options: UseStatsOptions = {}): UseStatsReturn {
   const fetchData = useCallback(async () => {
     try {
       if (includeHealth) {
-        // Fetch both stats and health in parallel (no cache for real-time data)
+        // Fetch both stats and health in parallel
+        // Allow browser/CDN caching - server sets s-maxage=30, stale-while-revalidate=60
         const [statsRes, healthRes] = await Promise.all([
-          fetch('/api/stats', { cache: 'no-store' }),
-          fetch('/api/health', { cache: 'no-store' }),
+          fetch('/api/stats'),
+          fetch('/api/health'),
         ]);
 
         if (!statsRes.ok) {
@@ -74,8 +75,8 @@ export function useStats(options: UseStatsOptions = {}): UseStatsReturn {
         setStats(statsData.data ?? null);
         setHealth(healthData.data ?? null);
       } else {
-        // Fetch only stats (no cache for real-time data)
-        const res = await fetch('/api/stats', { cache: 'no-store' });
+        // Fetch only stats - allow browser/CDN caching
+        const res = await fetch('/api/stats');
 
         if (!res.ok) {
           throw new Error(`Stats API returned ${res.status}`);

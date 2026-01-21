@@ -2,7 +2,7 @@ import type { Config } from '@netlify/functions';
 
 /**
  * Scheduled function to check network status and alert on changes
- * Runs every 5 minutes to detect status changes quickly
+ * Runs every 30 minutes to reduce function invocations while still providing timely alerts
  * Only sends alerts when status actually changes (with cooldown)
  */
 export default async function handler() {
@@ -46,7 +46,7 @@ export default async function handler() {
   }
 }
 
-// Run every 5 minutes
+// Run every 30 minutes to reduce function invocations
 export const config: Config = {
-  schedule: '*/5 * * * *',
+  schedule: '*/30 * * * *',
 };

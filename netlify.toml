@@ -55,11 +55,13 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-# API routes - no caching
+# API routes - allow CDN caching with short TTL
+# Let the API routes control their own Cache-Control headers (s-maxage, stale-while-revalidate)
+# This enables Netlify's edge cache to reduce function invocations
 [[headers]]
   for = "/api/*"
   [headers.values]
-    Cache-Control = "no-store, no-cache, must-revalidate"
+    Cache-Control = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
 
 # Preview context - clear cache to avoid stale artifacts
 [context.deploy-preview]

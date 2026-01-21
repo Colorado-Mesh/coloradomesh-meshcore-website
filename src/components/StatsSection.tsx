@@ -1,7 +1,6 @@
 'use client';
 
 import { useStats } from '@/hooks/useStats';
-import { formatNumber } from '@/lib/utils';
 
 function StatCard({
   value,

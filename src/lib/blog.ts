@@ -137,7 +137,15 @@ export function getAllPosts(): BlogPostMeta[] {
     .map((slug) => getPostBySlug(slug))
     .filter((post): post is BlogPost => post !== null && post.published)
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .map(({ content, published, ...meta }) => meta);
+    .map((post): BlogPostMeta => ({
+      slug: post.slug,
+      title: post.title,
+      date: post.date,
+      excerpt: post.excerpt,
+      author: post.author,
+      tags: post.tags,
+      readingTime: post.readingTime,
+    }));
 
   return posts;
 }

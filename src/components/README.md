@@ -191,9 +191,9 @@ import { StatsSection } from '@/components';
 
 **Features:**
 - 3-column grid layout (responsive)
-- Active Contacts card with icon
+- Nodes Heard card with icon
 - Messages card with 24h count
-- Network Reach card with hop statistics
+- Network Reach card with max hop count as primary value
 - Loading and error states
 - Auto-refresh via useStats hook
 
@@ -221,10 +221,10 @@ import { ObserverStats } from '@/components';
 
 **Features:**
 - 4-column responsive grid
-- Active Contacts with weekly context
+- Nodes Heard with 24h count
 - Messages with total count
 - Network Reach with hop stats
-- Bot Reply Rate percentage
+- Bot Reply Rate (24h command response rate)
 - Loading skeleton and error handling
 
 ---
@@ -250,7 +250,7 @@ import { TopContributors } from '@/components';
 ```
 
 **Features:**
-- Ranked list of top 8 messagers
+- Ranked list of top 8 messengers
 - Color-coded rank badges
 - Progress bars showing relative contribution
 - Total messages footer

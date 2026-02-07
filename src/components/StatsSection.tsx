@@ -50,11 +50,11 @@ export function StatsSection() {
     <section className="bg-background py-16 sm:py-20">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-          {/* Active Contacts */}
+          {/* Nodes Heard */}
           <StatCard
             value={stats?.contacts_24h ?? stats?.active_nodes ?? '--'}
-            label="Active Contacts"
-            sublabel="Nodes seen in 30 days"
+            label="Nodes Heard"
+            sublabel="Heard in last 24 hours"
             loading={loading}
             error={!!error}
             isActive={true}
@@ -82,7 +82,7 @@ export function StatsSection() {
           <StatCard
             value={stats?.messages_24h ?? stats?.packets_today ?? '--'}
             label="Messages"
-            sublabel="Sent in last 30 days"
+            sublabel="Sent in last 24 hours"
             loading={loading}
             error={!!error}
             iconBgClass="bg-mountain-500/10"
@@ -107,9 +107,9 @@ export function StatsSection() {
 
           {/* Network Reach */}
           <StatCard
-            value={stats?.avg_hop_count ? `${stats.avg_hop_count.toFixed(1)} hops` : '--'}
-            label="Avg Network Reach"
-            sublabel={stats?.max_hop_count ? `Max: ${stats.max_hop_count} hops` : 'Message distance'}
+            value={stats?.max_hop_count ? `${stats.max_hop_count} hops` : '--'}
+            label="Max Network Reach"
+            sublabel={stats?.avg_hop_count ? `Avg: ${stats.avg_hop_count.toFixed(1)} hops` : 'Message distance'}
             loading={loading}
             error={!!error}
             iconBgClass="bg-forest-500/10"

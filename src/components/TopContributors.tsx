@@ -85,7 +85,7 @@ export function TopContributors({ refreshInterval = OBSERVER_REFRESH_INTERVAL }:
           </svg>
           Top Messagers
         </h3>
-        <p className="text-foreground-muted text-sm">No messager data available yet.</p>
+        <p className="text-foreground-muted text-sm">No messenger data available yet.</p>
       </div>
     );
   }

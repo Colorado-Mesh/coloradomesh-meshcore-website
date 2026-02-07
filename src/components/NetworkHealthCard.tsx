@@ -236,36 +236,42 @@ export function NetworkHealthCard({ refreshInterval = OBSERVER_REFRESH_INTERVAL 
       {/* Additional Metrics */}
       {health && (
         <>
-          {/* Bot Metrics Row */}
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div className="p-3 rounded-lg bg-night-800/30">
-              <p className="text-lg font-mono font-semibold text-mesh">
-                {health.contacts_24h ?? '--'}
-              </p>
-              <p className="text-xs text-foreground-muted">Contacts (30d)</p>
-            </div>
-            <div className="p-3 rounded-lg bg-night-800/30">
-              <p className="text-lg font-mono font-semibold text-mountain-500">
-                {health.messages_24h ?? '--'}
-              </p>
-              <p className="text-xs text-foreground-muted">Messages (30d)</p>
-            </div>
-            <div className="p-3 rounded-lg bg-night-800/30">
-              <p className="text-lg font-mono font-semibold text-forest-500">
-                {health.avg_hop_count ? formatDecimal(health.avg_hop_count, ' hops') : '--'}
-              </p>
-              <p className="text-xs text-foreground-muted">Avg Reach</p>
-            </div>
-            <div className="p-3 rounded-lg bg-night-800/30">
-              <p className="text-lg font-mono font-semibold text-sunset-500">
-                {health.bot_reply_rate !== undefined ? `${health.bot_reply_rate.toFixed(0)}%` : '--'}
-              </p>
-              <p className="text-xs text-foreground-muted">Bot Response Rate</p>
+          {/* Messaging (via Bot) */}
+          <div className="mt-6">
+            <p className="text-[10px] uppercase tracking-wider text-foreground-muted/50 mb-2 px-1">Messaging (via Bot)</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="p-3 rounded-lg bg-night-800/30">
+                <p className="text-lg font-mono font-semibold text-mesh">
+                  {health.contacts_24h ?? '--'}
+                </p>
+                <p className="text-xs text-foreground-muted">Nodes Heard (24h)</p>
+              </div>
+              <div className="p-3 rounded-lg bg-night-800/30">
+                <p className="text-lg font-mono font-semibold text-mountain-500">
+                  {health.messages_24h ?? '--'}
+                </p>
+                <p className="text-xs text-foreground-muted">Messages (24h)</p>
+              </div>
+              <div className="p-3 rounded-lg bg-night-800/30">
+                <p className="text-lg font-mono font-semibold text-forest-500">
+                  {health.avg_hop_count ? formatDecimal(health.avg_hop_count, ' hops') : '--'}
+                </p>
+                <p className="text-xs text-foreground-muted">Avg Hops</p>
+              </div>
+              <div className="p-3 rounded-lg bg-night-800/30">
+                <p className="text-lg font-mono font-semibold text-sunset-500">
+                  {health.bot_reply_rate !== undefined ? `${health.bot_reply_rate.toFixed(0)}%` : '--'}
+                </p>
+                <p className="text-xs text-foreground-muted">Bot Response Rate</p>
+              </div>
             </div>
           </div>
 
-          {/* Signal Metrics Row */}
-          <div className="mt-4 grid grid-cols-3 gap-4 text-center">
+          {/* RF Telemetry (via MQTT) */}
+          <div className="mt-4">
+            <p className="text-[10px] uppercase tracking-wider text-foreground-muted/50 mb-2 px-1">RF Telemetry (via MQTT)</p>
+          </div>
+          <div className="grid grid-cols-3 gap-4 text-center">
             <div className="p-3 rounded-lg bg-night-800/30">
               <p className="text-lg font-mono font-semibold text-foreground">
                 {formatDecimal(health.avg_rssi, ' dBm')}
@@ -295,18 +301,15 @@ export function NetworkHealthCard({ refreshInterval = OBSERVER_REFRESH_INTERVAL 
             <h4 className="text-sm font-semibold text-foreground">Score Breakdown</h4>
             <span className="text-xs text-foreground-muted">10 pts max each</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { key: 'status', label: 'Status', color: 'bg-forest-500' },
-              { key: 'uptime', label: 'Uptime', color: 'bg-mesh' },
-              { key: 'signal', label: 'Signal', color: 'bg-mountain-500' },
-              { key: 'activity', label: 'Activity', color: 'bg-sunset-500' },
-              { key: 'responsiveness', label: 'Response', color: 'bg-forest-500' },
-              { key: 'reach', label: 'Reach', color: 'bg-mesh' },
-              { key: 'recency', label: 'Recency', color: 'bg-mountain-500' },
-              { key: 'diversity', label: 'Diversity', color: 'bg-sunset-500' },
-              { key: 'geo_coverage', label: 'Coverage', color: 'bg-forest-500' },
-              { key: 'latency', label: 'Latency', color: 'bg-mesh' },
+              { key: 'status', label: 'Nodes Online', color: 'bg-forest-500' },
+              { key: 'signal', label: 'Signal (SNR)', color: 'bg-mountain-500' },
+              { key: 'recency', label: 'Pkt Freshness', color: 'bg-mesh' },
+              { key: 'activity', label: 'Msg Activity', color: 'bg-sunset-500' },
+              { key: 'reach', label: 'Net Reach', color: 'bg-forest-500' },
+              { key: 'diversity', label: 'Community', color: 'bg-mountain-500' },
+              { key: 'geo_coverage', label: 'Geo Coverage', color: 'bg-mesh' },
             ].map(({ key, label, color }) => {
               const value = health.score_breakdown?.[key as keyof typeof health.score_breakdown] ?? 0;
               const percentage = (value / 10) * 100;

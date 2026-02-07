@@ -1,78 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getNetworkHealth, db } from '@/lib/db';
 import { getCachedOrFetch } from '@/lib/cache';
+import { fetchBotStats } from '@/lib/bot-api';
+import type { BotStats } from '@/lib/bot-api';
 import type { ApiResponse, NetworkHealth } from '@/lib/types';
 
 // Allow ISR caching for 30 seconds
 export const revalidate = 30;
 
-// meshcore-bot API URL (configured via environment variable)
-const BOT_API_URL = process.env.BOT_API_URL;
-
-// Cloudflare Access Service Token for bot API authentication
-const CF_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || '';
-const CF_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || '';
-
-interface BotStats {
-  contacts_24h: number;
-  contacts_7d: number;
-  messages_24h: number;
-  total_messages: number;
-  avg_hop_count: number;
-  max_hop_count: number;
-  bot_reply_rate_24h: number;
-  top_users: Array<{ user: string; count: number }>;
-  avg_response_time_ms?: number;
-}
-
 interface GeoData {
   geo_spread_km: number;
   nodes_with_location: number;
-}
-
-async function fetchBotStats(): Promise<BotStats | null> {
-  if (!BOT_API_URL) return null;
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for external request
-
-    // Build headers - include Cloudflare Access service token if configured
-    const headers: Record<string, string> = {};
-    if (CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET) {
-      headers['CF-Access-Client-Id'] = CF_ACCESS_CLIENT_ID;
-      headers['CF-Access-Client-Secret'] = CF_ACCESS_CLIENT_SECRET;
-    }
-
-    // Add top_users_window=30d to get 30-day data for top_users (matches UI labels)
-    const url = new URL(BOT_API_URL);
-    url.searchParams.set('top_users_window', '30d');
-
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers,
-      next: { revalidate: 30 },
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-    const data = await res.json();
-
-    return {
-      contacts_24h: data.contacts_24h || 0,
-      contacts_7d: data.contacts_7d || 0,
-      messages_24h: data.messages_24h || 0,
-      total_messages: data.total_messages || 0,
-      avg_hop_count: data.avg_hop_count || 0,
-      max_hop_count: data.max_hop_count || 0,
-      bot_reply_rate_24h: data.bot_reply_rate_24h || 0,
-      top_users: data.top_users || [],
-      avg_response_time_ms: data.avg_response_time_ms,
-    };
-  } catch {
-    return null;
-  }
 }
 
 /**
@@ -138,8 +76,17 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
 }
 
 /**
- * Calculate comprehensive network health score (0-100)
- * Based on 10 weighted components
+ * Calculate network health score (0-70) from 7 real components
+ * Each component scores 0-10 based on actual network data.
+ *
+ * Components:
+ * 1. Nodes Online - % of known nodes currently active (Turso)
+ * 2. Signal (SNR) - Average signal-to-noise ratio (Turso)
+ * 3. Packet Freshness - Time since last MQTT packet (Turso)
+ * 4. Message Activity - Messages in 24h (Bot API)
+ * 5. Network Reach - Max hop count seen (Bot API)
+ * 6. Community - Unique human messengers in 30d (Bot API)
+ * 7. Geo Coverage - Geographic spread in km (Turso)
  */
 function calculateNetworkScore(
   health: NetworkHealth,
@@ -159,21 +106,18 @@ function calculateNetworkScore(
     latency: 0,
   };
 
-  // 1. Status (0-10 points) - requires healthy status AND multiple active nodes
-  if (health.status === 'healthy' && health.active_nodes >= 10) breakdown.status = 10;
-  else if (health.status === 'healthy' && health.active_nodes >= 5) breakdown.status = 8;
-  else if (health.status === 'healthy') breakdown.status = 6;
-  else if (health.status === 'degraded') breakdown.status = 3;
+  // 1. Nodes Online (status slot) - % of known nodes currently active
+  // Calibrated for ~15 total nodes
+  const onlinePct = health.total_nodes > 0
+    ? (health.active_nodes / health.total_nodes) * 100
+    : 0;
+  if (onlinePct >= 70) breakdown.status = 10;
+  else if (onlinePct >= 50) breakdown.status = 8;
+  else if (onlinePct >= 30) breakdown.status = 6;
+  else if (onlinePct >= 15) breakdown.status = 4;
+  else if (onlinePct > 0) breakdown.status = 2;
 
-  // 2. Uptime (0-10 points) - requires very high uptime
-  if (health.uptime_pct >= 99) breakdown.uptime = 10;
-  else if (health.uptime_pct >= 95) breakdown.uptime = 8;
-  else if (health.uptime_pct >= 90) breakdown.uptime = 6;
-  else if (health.uptime_pct >= 80) breakdown.uptime = 4;
-  else if (health.uptime_pct >= 50) breakdown.uptime = 2;
-  else breakdown.uptime = 1;
-
-  // 3. Signal Quality - SNR (0-10 points) - much higher thresholds
+  // 2. Signal Quality - SNR (signal slot)
   if (health.avg_snr !== null) {
     if (health.avg_snr >= 15) breakdown.signal = 10;
     else if (health.avg_snr >= 12) breakdown.signal = 8;
@@ -183,18 +127,18 @@ function calculateNetworkScore(
     else breakdown.signal = 1;
   }
 
-  // 4. Recency - time since last packet (0-10 points) - tighter windows
+  // 3. Packet Freshness (recency slot) - time since last MQTT packet
   if (health.last_packet_at) {
     const minutesSincePacket = (Date.now() - new Date(health.last_packet_at).getTime()) / 60000;
-    if (minutesSincePacket < 1) breakdown.recency = 10;
-    else if (minutesSincePacket < 5) breakdown.recency = 8;
-    else if (minutesSincePacket < 15) breakdown.recency = 6;
-    else if (minutesSincePacket < 30) breakdown.recency = 4;
-    else if (minutesSincePacket < 60) breakdown.recency = 2;
+    if (minutesSincePacket < 5) breakdown.recency = 10;
+    else if (minutesSincePacket < 15) breakdown.recency = 8;
+    else if (minutesSincePacket < 30) breakdown.recency = 6;
+    else if (minutesSincePacket < 60) breakdown.recency = 4;
+    else if (minutesSincePacket < 120) breakdown.recency = 2;
     else breakdown.recency = 1;
   }
 
-  // 5. Geographic Coverage (0-10 points)
+  // 4. Geographic Coverage (geo_coverage slot)
   // Goal: Fort Collins to Colorado Springs (~160km)
   if (geoData.geo_spread_km >= 150) breakdown.geo_coverage = 10;
   else if (geoData.geo_spread_km >= 100) breakdown.geo_coverage = 8;
@@ -203,83 +147,83 @@ function calculateNetworkScore(
   else if (geoData.geo_spread_km > 0) breakdown.geo_coverage = 2;
 
   if (botStats) {
-    // 6. Activity (0-10 points) - require much more activity
-    // Need 1000+ messages/day and 50+ contacts for max
-    const msgScore = Math.min(5, Math.log10(botStats.messages_24h + 1) * 1.5);
-    const contactScore = Math.min(5, Math.log10(botStats.contacts_24h + 1) * 1.5);
-    breakdown.activity = Math.round(msgScore + contactScore);
+    // 5. Message Activity (activity slot)
+    // Calibrated for ~42 msgs/day: 40+ = 10, 20+ = 8, 10+ = 6, 5+ = 4, 1+ = 2
+    if (botStats.messages_24h >= 40) breakdown.activity = 10;
+    else if (botStats.messages_24h >= 20) breakdown.activity = 8;
+    else if (botStats.messages_24h >= 10) breakdown.activity = 6;
+    else if (botStats.messages_24h >= 5) breakdown.activity = 4;
+    else if (botStats.messages_24h >= 1) breakdown.activity = 2;
 
-    // 7. Bot Responsiveness (0-10 points) - require near-perfect
-    if (botStats.bot_reply_rate_24h >= 99) breakdown.responsiveness = 10;
-    else if (botStats.bot_reply_rate_24h >= 95) breakdown.responsiveness = 8;
-    else if (botStats.bot_reply_rate_24h >= 90) breakdown.responsiveness = 6;
-    else if (botStats.bot_reply_rate_24h >= 80) breakdown.responsiveness = 4;
-    else if (botStats.bot_reply_rate_24h >= 50) breakdown.responsiveness = 2;
-    else breakdown.responsiveness = 1;
-
-    // 8. Network Reach - hop count (0-10 points)
-    // Goal: multi-hop network spanning Front Range
-    if (botStats.max_hop_count >= 8) breakdown.reach = 10;
-    else if (botStats.max_hop_count >= 6) breakdown.reach = 8;
+    // 6. Network Reach (reach slot) - max hop count
+    // Calibrated for current max 3-5 hops
+    if (botStats.max_hop_count >= 6) breakdown.reach = 10;
+    else if (botStats.max_hop_count >= 5) breakdown.reach = 8;
     else if (botStats.max_hop_count >= 4) breakdown.reach = 6;
-    else if (botStats.avg_hop_count >= 2.5) breakdown.reach = 4;
-    else if (botStats.avg_hop_count >= 1.5) breakdown.reach = 2;
-    else breakdown.reach = 1;
+    else if (botStats.max_hop_count >= 3) breakdown.reach = 4;
+    else if (botStats.max_hop_count >= 2) breakdown.reach = 2;
+    else if (botStats.max_hop_count >= 1) breakdown.reach = 1;
 
-    // 9. User Diversity (0-10 points)
-    // Goal: thriving community with 50+ active users
+    // 7. Community / Diversity (diversity slot) - unique human messengers (30d)
+    // Calibrated for ~11 human messengers
     const uniqueUsers = botStats.top_users.length;
-    breakdown.diversity = Math.min(10, Math.round(uniqueUsers / 5));
-
-    // 10. Latency (0-10 points) - easy to achieve, LoRa is slow by nature
-    if (botStats.avg_response_time_ms !== undefined) {
-      if (botStats.avg_response_time_ms < 5000) breakdown.latency = 10;
-      else if (botStats.avg_response_time_ms < 10000) breakdown.latency = 8;
-      else if (botStats.avg_response_time_ms < 30000) breakdown.latency = 6;
-      else if (botStats.avg_response_time_ms < 60000) breakdown.latency = 4;
-      else breakdown.latency = 2;
-    } else {
-      // Estimate from hop count if no direct latency data - be generous
-      if (botStats.avg_hop_count <= 3) breakdown.latency = 10;
-      else if (botStats.avg_hop_count <= 5) breakdown.latency = 8;
-      else breakdown.latency = 6;
-    }
+    if (uniqueUsers >= 20) breakdown.diversity = 10;
+    else if (uniqueUsers >= 15) breakdown.diversity = 8;
+    else if (uniqueUsers >= 10) breakdown.diversity = 6;
+    else if (uniqueUsers >= 5) breakdown.diversity = 4;
+    else if (uniqueUsers >= 2) breakdown.diversity = 2;
+    else if (uniqueUsers >= 1) breakdown.diversity = 1;
   } else {
     // Fallback scoring if bot is offline
     if (health.active_nodes > 0) {
-      breakdown.activity = 2;
-      breakdown.reach = 2;
+      breakdown.activity = 1;
+      breakdown.reach = 1;
     }
   }
 
-  // Calculate total score
+  // Unused slots set to 0 for backward compatibility
+  // uptime, responsiveness, latency are no longer scored
+
+  // Calculate total score (max 70 from 7 active components), normalized to 0-100
   const totalScore = Object.values(breakdown).reduce((sum, val) => sum + val, 0);
 
   return {
-    score: Math.round(Math.min(100, Math.max(0, totalScore))),
+    score: Math.round(Math.min(100, Math.max(0, (totalScore / 70) * 100))),
     breakdown,
   };
 }
 
 /**
- * Update observer/gateway node's last_seen timestamp when bot is active
- * Matches by node_type OR name patterns (case-insensitive, handles leetspeak)
+ * Determine network status from real signals.
+ * Uses actual node availability, packet recency, and error count.
  */
-async function updateObserverLastSeen(): Promise<void> {
-  try {
-    await db.execute({
-      sql: `UPDATE nodes SET last_seen = datetime('now')
-            WHERE node_type = 'gateway'
-               OR LOWER(name) LIKE '%observer%'
-               OR LOWER(name) LIKE '%0bserver%'
-               OR LOWER(name) LIKE '%obs3rver%'
-               OR LOWER(name) LIKE '%0bs3rver%'
-               OR LOWER(name) LIKE '%gateway%'`,
-      args: [],
-    });
-  } catch {
-    // Ignore errors - not critical
+function determineStatus(
+  health: NetworkHealth,
+  botStats: BotStats | null
+): 'healthy' | 'degraded' | 'offline' {
+  const hasRecentPacket = health.last_packet_at
+    ? (Date.now() - new Date(health.last_packet_at).getTime()) < 60 * 60 * 1000 // within 1 hour
+    : false;
+
+  const hasActiveNodes = health.active_nodes > 0;
+  const hasBotActivity = botStats !== null && botStats.messages_24h > 0;
+
+  // Offline: no active nodes AND no recent packets AND no bot activity
+  if (!hasActiveNodes && !hasRecentPacket && !hasBotActivity) {
+    return 'offline';
   }
+
+  // Healthy: multiple active nodes, recent data, low errors
+  const onlinePct = health.total_nodes > 0
+    ? (health.active_nodes / health.total_nodes) * 100
+    : 0;
+
+  if (hasActiveNodes && hasRecentPacket && onlinePct >= 30 && health.total_errors <= 5) {
+    return 'healthy';
+  }
+
+  // Everything else is degraded
+  return 'degraded';
 }
 
 export async function GET() {
@@ -292,11 +236,6 @@ export async function GET() {
         fetchBotStats(),
         calculateGeoSpread(),
       ]);
-
-      // If bot is active, update observer's last_seen
-      if (botStats && botStats.messages_24h > 0) {
-        updateObserverLastSeen(); // Fire and forget
-      }
 
       // Merge all stats into health
       const result: NetworkHealth = {
@@ -315,24 +254,13 @@ export async function GET() {
         nodes_with_location: geoData.nodes_with_location,
       };
 
-      // Re-evaluate status and uptime using bot metrics
-      if (botStats && botStats.messages_24h > 0) {
-        // Bot is receiving messages = network is up
-        // Calculate uptime based on bot reply rate (if bot responds, broker is up)
-        result.uptime_pct = Math.round(botStats.bot_reply_rate_24h);
-
-        // At least 1 active node if bot is working
-        if (result.active_nodes === 0) {
-          result.active_nodes = 1;
-        }
-
-        // Determine status based on bot activity
-        if (botStats.bot_reply_rate_24h >= 80 && botStats.contacts_24h >= 3) {
-          result.status = 'healthy';
-        } else if (botStats.bot_reply_rate_24h >= 50 || botStats.contacts_24h >= 1) {
-          result.status = 'degraded';
-        }
+      // Ensure at least 1 active node if bot is receiving messages
+      if (botStats && botStats.messages_24h > 0 && result.active_nodes === 0) {
+        result.active_nodes = 1;
       }
+
+      // Determine status from real network signals (no bot reply rate override)
+      result.status = determineStatus(result, botStats);
 
       // Calculate comprehensive network score
       const { score, breakdown } = calculateNetworkScore(result, botStats, geoData);

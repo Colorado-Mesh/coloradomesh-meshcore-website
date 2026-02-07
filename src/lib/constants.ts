@@ -90,6 +90,13 @@ export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
 
 // =============================================================================
+// Bot Configuration
+// =============================================================================
+
+/** Bot node name filtered from top_users leaderboard (automated, not a human messenger) */
+export const BOT_NODE_NAME = 'denvermc.com BOT';
+
+// =============================================================================
 // Validation
 // =============================================================================
 

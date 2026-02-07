@@ -1,73 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getCommunityStats } from '@/lib/db';
 import { getCachedOrFetch } from '@/lib/cache';
+import { fetchBotStats } from '@/lib/bot-api';
 import type { ApiResponse, CommunityStats } from '@/lib/types';
 
 // Allow ISR caching for 30 seconds
 export const revalidate = 30;
-
-// meshcore-bot API URL (configured via environment variable)
-const BOT_API_URL = process.env.BOT_API_URL;
-
-// Cloudflare Access Service Token for bot API authentication
-const CF_ACCESS_CLIENT_ID = process.env.CF_ACCESS_CLIENT_ID || '';
-const CF_ACCESS_CLIENT_SECRET = process.env.CF_ACCESS_CLIENT_SECRET || '';
-
-interface BotStats {
-  contacts_24h: number;
-  contacts_7d: number;
-  messages_24h: number;
-  total_messages: number;
-  avg_hop_count: number;
-  max_hop_count: number;
-  bot_reply_rate_24h: number;
-  top_users: Array<{ user: string; count: number }>;
-}
-
-async function fetchBotStats(): Promise<BotStats | null> {
-  if (!BOT_API_URL) return null;
-
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-    // Build headers - include Cloudflare Access service token if configured
-    const headers: Record<string, string> = {};
-    if (CF_ACCESS_CLIENT_ID && CF_ACCESS_CLIENT_SECRET) {
-      headers['CF-Access-Client-Id'] = CF_ACCESS_CLIENT_ID;
-      headers['CF-Access-Client-Secret'] = CF_ACCESS_CLIENT_SECRET;
-    }
-
-    // Add top_users_window=30d to get 30-day data for top_users (matches UI labels)
-    const url = new URL(BOT_API_URL);
-    url.searchParams.set('top_users_window', '30d');
-
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers,
-      next: { revalidate: 60 },
-    });
-
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-    const data = await res.json();
-
-    return {
-      contacts_24h: data.contacts_24h || 0,
-      contacts_7d: data.contacts_7d || 0,
-      messages_24h: data.messages_24h || 0,
-      total_messages: data.total_messages || 0,
-      avg_hop_count: data.avg_hop_count || 0,
-      max_hop_count: data.max_hop_count || 0,
-      bot_reply_rate_24h: data.bot_reply_rate_24h || 0,
-      top_users: data.top_users || [],
-    };
-  } catch {
-    console.warn('Failed to fetch bot stats (bot may be offline)');
-    return null;
-  }
-}
 
 export async function GET() {
   try {

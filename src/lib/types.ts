@@ -106,43 +106,67 @@ export interface CommunityStats {
 
 /**
  * Network health status information
+ *
+ * Data sources:
+ * - Turso DB: status, uptime_pct, active_nodes, total_nodes, avg_snr, avg_rssi,
+ *   avg_noise_floor, total_errors, last_packet_at, geo_spread_km, nodes_with_location
+ * - Bot API: contacts_24h (nodes heard), contacts_7d, messages_24h, avg_hop_count,
+ *   max_hop_count, bot_reply_rate, unique_contributors, avg_response_time_ms
  */
 export interface NetworkHealth {
+  /** Determined from real signals: node availability, packet recency, error count */
   status: 'healthy' | 'degraded' | 'offline';
+  /** Percentage of nodes currently online (from Turso) */
   uptime_pct: number;
   active_nodes: number;
   total_nodes: number;
+  /** Average signal-to-noise ratio from MQTT packets (Turso) */
   avg_snr: number | null;
   avg_rssi: number | null;
   avg_noise_floor: number | null;
   total_errors: number;
+  /** Most recent MQTT packet timestamp (Turso) */
   last_packet_at: string | null;
-  // Bot metrics for enhanced health assessment
+  /** Nodes that sent ADVERT packets in 24h (Bot API) - not human contacts */
   contacts_24h?: number;
   contacts_7d?: number;
+  /** Human + bot messages in 24h (Bot API) */
   messages_24h?: number;
   avg_hop_count?: number;
+  /** Best reach metric - max hops observed (Bot API) */
   max_hop_count?: number;
+  /** Bot command response rate in 24h (Bot API) */
   bot_reply_rate?: number;
+  /** Unique human messengers in 30d, excluding bot node (Bot API) */
   unique_contributors?: number;
-  // Geographic spread metrics
-  geo_spread_km?: number; // Approximate coverage area diameter
+  /** Max distance between any two nodes in km (Turso) */
+  geo_spread_km?: number;
   nodes_with_location?: number;
-  // Latency/performance metrics
   avg_response_time_ms?: number;
   packet_delivery_rate?: number;
-  // Network score breakdown
-  network_score?: number; // Combined health score 0-100
+  /** Combined health score 0-100 (7 components x 10 pts, normalized to 0-100) */
+  network_score?: number;
+  /** Score breakdown - 7 active components, unused slots set to 0 for compat */
   score_breakdown?: {
+    /** Nodes Online: % of known nodes currently active */
     status: number;
+    /** Unused (was faked from bot reply rate) - always 0 */
     uptime: number;
+    /** Signal (SNR): average signal-to-noise ratio */
     signal: number;
+    /** Message Activity: messages in 24h */
     activity: number;
+    /** Unused (merged into Packet Freshness) - always 0 */
     responsiveness: number;
+    /** Network Reach: max hop count seen */
     reach: number;
+    /** Packet Freshness: time since last MQTT packet */
     recency: number;
+    /** Community: unique human messengers (30d) */
     diversity: number;
+    /** Geo Coverage: geographic spread in km */
     geo_coverage: number;
+    /** Unused (not measurable) - always 0 */
     latency: number;
   };
 }

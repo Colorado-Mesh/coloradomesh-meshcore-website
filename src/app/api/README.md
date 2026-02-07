@@ -10,7 +10,7 @@ All endpoints are relative to the application base URL (e.g., `https://denvermc.
 
 | Route | Method | Description | Cache TTL | Auth Required |
 |-------|--------|-------------|-----------|---------------|
-| `/api/health` | GET | Network health status and 10-component scoring | 30s | No |
+| `/api/health` | GET | Network health status and 7-component scoring | 30s | No |
 | `/api/stats` | GET | Community-wide statistics with bot metrics | 60s | No |
 | `/api/nodes` | GET | List all nodes with computed statistics | No cache | No |
 | `/api/nodes/[id]` | GET | Single node details with packets and daily stats | No cache | No |
@@ -33,7 +33,7 @@ interface ApiResponse<T> {
 
 ## GET /api/health
 
-Returns comprehensive network health status including a 10-component health scoring system.
+Returns comprehensive network health status including a 7-component health scoring system.
 
 ### Sequence Diagram
 
@@ -41,31 +41,33 @@ Returns comprehensive network health status including a 10-component health scor
 sequenceDiagram
     participant Client
     participant API as /api/health
+    participant Cache as In-Memory Cache
     participant DB as Turso Database
-    participant Bot as meshcore-bot API
-    participant Geo as Geo Calculator
+    participant Bot as meshcore-bot API (via bot-api.ts)
 
     Client->>API: GET /api/health
+    API->>Cache: getCachedOrFetch('health', ..., 30s)
 
-    par Parallel Data Fetching
-        API->>DB: getNetworkHealth()
-        DB-->>API: NetworkHealth (status, nodes, uptime, SNR)
+    alt Cache Hit
+        Cache-->>API: Cached NetworkHealth
+    else Cache Miss
+        par Parallel Data Fetching
+            API->>DB: getNetworkHealth()
+            DB-->>API: NetworkHealth (nodes, uptime, SNR, errors)
 
-        API->>Bot: fetchBotStats() [5s timeout]
-        Note over Bot: CF Access Auth Headers
-        Bot-->>API: BotStats (messages, contacts, hops)
+            API->>Bot: fetchBotStats() [5s timeout]
+            Note over Bot: CF Access Auth Headers
+            Bot-->>API: BotStats (messages, contacts, hops)
 
-        API->>DB: calculateGeoSpread()
-        Note over Geo: Haversine formula<br/>for max node distance
-        DB-->>API: GeoData (spread_km, nodes_with_location)
-    end
+            API->>DB: calculateGeoSpread()
+            Note over DB: Haversine formula<br/>for max node distance
+            DB-->>API: GeoData (spread_km, nodes_with_location)
+        end
 
-    API->>API: Merge all stats
-    API->>API: Re-evaluate status using bot metrics
-    API->>API: calculateNetworkScore() [10 components]
-
-    opt Bot Active
-        API->>DB: updateObserverLastSeen() [fire & forget]
+        API->>API: Merge all stats
+        API->>API: determineStatus() from real signals
+        API->>API: calculateNetworkScore() [7 components]
+        Cache-->>API: Store result (30s TTL)
     end
 
     API-->>Client: NetworkHealth with score breakdown
@@ -126,76 +128,77 @@ interface NetworkHealth {
   "success": true,
   "data": {
     "status": "healthy",
-    "uptime_pct": 95,
-    "active_nodes": 12,
-    "total_nodes": 25,
+    "uptime_pct": 47,
+    "active_nodes": 7,
+    "total_nodes": 15,
     "avg_snr": 8.5,
     "avg_rssi": -95,
     "avg_noise_floor": -110,
     "total_errors": 3,
     "last_packet_at": "2024-01-15T10:30:00Z",
-    "contacts_24h": 45,
-    "contacts_7d": 180,
-    "messages_24h": 523,
+    "contacts_24h": 8,
+    "contacts_7d": 22,
+    "messages_24h": 42,
     "avg_hop_count": 2.3,
     "max_hop_count": 5,
     "bot_reply_rate": 94,
-    "unique_contributors": 18,
+    "unique_contributors": 11,
     "geo_spread_km": 85.4,
-    "nodes_with_location": 15,
+    "nodes_with_location": 10,
     "avg_response_time_ms": 4500,
-    "network_score": 72,
+    "network_score": 64,
     "score_breakdown": {
-      "status": 8,
-      "uptime": 8,
+      "status": 6,
+      "uptime": 0,
       "signal": 6,
-      "activity": 7,
-      "responsiveness": 6,
-      "reach": 6,
+      "activity": 8,
+      "responsiveness": 0,
+      "reach": 8,
       "recency": 10,
-      "diversity": 4,
-      "geo_coverage": 8,
-      "latency": 10
+      "diversity": 6,
+      "geo_coverage": 6,
+      "latency": 0
     }
   }
 }
 ```
 
+> **Note:** `uptime`, `responsiveness`, and `latency` are always 0 (unused slots kept for backward compatibility).
+
 ---
 
 ## Network Health Scoring System
 
-The network score is calculated from **10 weighted components**, each worth 0-10 points (max 100 total).
+The network score is calculated from **7 real components**, each worth 0-10 points (max 70 raw, normalized to 0-100).
+
+Three unused slots (`uptime`, `responsiveness`, `latency`) are kept at 0 for backward compatibility with UI and Discord webhooks.
 
 ### Score Components & Thresholds
 
-| Component | Description | 10 Points | 8 Points | 6 Points | 4 Points | 2 Points |
-|-----------|-------------|-----------|----------|----------|----------|----------|
-| **Status** | Network health status | healthy + ≥10 nodes | healthy + ≥5 nodes | healthy | degraded (3) | - |
-| **Uptime** | Bot reply rate / uptime % | ≥99% | ≥95% | ≥90% | ≥80% | ≥50% |
-| **Signal** | Average SNR (dB) | ≥15 dB | ≥12 dB | ≥8 dB | ≥5 dB | ≥0 dB |
-| **Activity** | Messages + contacts (log scale) | High activity | - | - | - | Low activity |
-| **Responsiveness** | Bot reply rate 24h | ≥99% | ≥95% | ≥90% | ≥80% | ≥50% |
-| **Reach** | Multi-hop network span | max ≥8 hops | max ≥6 hops | max ≥4 hops | avg ≥2.5 | avg ≥1.5 |
-| **Recency** | Time since last packet | <1 min | <5 min | <15 min | <30 min | <60 min |
-| **Diversity** | Unique active users | ≥50 users | ≥40 users | ≥30 users | ≥20 users | ≥10 users |
-| **Geo Coverage** | Geographic spread | ≥150 km | ≥100 km | ≥60 km | ≥30 km | >0 km |
-| **Latency** | Response time (LoRa) | <5s | <10s | <30s | <60s | >60s |
+| # | Component | Source | 10 pts | 8 pts | 6 pts | 4 pts | 2 pts |
+|---|-----------|--------|--------|-------|-------|-------|-------|
+| 1 | **Nodes Online** | Turso | ≥70% online | ≥50% | ≥30% | ≥15% | >0% |
+| 2 | **Signal (SNR)** | Turso | ≥15 dB | ≥12 dB | ≥8 dB | ≥5 dB | ≥0 dB |
+| 3 | **Packet Freshness** | Turso | <5 min | <15 min | <30 min | <60 min | <120 min |
+| 4 | **Message Activity** | Bot API | ≥40 msgs/24h | ≥20 | ≥10 | ≥5 | ≥1 |
+| 5 | **Network Reach** | Bot API | ≥6 hops | ≥5 | ≥4 | ≥3 | ≥2 |
+| 6 | **Community** | Bot API | ≥20 users (30d) | ≥15 | ≥10 | ≥5 | ≥2 |
+| 7 | **Geo Coverage** | Turso | ≥150 km | ≥100 km | ≥60 km | ≥30 km | >0 km |
 
 ### Score Calculation Details
 
 ```typescript
 interface ScoreBreakdown {
-  status: number;        // 0-10: Network status + node count
-  uptime: number;        // 0-10: System uptime percentage
+  status: number;        // 0-10: Nodes Online (% of known nodes active)
+  uptime: number;        // Always 0 (unused)
   signal: number;        // 0-10: Signal-to-noise ratio quality
-  activity: number;      // 0-10: Message and contact activity (log scale)
-  responsiveness: number; // 0-10: Bot response rate
-  reach: number;         // 0-10: Multi-hop network depth
-  recency: number;       // 0-10: Freshness of last packet
-  diversity: number;     // 0-10: Unique user count
+  activity: number;      // 0-10: Messages in 24h
+  responsiveness: number; // Always 0 (unused)
+  reach: number;         // 0-10: Max hop count seen
+  recency: number;       // 0-10: Time since last MQTT packet
+  diversity: number;     // 0-10: Unique human messengers (30d)
   geo_coverage: number;  // 0-10: Geographic spread (km)
-  latency: number;       // 0-10: Message response time
+  latency: number;       // Always 0 (unused)
 }
 ```
 
@@ -526,7 +529,7 @@ interface ErrorResponse {
 
 | Endpoint | Next.js `revalidate` | Cache-Control Header |
 |----------|---------------------|---------------------|
-| `/api/health` | 30 seconds | `public, s-maxage=30, stale-while-revalidate=15` |
+| `/api/health` | 30 seconds | `public, s-maxage=30, stale-while-revalidate=60` |
 | `/api/stats` | 60 seconds | `public, s-maxage=60, stale-while-revalidate=30` |
 | `/api/nodes` | None | None |
 | `/api/nodes/[id]` | None | None |

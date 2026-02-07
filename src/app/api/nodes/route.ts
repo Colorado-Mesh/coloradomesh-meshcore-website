@@ -1,28 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getNodesWithStats, db } from '@/lib/db';
+import { getNodesWithStats } from '@/lib/db';
 import { getCachedOrFetch } from '@/lib/cache';
 import type { ApiResponse, NodeWithStats } from '@/lib/types';
-
-/**
- * Update observer/gateway node's last_seen timestamp
- * Matches by node_type OR name patterns (case-insensitive, handles leetspeak)
- */
-async function updateObserverLastSeen(): Promise<void> {
-  try {
-    await db.execute({
-      sql: `UPDATE nodes SET last_seen = datetime('now')
-            WHERE node_type = 'gateway'
-               OR LOWER(name) LIKE '%observer%'
-               OR LOWER(name) LIKE '%0bserver%'
-               OR LOWER(name) LIKE '%obs3rver%'
-               OR LOWER(name) LIKE '%0bs3rver%'
-               OR LOWER(name) LIKE '%gateway%'`,
-      args: [],
-    });
-  } catch {
-    // Ignore errors - not critical
-  }
-}
 
 // Allow ISR caching for 30 seconds
 export const revalidate = 30;
@@ -35,8 +14,6 @@ export async function GET() {
   try {
     // Use in-memory cache to reduce function invocations (30 second TTL)
     const nodes = await getCachedOrFetch<NodeWithStats[]>('nodes', async () => {
-      // Update observer last_seen before fetching
-      await updateObserverLastSeen();
       return getNodesWithStats();
     }, 30);
 

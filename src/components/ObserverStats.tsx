@@ -64,7 +64,7 @@ export function ObserverStats({ refreshInterval = OBSERVER_REFRESH_INTERVAL }: O
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {/* Active Contacts */}
+      {/* Nodes Heard */}
       <div className="card-mesh p-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="h-10 w-10 rounded-lg bg-mesh/20 flex items-center justify-center">
@@ -83,13 +83,13 @@ export function ObserverStats({ refreshInterval = OBSERVER_REFRESH_INTERVAL }: O
               />
             </svg>
           </div>
-          <span className="text-sm text-foreground-muted">Active Contacts</span>
+          <span className="text-sm text-foreground-muted">Nodes Heard</span>
         </div>
         <p className="text-3xl font-bold text-foreground font-mono">
           {formatNumber(stats?.contacts_24h ?? stats?.active_nodes)}
         </p>
         <p className="text-xs text-foreground-muted mt-1">
-          {stats?.contacts_7d ? `${stats.contacts_7d} this week` : 'Nodes seen in 30 days'}
+          {stats?.contacts_7d ? `${stats.contacts_7d} this week` : 'Heard in last 24h'}
         </p>
       </div>
 
@@ -176,7 +176,7 @@ export function ObserverStats({ refreshInterval = OBSERVER_REFRESH_INTERVAL }: O
           {stats?.bot_reply_rate_24h !== undefined ? `${stats.bot_reply_rate_24h.toFixed(0)}%` : formatDecimal(stats?.avg_snr)}
         </p>
         <p className="text-xs text-foreground-muted mt-1">
-          {stats?.bot_reply_rate_24h !== undefined ? '30-day response rate' : 'Signal-to-noise ratio'}
+          {stats?.bot_reply_rate_24h !== undefined ? '24h command response rate' : 'Signal-to-noise ratio'}
         </p>
       </div>
     </div>

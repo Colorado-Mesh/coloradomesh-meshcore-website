@@ -208,7 +208,7 @@ function formatCoverage(geoSpread: number | undefined, nodesWithLocation: number
 
 function formatActivity(messages: number | undefined, contacts: number | undefined): string {
   const msgStr = messages !== undefined ? `${messages} messages` : 'N/A';
-  const contactStr = contacts !== undefined ? `${contacts} contacts` : 'N/A';
+  const contactStr = contacts !== undefined ? `${contacts} nodes heard` : 'N/A';
   return `${msgStr}\n${contactStr}`;
 }
 
@@ -216,11 +216,13 @@ function buildScoreBreakdownField(
   breakdown: NonNullable<NetworkHealth['score_breakdown']>
 ): { name: string; value: string; inline: boolean } {
   const components = [
-    `Status: ${breakdown.status}/10`,
-    `Uptime: ${breakdown.uptime}/10`,
+    `Nodes: ${breakdown.status}/10`,
     `Signal: ${breakdown.signal}/10`,
+    `Freshness: ${breakdown.recency}/10`,
     `Activity: ${breakdown.activity}/10`,
-    `Response: ${breakdown.responsiveness}/10`,
+    `Reach: ${breakdown.reach}/10`,
+    `Community: ${breakdown.diversity}/10`,
+    `Coverage: ${breakdown.geo_coverage}/10`,
   ];
   return {
     name: ':clipboard: Score Breakdown',

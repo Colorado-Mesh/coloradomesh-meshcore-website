@@ -33,7 +33,7 @@ export const metadata: Metadata = {
 
 const OBSERVERS = [
   {
-    name: 'denvermc.com',
+    name: '\u{1F47B}CO-DENVER-RUBYHL-OB',
     url: 'https://analyzer.letsmesh.net/node/4D0CC1003DBF678DF420907F9ACD77BD71D9E4C34300F72660F6BA6A2656A868',
   },
   {

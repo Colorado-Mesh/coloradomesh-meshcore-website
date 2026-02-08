@@ -1,0 +1,98 @@
+---
+title: "Network Health Deep Dive: What Our Dashboard Metrics Actually Mean"
+description: "A plain-English breakdown of Denver MeshCore's 7-component network health score — what each metric measures, why it matters, and what you can do to help improve it."
+date: "2026-02-08"
+excerpt: "Ever wondered what that network health score on our observer page actually means? Here's the full breakdown of all seven components — and how you can help improve them."
+author: "Denver MeshCore"
+tags: ["Network Health", "Observer", "Metrics", "Community"]
+published: true
+---
+
+If you've visited our [observer page](/observer), you've seen the big network health score front and center. But what actually goes into that number? It's not a guess — it's a real-time calculation built from seven distinct measurements of how our mesh network is performing across the Front Range.
+
+Here's exactly how it works.
+
+## How the Score Works
+
+Our network health score runs from 0 to 100. Seven components each earn 0 to 10 points based on live data from our nodes and community bot. Those points are added up and scaled to a 0–100 range.
+
+The score maps to four grades:
+
+- **80–100: Excellent** — the network is firing on all cylinders
+- **60–79: Good** — things are running well with room to grow
+- **40–59: Fair** — the network is functional but some areas need attention
+- **Below 40: Poor** — significant issues need to be addressed
+
+You'll also see one of three status labels: **Healthy**, **Degraded**, or **Offline**. Healthy means we have active nodes, recent data flowing, and at least 30% of known nodes online with few errors. Offline means nothing is reporting at all. Everything in between is Degraded.
+
+## The Seven Components
+
+### 1. Nodes Online
+
+This is the percentage of known nodes that are currently active and reporting to the network. If we know about 15 nodes and 10 are online, that's about 67%. More nodes online means better coverage and more relay paths for your messages.
+
+- **10 points**: 70%+ of nodes online
+- **6 points**: 30%+ online
+- **2 points**: At least one node active
+
+### 2. Signal Quality (SNR)
+
+Signal-to-noise ratio measures how clean the signal is coming through, averaged across all nodes in decibels. Higher SNR means messages are getting through clearly with fewer errors. Colorado's terrain can be tough on radio signals, so this metric tells us how well our antenna placements and node positions are holding up.
+
+- **10 points**: Average SNR of 15 dB or higher
+- **6 points**: 8 dB or higher
+- **2 points**: 0 dB or higher (signal barely above noise)
+
+### 3. Packet Freshness
+
+How recently did we receive any data from the network? This is a straightforward liveness check. If packets are flowing in every few minutes, the network is alive and well. If the last packet was hours ago, something might be wrong.
+
+- **10 points**: Data received in the last 5 minutes
+- **6 points**: Within the last 30 minutes
+- **2 points**: Within the last 2 hours
+
+### 4. Message Activity
+
+Total messages sent across the network in the last 24 hours, including both human messages and bot interactions. An active network is a useful network. This metric tells us whether people are actually using the mesh for communication, not just running nodes in silence.
+
+- **10 points**: 40+ messages per day
+- **6 points**: 10+ messages per day
+- **2 points**: At least 1 message
+
+### 5. Network Reach
+
+The maximum number of hops a message has traveled through the network. If a message goes from your node to a repeater to another repeater to the destination, that's 3 hops. Higher reach means the mesh is doing what it's supposed to do — relaying messages across distances no single node could cover. Our current network typically sees 3 to 5 hops.
+
+- **10 points**: 6+ hops
+- **6 points**: 4+ hops
+- **2 points**: 2+ hops
+
+### 6. Community Diversity
+
+The number of unique people who have sent messages over the last 30 days, excluding our automated bot. A mesh network with only one person talking to themselves isn't much of a network. This metric tracks how many real humans are actively participating.
+
+- **10 points**: 20+ unique messengers
+- **6 points**: 10+ unique messengers
+- **2 points**: 2+ unique messengers
+
+### 7. Geographic Coverage
+
+The maximum distance between any two nodes in our network, calculated using the Haversine formula (the same math used for flight distances). Our goal is coverage from Fort Collins to Colorado Springs — roughly 160 km along the Front Range. The wider our geographic spread, the more useful the network is for real-world communication.
+
+- **10 points**: 150+ km spread
+- **6 points**: 60+ km spread
+- **2 points**: Any measurable spread
+
+## How You Can Help Improve the Score
+
+Every one of these metrics is something the community directly influences. Here's what you can do:
+
+- **Keep your node powered on.** Even if you're not actively messaging, an online node boosts Nodes Online and Packet Freshness. Solar setups help keep mountain nodes running through Colorado winters.
+- **Optimize your antenna placement.** A better antenna position means better SNR. Get your antenna near a window, on a balcony, or on a rooftop if you can. Elevation matters in the Front Range.
+- **Send messages.** Use the network. Say hello, test a relay, check in during a storm. Every message boosts Message Activity and helps demonstrate the network's value.
+- **Get your friends involved.** More unique participants means higher Community Diversity. The network gets better when more people are on it.
+- **Set up nodes in new areas.** If you're outside the current coverage footprint, your node directly expands Geographic Coverage and Network Reach. Nodes in Fort Collins, Colorado Springs, or the mountain communities are especially valuable.
+
+---
+
+Check the live score anytime on our [observer page](/observer). If you want to get involved and help push that number higher, join the [community](/community). The network gets stronger with every node and every person on it.

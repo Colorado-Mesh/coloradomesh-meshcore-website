@@ -44,6 +44,10 @@ const OBSERVERS = [
     name: '🦉 CO-LFAYTE-OB01',
     url: 'https://analyzer.letsmesh.net/node/71B12612421B83C340A756240B20B7CCEAFFAA0DD29E3BFF6A4A6D221E9ADE79',
   },
+  {
+    name: 'CO-CMRCE-TWR+96-OB01',
+    url: 'https://analyzer.letsmesh.net/node/9F39877225414E904FD982AB8782F526026A388D1A6106F2C821E158675A82AD',
+  },
 ];
 
 const breadcrumbData = generateBreadcrumbSchema([

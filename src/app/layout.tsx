@@ -67,6 +67,9 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   alternates: {
     canonical: "/",
+    types: {
+      'application/rss+xml': '/feed.xml',
+    },
   },
   openGraph: {
     type: "website",

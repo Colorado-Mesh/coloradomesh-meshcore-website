@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import JsonLd from '@/components/JsonLd';
+import Breadcrumbs from '@/components/Breadcrumbs';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import { BASE_URL } from '@/lib/constants';
 
@@ -182,6 +183,7 @@ export default function UseCasesPage() {
         {/* Hero Section */}
         <section className="px-6 py-16 md:py-24 text-center">
           <div className="max-w-4xl mx-auto">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Use Cases' }]} />
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
               MeshCore <span className="text-mesh">Use Cases</span>
             </h1>

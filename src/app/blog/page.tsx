@@ -102,18 +102,6 @@ export default function BlogPage() {
                         <div className="flex flex-wrap items-center gap-4 text-sm text-foreground-muted">
                           <span>{formatDate(post.date)}</span>
                           <span>{post.readingTime}</span>
-                          {post.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {post.tags.slice(0, 3).map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-0.5 bg-mesh/10 text-mesh rounded-full text-xs"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          )}
                         </div>
                       </div>
                       <div className="hidden sm:block">
@@ -136,6 +124,19 @@ export default function BlogPage() {
                       </div>
                     </div>
                   </Link>
+                  {post.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {post.tags.map((tag) => (
+                        <Link
+                          key={tag}
+                          href={`/blog/tag/${encodeURIComponent(tag.toLowerCase())}`}
+                          className="px-2 py-0.5 bg-mesh/10 text-mesh rounded-full text-xs hover:bg-mesh/20 transition-colors"
+                        >
+                          {tag}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

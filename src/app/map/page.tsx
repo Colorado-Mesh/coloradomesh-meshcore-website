@@ -2,7 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { NetworkMapWrapper } from '@/components';
 import JsonLd from '@/components/JsonLd';
+import Breadcrumbs from '@/components/Breadcrumbs';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
+import { generateWebApplicationSchema } from '@/lib/schemas/webapp';
 import { BASE_URL } from '@/lib/constants';
 
 // Force dynamic rendering to prevent stale cache issues on Netlify
@@ -40,14 +42,23 @@ const breadcrumbData = generateBreadcrumbSchema([
   { name: 'Network Map', url: `${BASE_URL}/map` },
 ]);
 
+const webAppData = generateWebApplicationSchema({
+  name: 'Denver MeshCore Network Map',
+  description:
+    'Interactive map of Denver MeshCore network nodes across the Colorado Front Range. View live node locations, coverage areas, and network topology.',
+  url: `${BASE_URL}/map`,
+});
+
 export default function MapPage() {
   return (
     <>
       <JsonLd data={breadcrumbData} />
+      <JsonLd data={webAppData} />
       <div className="min-h-screen bg-mesh">
         {/* Header */}
         <section className="px-6 py-12 md:py-16">
           <div className="mx-auto max-w-7xl">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Network Map' }]} />
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">

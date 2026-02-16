@@ -1,10 +1,12 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getPostBySlug, getPostSlugs } from '@/lib/blog';
+import { getPostBySlug, getPostSlugs, getRelatedPosts } from '@/lib/blog';
 import { generateBlogPostSchema } from '@/lib/schemas/blog';
+import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import { BASE_URL } from '@/lib/constants';
 import JsonLd from '@/components/JsonLd';
+import Breadcrumbs from '@/components/Breadcrumbs';
 import { compileMDX } from 'next-mdx-remote/rsc';
 import remarkGfm from 'remark-gfm';
 import rehypeSlug from 'rehype-slug';
@@ -40,6 +42,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description: post.excerpt,
       type: 'article',
       publishedTime: post.date,
+      modifiedTime: post.dateModified || post.date,
       authors: [post.author],
       url: `${BASE_URL}/blog/${slug}`,
     },
@@ -89,50 +92,42 @@ export default async function BlogPostPage({ params }: PageProps) {
     title: post.title,
     excerpt: post.excerpt,
     date: post.date,
+    dateModified: post.dateModified,
     author: post.author,
     slug: post.slug,
   });
 
+  const relatedPosts = getRelatedPosts(post.slug, post.tags, 3);
+
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: BASE_URL },
+    { name: 'Blog', url: `${BASE_URL}/blog` },
+    { name: post.title, url: `${BASE_URL}/blog/${post.slug}` },
+  ]);
+
   return (
     <>
       <JsonLd data={blogPostSchema} />
+      <JsonLd data={breadcrumbSchema} />
 
       <article className="min-h-screen bg-background">
         {/* Header */}
         <header className="relative py-16 sm:py-24 overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-mesh/5 to-transparent" />
           <div className="relative mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-            {/* Back link */}
-            <Link
-              href="/blog"
-              className="inline-flex items-center text-mesh hover:text-mesh/80 mb-8 transition-colors"
-            >
-              <svg
-                className="w-4 h-4 mr-2"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back to Blog
-            </Link>
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Blog', href: '/blog' }, { label: post.title }]} />
 
             {/* Tags */}
             {post.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {post.tags.map((tag) => (
-                  <span
+                  <Link
                     key={tag}
-                    className="px-3 py-1 bg-mesh/10 text-mesh rounded-full text-sm"
+                    href={`/blog/tag/${encodeURIComponent(tag.toLowerCase())}`}
+                    className="px-3 py-1 bg-mesh/10 text-mesh rounded-full text-sm hover:bg-mesh/20 transition-colors"
                   >
                     {tag}
-                  </span>
+                  </Link>
                 ))}
               </div>
             )}
@@ -159,6 +154,30 @@ export default async function BlogPostPage({ params }: PageProps) {
             {content}
           </div>
         </div>
+
+        {/* Related Posts */}
+        {relatedPosts.length > 0 && (
+          <section className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 pb-12">
+            <h2 className="text-2xl font-bold text-foreground mb-6">Related Posts</h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {relatedPosts.map((related) => (
+                <Link
+                  key={related.slug}
+                  href={`/blog/${related.slug}`}
+                  className="group bg-card border border-border rounded-xl p-5 hover:border-mesh/50 transition-colors"
+                >
+                  <h3 className="font-semibold text-foreground group-hover:text-mesh transition-colors mb-2 line-clamp-2">
+                    {related.title}
+                  </h3>
+                  <p className="text-sm text-foreground-muted line-clamp-2 mb-3">
+                    {related.excerpt}
+                  </p>
+                  <span className="text-xs text-foreground-muted">{related.readingTime}</span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Footer */}
         <footer className="border-t border-border py-12">

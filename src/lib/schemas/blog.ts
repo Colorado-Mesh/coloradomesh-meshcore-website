@@ -4,6 +4,7 @@ export interface BlogPostSchemaInput {
   title: string;
   excerpt: string;
   date: string;
+  dateModified?: string;
   author: string;
   slug: string;
 }
@@ -18,7 +19,7 @@ export function generateBlogPostSchema(post: BlogPostSchemaInput) {
     headline: post.title,
     description: post.excerpt,
     datePublished: post.date,
-    dateModified: post.date,
+    dateModified: post.dateModified || post.date,
     author: {
       '@type': 'Person',
       name: post.author,

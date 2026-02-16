@@ -2,8 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ObserverStats, NetworkHealthCard, TopContributors } from '@/components';
 import JsonLd from '@/components/JsonLd';
+import Breadcrumbs from '@/components/Breadcrumbs';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
-import { OBSERVER_REFRESH_INTERVAL } from '@/lib/constants';
+import { generateWebApplicationSchema } from '@/lib/schemas/webapp';
+import { OBSERVER_REFRESH_INTERVAL, BASE_URL } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Denver MeshCore Analyzers',
@@ -51,14 +53,22 @@ const OBSERVERS = [
 ];
 
 const breadcrumbData = generateBreadcrumbSchema([
-  { name: 'Home', url: 'https://denvermc.com' },
-  { name: 'Analyzers', url: 'https://denvermc.com/observer' },
+  { name: 'Home', url: BASE_URL },
+  { name: 'Analyzers', url: `${BASE_URL}/observer` },
 ]);
+
+const webAppData = generateWebApplicationSchema({
+  name: 'Denver MeshCore Analyzers',
+  description:
+    'Live network monitoring for Denver MeshCore. Track mesh network status, node activity, signal strength, and network health metrics in real-time.',
+  url: `${BASE_URL}/observer`,
+});
 
 export default function ObserverPage() {
   return (
     <>
       <JsonLd data={breadcrumbData} />
+      <JsonLd data={webAppData} />
       <div className="min-h-screen bg-mesh">
         {/* Hero Section */}
         <section className="relative overflow-hidden px-6 py-16 md:py-24">
@@ -66,6 +76,7 @@ export default function ObserverPage() {
           <div className="absolute inset-0 bg-gradient-to-b from-night-950/50 via-transparent to-transparent pointer-events-none" />
 
           <div className="relative mx-auto max-w-4xl text-center">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Analyzers' }]} />
             {/* Observer icon */}
             <div className="mb-6 inline-flex items-center justify-center">
               <div className="relative">

@@ -8,6 +8,7 @@ export interface BlogPost {
   slug: string;
   title: string;
   date: string;
+  dateModified?: string;
   excerpt: string;
   author: string;
   tags: string[];
@@ -20,6 +21,7 @@ export interface BlogPostMeta {
   slug: string;
   title: string;
   date: string;
+  dateModified?: string;
   excerpt: string;
   author: string;
   tags: string[];
@@ -110,10 +112,15 @@ export function getPostBySlug(slug: string): BlogPost | null {
       return null;
     }
 
+    const dateModified = data.dateModified
+      ? (data.dateModified as string)
+      : undefined;
+
     return {
       slug,
       title: data.title as string,
       date: data.date as string,
+      ...(dateModified && { dateModified }),
       excerpt: data.excerpt as string,
       author: (data.author as string) || 'Denver MeshCore',
       tags: (data.tags as string[]) || [],
@@ -141,6 +148,7 @@ export function getAllPosts(): BlogPostMeta[] {
       slug: post.slug,
       title: post.title,
       date: post.date,
+      ...(post.dateModified && { dateModified: post.dateModified }),
       excerpt: post.excerpt,
       author: post.author,
       tags: post.tags,
@@ -162,4 +170,41 @@ export function getAllTags(): string[] {
   });
 
   return Array.from(tagSet).sort();
+}
+
+/**
+ * Get all published posts with a given tag
+ */
+export function getPostsByTag(tag: string): BlogPostMeta[] {
+  const normalizedTag = tag.toLowerCase();
+  return getAllPosts().filter((post) =>
+    post.tags.some((t) => t.toLowerCase() === normalizedTag)
+  );
+}
+
+/**
+ * Get related posts based on shared tags, falling back to recency
+ */
+export function getRelatedPosts(
+  currentSlug: string,
+  tags: string[],
+  limit: number = 3
+): BlogPostMeta[] {
+  const allPosts = getAllPosts().filter((p) => p.slug !== currentSlug);
+
+  // Score posts by number of shared tags
+  const scored = allPosts.map((post) => {
+    const sharedTags = post.tags.filter((t) =>
+      tags.some((ct) => ct.toLowerCase() === t.toLowerCase())
+    ).length;
+    return { post, sharedTags };
+  });
+
+  // Sort by shared tags (desc), then by date (desc)
+  scored.sort((a, b) => {
+    if (b.sharedTags !== a.sharedTags) return b.sharedTags - a.sharedTags;
+    return new Date(b.post.date).getTime() - new Date(a.post.date).getTime();
+  });
+
+  return scored.slice(0, limit).map((s) => s.post);
 }

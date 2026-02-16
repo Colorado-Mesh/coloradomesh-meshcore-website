@@ -8,7 +8,7 @@ import { generateHowToSchema, meshCoreSetupHowTo } from "@/lib/schemas/howto";
 export const metadata: Metadata = {
   title: "Get Started with MeshCore",
   description: "Learn how to join the Denver mesh network. Hardware requirements, firmware setup guide, configuration instructions, and community resources.",
-  keywords: ["MeshCore", "mesh network", "getting started", "Denver", "LoRa", "ESP32", "firmware", "setup guide", "tutorial"],
+  keywords: ["MeshCore", "mesh network", "getting started", "Denver", "LoRa", "ESP32", "firmware", "setup guide", "tutorial", "naming standard", "node naming"],
   alternates: {
     canonical: '/start',
   },
@@ -277,6 +277,66 @@ const resources = [
   },
 ];
 
+// Naming Standard v1.0 data
+const infraNodeTypes = [
+  { code: "RC", description: "Core Repeater — Backbone. Mountain/tower. Battery backup." },
+  { code: "RD", description: "Distribution Rpt — Bridges core to edge. Suburban elevated." },
+  { code: "RE", description: "Edge Repeater — Rooftop/residential. Mains power OK." },
+  { code: "RM", description: "Mobile Repeater — Vehicle or temporary." },
+  { code: "T", description: "Room Server — Fixed location." },
+  { code: "TM", description: "Mobile Room — Location changes." },
+  { code: "TR", description: "Room + Repeat — Room server w/ repeat on." },
+  { code: "OB", description: "Observer — Listen-only/monitoring." },
+];
+
+const infraExamples = [
+  { name: "CO-DENVER-CHSPARK-RC01", description: "Core rpt, Cheesman Park" },
+  { name: "CO-DENVER-SLOAN-RE01", description: "Edge rpt, Sloan\u2019s Lake" },
+  { name: "CO-LKWD-GRENMTN-RD01", description: "Dist rpt, Green Mtn" },
+  { name: "CO-REDROCKS-RC01", description: "Core rpt, Red Rocks (no city needed)" },
+  { name: "CO-DENVER-RINO-T01", description: "Room server, RiNo" },
+];
+
+const cityCodes = [
+  "DENVER", "AURORA", "LKWD", "ARVADA", "WSTMNR", "THRTON", "CENTL", "BROOM",
+  "LTTN", "ENGL", "CMRCE", "GLDN", "BOULDR", "PARKER", "CSTLRK", "HGHLND",
+  "CSPRGS", "LSVL", "LFAYTE",
+];
+
+const landmarkExamples = [
+  { code: "CHSPARK", name: "Cheesman" },
+  { code: "SLOAN", name: "Sloan\u2019s" },
+  { code: "WSHPARK", name: "Wash Park" },
+  { code: "RINO", name: "RiNo" },
+  { code: "LODO", name: "LoDo" },
+  { code: "CAPHILL", name: "Cap Hill" },
+  { code: "UNION", name: "Union Station" },
+  { code: "COLFAX", name: "Colfax" },
+  { code: "REDRKS", name: "Red Rocks" },
+  { code: "CONFLU", name: "Confluence" },
+  { code: "16THST", name: "16th St" },
+  { code: "STAPLE", name: "Stapleton" },
+  { code: "DIA", name: "DIA" },
+  { code: "SPR+I25", name: "Speer & I-25" },
+];
+
+const companionExamples = [
+  { name: "\u{1F47B} M3SHGH\u00D8ST 01", description: "Primary carry node" },
+  { name: "\u{1F47B} M3SHGH\u00D8ST 02", description: "Home base node" },
+  { name: "\u{1F47B} M3SHGH\u00D8ST 03", description: "Vehicle node" },
+  { name: "\u{1F43F}\uFE0F SQRLNUT 01", description: "Primary companion" },
+  { name: "\u{1F525} BURNR F4", description: "Companion (key prefix suffix)" },
+  { name: "\u{1F3D4}\uFE0F PKBAGGER 01", description: "Primary companion" },
+];
+
+const companionDoNots = [
+  "Use your real name",
+  "Put hardware in the name",
+  "Use different emojis per device \u2014 one emoji per person",
+  "Take someone else\u2019s emoji",
+  "Go over 23 characters",
+];
+
 const breadcrumbData = generateBreadcrumbSchema([
   { name: 'Home', url: 'https://denvermc.com' },
   { name: 'Get Started', url: 'https://denvermc.com/start' },
@@ -317,6 +377,9 @@ export default function StartPage() {
             </a>
             <a href="#setup" className="btn-outline">
               Setup Guide
+            </a>
+            <a href="#naming" className="btn-outline">
+              Naming Standard
             </a>
           </div>
         </div>
@@ -587,8 +650,230 @@ export default function StartPage() {
         </div>
       </section>
 
+      {/* Naming Standard */}
+      <section id="naming" className="px-6 py-16 bg-background-secondary">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+            Naming Standard
+          </h2>
+          <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
+            All MeshCore node names are limited to <span className="text-mesh font-semibold">23 characters</span> — this is a hard limit in the firmware. Follow the conventions below so the network stays organized and readable.
+          </p>
+
+          {/* Part 1: Infrastructure Nodes */}
+          <div className="mb-16">
+            <h3 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+              <span className="text-3xl">📡</span>
+              Part 1: Infrastructure Nodes
+            </h3>
+
+            {/* Format Card */}
+            <div className="card-mesh p-6 mb-8">
+              <p className="font-mono text-lg text-mesh mb-4 text-center">
+                CO-[CITY]-[LANDMARK]-[TYPE][##]
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-foreground-muted">
+                <div><span className="font-semibold text-foreground">CO</span> — State prefix (Colorado)</div>
+                <div><span className="font-semibold text-foreground">CITY</span> — City code from the list below</div>
+                <div><span className="font-semibold text-foreground">LANDMARK</span> — Recognizable location</div>
+                <div><span className="font-semibold text-foreground">TYPE</span> — Node type code</div>
+                <div><span className="font-semibold text-foreground">##</span> — Two-digit sequence number</div>
+              </div>
+              <p className="text-sm text-foreground-muted mt-4">
+                When the landmark is prominent enough on its own (e.g., Red Rocks), you can drop CITY — the landmark gets up to 14 characters.
+              </p>
+            </div>
+
+            {/* Infrastructure Examples Table */}
+            <div className="card-mesh overflow-hidden mb-8">
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Name</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {infraExamples.map((ex) => (
+                    <tr key={ex.name} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-6 py-3 font-mono text-mesh text-sm">{ex.name}</td>
+                      <td className="px-6 py-3 text-foreground-muted text-sm">{ex.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Node Type Codes Table */}
+            <h4 className="text-lg font-semibold text-foreground mb-3">Node Type Codes</h4>
+            <div className="card-mesh overflow-hidden mb-8">
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Code</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {infraNodeTypes.map((type) => (
+                    <tr key={type.code} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-6 py-3 font-mono font-semibold text-mountain-500">{type.code}</td>
+                      <td className="px-6 py-3 text-foreground-muted text-sm">{type.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* City Codes Grid */}
+            <h4 className="text-lg font-semibold text-foreground mb-3">City Codes</h4>
+            <div className="card-mesh p-6 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {cityCodes.map((code) => (
+                  <span key={code} className="font-mono text-sm text-mesh bg-night-800/30 px-3 py-1.5 rounded text-center">
+                    {code}
+                  </span>
+                ))}
+              </div>
+              <p className="text-sm text-foreground-muted mt-4">
+                Don&apos;t see your city? Propose a code in{" "}
+                <a href="https://discord.gg/QpaW8FTTCE" className="text-mesh hover:text-mesh-light">
+                  our Discord
+                </a>.
+              </p>
+            </div>
+
+            {/* Landmark Examples Grid */}
+            <h4 className="text-lg font-semibold text-foreground mb-3">Landmark Examples</h4>
+            <div className="card-mesh p-6 mb-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {landmarkExamples.map((lm) => (
+                  <div key={lm.code} className="text-sm">
+                    <span className="font-mono text-mesh">{lm.code}</span>
+                    <span className="text-foreground-muted"> {lm.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Public Key Prefixes Card */}
+            <div className="card-mesh p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-3xl">🔑</span>
+                <h4 className="text-lg font-semibold text-foreground">Public Key Prefixes</h4>
+              </div>
+              <p className="text-foreground-muted text-sm mb-4">
+                Repeaters and room servers should use a unique public key prefix to avoid collisions. Check current prefix utilization and generate a key with a chosen prefix.
+              </p>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="https://analyzer.letsmesh.net/nodes/prefix-utilization"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-mesh hover:text-mesh-light inline-flex items-center gap-1 text-sm"
+                >
+                  Check Prefix Utilization
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+                <a
+                  href="https://gessaman.com/mc-keygen/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-mesh hover:text-mesh-light inline-flex items-center gap-1 text-sm"
+                >
+                  Key Generator
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+          </div>
+
+          {/* Part 2: Companion Nodes */}
+          <div>
+            <h3 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-3">
+              <span className="text-3xl">📱</span>
+              Part 2: Companion Nodes
+            </h3>
+
+            {/* Format Card */}
+            <div className="card-mesh p-6 mb-8">
+              <p className="font-mono text-lg text-mesh mb-4 text-center">
+                [EMOJI] [HANDLE] [##]
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-foreground-muted">
+                <div><span className="font-semibold text-foreground">EMOJI</span> — Your personal emoji (one per person)</div>
+                <div><span className="font-semibold text-foreground">HANDLE</span> — Your unique handle/callsign</div>
+                <div><span className="font-semibold text-foreground">##</span> — Number by purpose, not hardware</div>
+              </div>
+              <p className="text-sm text-foreground-muted mt-4">
+                Number by purpose (01 = primary carry, 02 = home base, 03 = vehicle), not by hardware model. If you upgrade your radio, the name stays the same.
+              </p>
+            </div>
+
+            {/* Companion Examples Table */}
+            <div className="card-mesh overflow-hidden mb-8">
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Name</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Description</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {companionExamples.map((ex) => (
+                    <tr key={ex.name} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-6 py-3 font-mono text-mesh text-sm">{ex.name}</td>
+                      <td className="px-6 py-3 text-foreground-muted text-sm">{ex.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Do Not Rules */}
+            <div className="card-mesh overflow-hidden mb-8">
+              <div className="p-6 bg-sunset-500/10 border-b border-card-border">
+                <h4 className="text-lg font-semibold text-sunset-700 flex items-center gap-3">
+                  <span className="text-xl">⚠️</span>
+                  Do Not
+                </h4>
+              </div>
+              <div className="p-6">
+                <ul className="space-y-2">
+                  {companionDoNots.map((rule, index) => (
+                    <li key={index} className="text-foreground-muted flex items-start gap-2">
+                      <span className="text-sunset-500 mt-1">✕</span>
+                      <span>{rule}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Community Tracking Card */}
+            <div className="card-mesh p-6">
+              <div className="flex items-center gap-3 mb-3">
+                <span className="text-3xl">📋</span>
+                <h4 className="text-lg font-semibold text-foreground">Community Tracking</h4>
+              </div>
+              <p className="text-foreground-muted text-sm">
+                Before deploying a new node, check the shared community list to avoid duplicate names and emoji conflicts. Post your new node in{" "}
+                <a href="https://discord.gg/QpaW8FTTCE" className="text-mesh hover:text-mesh-light">
+                  our Discord
+                </a>{" "}
+                so others can update their records.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Advanced Topics */}
-      <section id="advanced" className="px-6 py-16 bg-background-secondary">
+      <section id="advanced" className="px-6 py-16">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
             Advanced Topics

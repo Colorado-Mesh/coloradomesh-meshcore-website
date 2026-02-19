@@ -263,9 +263,9 @@ const resources = [
     description: "Real-time network visualization and node statistics",
   },
   {
-    name: "\u{1F47B}CO-DENVER-RUBYHL-OB Analyzer",
+    name: "DEN-DENVR-RUBY-OB-4d0c Analyzer",
     url: "https://analyzer.letsmesh.net/node/4D0CC1003DBF678DF420907F9ACD77BD71D9E4C34300F72660F6BA6A2656A868",
-    description: "View the \u{1F47B}CO-DENVER-RUBYHL-OB analyzer node on LetsMesh",
+    description: "View the DEN-DENVR-RUBY-OB-4d0c analyzer node on LetsMesh",
   },
   {
     name: "Meadowood Analyzer",

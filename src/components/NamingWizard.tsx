@@ -1,25 +1,14 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { airports } from "@/lib/data/airports";
+import { cities } from "@/lib/data/cities";
+import { landmarks } from "@/lib/data/landmarks";
+import { haversineDistance } from "@/lib/utils/haversine";
+import type { NodeWithStats } from "@/lib/types";
+import CompanionNamer from "./CompanionNamer";
 
-// --- Data ---
-
-const regionCodes = [
-  { code: "ALS", city: "Alamosa", airport: "San Luis Valley Regional" },
-  { code: "ASE", city: "Aspen", airport: "Aspen/Pitkin County" },
-  { code: "CEZ", city: "Cortez", airport: "Cortez Municipal" },
-  { code: "COS", city: "Colorado Springs", airport: "Colorado Springs Municipal" },
-  { code: "DEN", city: "Denver", airport: "Denver International" },
-  { code: "DRO", city: "Durango", airport: "Durango\u2013La Plata County" },
-  { code: "EGE", city: "Eagle/Vail", airport: "Eagle County Regional" },
-  { code: "FNL", city: "Fort Collins/Loveland", airport: "Northern Colorado Regional" },
-  { code: "GJT", city: "Grand Junction", airport: "Grand Junction Regional" },
-  { code: "GUC", city: "Gunnison", airport: "Gunnison\u2013Crested Butte Regional" },
-  { code: "HDN", city: "Hayden/Steamboat", airport: "Yampa Valley" },
-  { code: "MTJ", city: "Montrose", airport: "Montrose Regional" },
-  { code: "PUB", city: "Pueblo", airport: "Pueblo Memorial" },
-  { code: "TEX", city: "Telluride", airport: "Telluride Regional" },
-];
+// --- Static Data ---
 
 const nodeTypes = [
   { code: "RC", label: "Core Repeater", description: "Backbone. Mountain/tower. Battery backup." },
@@ -29,225 +18,6 @@ const nodeTypes = [
   { code: "TS", label: "Room Server", description: "Fixed location." },
   { code: "TM", label: "Mobile Room", description: "Location changes." },
   { code: "TR", label: "Room + Repeat", description: "Room server w/ repeat on." },
-];
-
-// City codes with full names for the dropdown
-const knownCities: { code: string; name: string }[] = [
-  { code: "AGLR", name: "Aguilar" },
-  { code: "AKRON", name: "Akron" },
-  { code: "ALMSA", name: "Alamosa" },
-  { code: "ANTNR", name: "Antonito" },
-  { code: "ARVDA", name: "Arvada" },
-  { code: "ASPN", name: "Aspen" },
-  { code: "AURRA", name: "Aurora" },
-  { code: "AVON", name: "Avon" },
-  { code: "BSLT", name: "Basalt" },
-  { code: "BNNTT", name: "Bennett" },
-  { code: "BRTHD", name: "Berthoud" },
-  { code: "BOULR", name: "Boulder" },
-  { code: "BRECK", name: "Breckenridge" },
-  { code: "BRGTN", name: "Brighton" },
-  { code: "BROOM", name: "Broomfield" },
-  { code: "BRUSH", name: "Brush" },
-  { code: "BVSTA", name: "Buena Vista" },
-  { code: "CANON", name: "Canon City" },
-  { code: "CRBDL", name: "Carbondale" },
-  { code: "CSTLP", name: "Castle Pines" },
-  { code: "CSTLR", name: "Castle Rock" },
-  { code: "CENTL", name: "Centennial" },
-  { code: "CENTR", name: "Center" },
-  { code: "CHVLG", name: "Cherry Hills Village" },
-  { code: "CSPRG", name: "Colorado Springs" },
-  { code: "CMRCE", name: "Commerce City" },
-  { code: "CNFR", name: "Conifer" },
-  { code: "CRTZL", name: "Cortez" },
-  { code: "CRAIG", name: "Craig" },
-  { code: "CREED", name: "Creede" },
-  { code: "CRSTB", name: "Crested Butte" },
-  { code: "CRPCK", name: "Cripple Creek" },
-  { code: "DACNO", name: "Dacono" },
-  { code: "DLNRT", name: "Del Norte" },
-  { code: "DELTA", name: "Delta" },
-  { code: "DENVR", name: "Denver" },
-  { code: "DLLNG", name: "Dillon" },
-  { code: "DLRS", name: "Dolores" },
-  { code: "DRNGO", name: "Durango" },
-  { code: "EAGLE", name: "Eagle" },
-  { code: "EATON", name: "Eaton" },
-  { code: "EDGWR", name: "Edgewater" },
-  { code: "EDWRD", name: "Edwards" },
-  { code: "ENGL", name: "Englewood" },
-  { code: "ERIE", name: "Erie" },
-  { code: "ESTRK", name: "Estes Park" },
-  { code: "EVANS", name: "Evans" },
-  { code: "EVRGN", name: "Evergreen" },
-  { code: "FRPLY", name: "Fairplay" },
-  { code: "FDHTS", name: "Federal Heights" },
-  { code: "FRSTM", name: "Firestone" },
-  { code: "FLRNC", name: "Florence" },
-  { code: "FNTNG", name: "Fountain" },
-  { code: "FRDRK", name: "Frederick" },
-  { code: "FRCLN", name: "Fort Collins" },
-  { code: "FRTLP", name: "Fort Lupton" },
-  { code: "FRTMR", name: "Fort Morgan" },
-  { code: "FRSC", name: "Frisco" },
-  { code: "FRUITA", name: "Fruita" },
-  { code: "GRGRN", name: "Georgetown" },
-  { code: "GLDAL", name: "Glendale" },
-  { code: "GLNSP", name: "Glenwood Springs" },
-  { code: "GLDN", name: "Golden" },
-  { code: "GRNJN", name: "Grand Junction" },
-  { code: "GRNBY", name: "Granby" },
-  { code: "GRELY", name: "Greeley" },
-  { code: "GRNWD", name: "Greenwood Village" },
-  { code: "GNSN", name: "Gunnison" },
-  { code: "HAYDN", name: "Hayden" },
-  { code: "HGHLN", name: "Highlands Ranch" },
-  { code: "HTCHK", name: "Hotchkiss" },
-  { code: "HDSN", name: "Hudson" },
-  { code: "IDSPG", name: "Idaho Springs" },
-  { code: "IGNCO", name: "Ignacio" },
-  { code: "JHNST", name: "Johnstown" },
-  { code: "KNSB", name: "Keenesburg" },
-  { code: "KIOWA", name: "Kiowa" },
-  { code: "LAJNT", name: "La Junta" },
-  { code: "LAVTA", name: "La Veta" },
-  { code: "LFYTE", name: "Lafayette" },
-  { code: "LKCTY", name: "Lake City" },
-  { code: "LKWD", name: "Lakewood" },
-  { code: "LAMAR", name: "Lamar" },
-  { code: "LSANM", name: "Las Animas" },
-  { code: "LDVL", name: "Leadville" },
-  { code: "LIMON", name: "Limon" },
-  { code: "LTTN", name: "Littleton" },
-  { code: "LCHBR", name: "Lochbuie" },
-  { code: "LNTRE", name: "Lone Tree" },
-  { code: "LNGMT", name: "Longmont" },
-  { code: "LSVL", name: "Louisville" },
-  { code: "LVLND", name: "Loveland" },
-  { code: "LYONS", name: "Lyons" },
-  { code: "MNSSA", name: "Manassa" },
-  { code: "MNTSP", name: "Manitou Springs" },
-  { code: "MEAD", name: "Mead" },
-  { code: "MLKN", name: "Milliken" },
-  { code: "MNTRN", name: "Minturn" },
-  { code: "MNMNT", name: "Monument" },
-  { code: "MNTVS", name: "Monte Vista" },
-  { code: "MNTRS", name: "Montrose" },
-  { code: "MORSN", name: "Morrison" },
-  { code: "NATRK", name: "Naturita" },
-  { code: "NEDRL", name: "Nederland" },
-  { code: "NWCST", name: "New Castle" },
-  { code: "NRTHG", name: "Northglenn" },
-  { code: "NRWOD", name: "Norwood" },
-  { code: "OAKCK", name: "Oak Creek" },
-  { code: "OLATHE", name: "Olathe" },
-  { code: "OURAY", name: "Ouray" },
-  { code: "PAGSA", name: "Pagosa Springs" },
-  { code: "PALIS", name: "Palisade" },
-  { code: "PLMRL", name: "Palmer Lake" },
-  { code: "PAONA", name: "Paonia" },
-  { code: "PARKR", name: "Parker" },
-  { code: "PLTVL", name: "Platteville" },
-  { code: "PNCHS", name: "Poncha Springs" },
-  { code: "PUEBL", name: "Pueblo" },
-  { code: "RNGLY", name: "Rangely" },
-  { code: "RDGWY", name: "Ridgway" },
-  { code: "RIFLE", name: "Rifle" },
-  { code: "RKYFD", name: "Rocky Ford" },
-  { code: "SGCHE", name: "Saguache" },
-  { code: "SLIDA", name: "Salida" },
-  { code: "SNLUS", name: "San Luis" },
-  { code: "SVRNC", name: "Severance" },
-  { code: "SHERD", name: "Sheridan" },
-  { code: "SLVTM", name: "Silverthorne" },
-  { code: "SLVRN", name: "Silverton" },
-  { code: "SNMVL", name: "Snowmass Village" },
-  { code: "STHFK", name: "South Fork" },
-  { code: "STMBT", name: "Steamboat Springs" },
-  { code: "STRLG", name: "Sterling" },
-  { code: "SPERR", name: "Superior" },
-  { code: "TLLRD", name: "Telluride" },
-  { code: "THRTN", name: "Thornton" },
-  { code: "TMNTH", name: "Timnath" },
-  { code: "TRNDD", name: "Trinidad" },
-  { code: "VAIL", name: "Vail" },
-  { code: "VICTR", name: "Victor" },
-  { code: "WLDEN", name: "Walden" },
-  { code: "WLSNB", name: "Walsenburg" },
-  { code: "WSTMR", name: "Westminster" },
-  { code: "WHTRD", name: "Wheat Ridge" },
-  { code: "WNDSB", name: "Windsor" },
-  { code: "WNTRP", name: "Winter Park" },
-  { code: "WDLPK", name: "Woodland Park" },
-  { code: "WRAY", name: "Wray" },
-  { code: "YUMA", name: "Yuma" },
-];
-
-const knownLandmarks: { code: string; name: string }[] = [
-  { code: "16ST", name: "16th Street Mall" },
-  { code: "USAFA", name: "Air Force Academy" },
-  { code: "ANVLR", name: "Animas River" },
-  { code: "BKRPR", name: "Baker Park" },
-  { code: "BEAR", name: "Bear Creek" },
-  { code: "BRKLY", name: "Berkeley" },
-  { code: "BKVLY", name: "Blue River Valley" },
-  { code: "BRDWY", name: "Broadway" },
-  { code: "BRDHM", name: "Broadmoor" },
-  { code: "CPHIL", name: "Cap Hill" },
-  { code: "CSTLP", name: "Castlewood Canyon" },
-  { code: "CHTSN", name: "Chatfield" },
-  { code: "CHSPK", name: "Cheesman Park" },
-  { code: "CHRRY", name: "Cherry Creek" },
-  { code: "CHYMT", name: "Cheyenne Mountain" },
-  { code: "CTYPR", name: "City Park" },
-  { code: "CLFAX", name: "Colfax Avenue" },
-  { code: "CNFPR", name: "Confluence Park" },
-  { code: "CRKPR", name: "Cranmer Park" },
-  { code: "DEERR", name: "Deer Creek" },
-  { code: "DIA", name: "Denver Intl Airport" },
-  { code: "DLLNG", name: "Dillon Reservoir" },
-  { code: "ELDRG", name: "Eldorado Canyon" },
-  { code: "ELYRA", name: "Elyria" },
-  { code: "FXFLD", name: "Five Points" },
-  { code: "FLTSN", name: "Flatirons" },
-  { code: "GRDNP", name: "Garden of the Gods" },
-  { code: "GLOBV", name: "Globeville" },
-  { code: "GRNMT", name: "Green Mountain" },
-  { code: "GRPRK", name: "Green Valley Ranch" },
-  { code: "HMPDN", name: "Hampden" },
-  { code: "HLNDL", name: "Highlands" },
-  { code: "HRNSR", name: "Horsetooth Rock" },
-  { code: "INDPN", name: "Independence Pass" },
-  { code: "I70", name: "I-70 Corridor" },
-  { code: "LKMAR", name: "Lake Marston" },
-  { code: "LKVST", name: "Lookout Mountain" },
-  { code: "LODO", name: "Lower Downtown" },
-  { code: "LOWRY", name: "Lowry" },
-  { code: "MNTON", name: "Manitou Springs" },
-  { code: "MRSHL", name: "Marshall Mesa" },
-  { code: "MERID", name: "Meridian" },
-  { code: "MNTCL", name: "Montclair" },
-  { code: "MORSN", name: "Mount Morrison" },
-  { code: "NSTPR", name: "North Star" },
-  { code: "PRLST", name: "Pearl Street" },
-  { code: "PKSPK", name: "Pikes Peak" },
-  { code: "RDRKS", name: "Red Rocks" },
-  { code: "RINO", name: "RiNo Arts District" },
-  { code: "RCKYM", name: "Rocky Mountain NP" },
-  { code: "RUBY", name: "Ruby Hill" },
-  { code: "RVLPK", name: "Roxborough Park" },
-  { code: "SNTFE", name: "Santa Fe" },
-  { code: "SLOAN", name: "Sloan\u2019s Lake" },
-  { code: "SR+25", name: "Speer + I-25" },
-  { code: "STPLT", name: "Stapleton/CLT" },
-  { code: "STNPK", name: "Standley Lake" },
-  { code: "SWNSN", name: "Swansea" },
-  { code: "TABMN", name: "Table Mountain" },
-  { code: "TECTR", name: "Tech Center" },
-  { code: "UNION", name: "Union Station" },
-  { code: "WSHPK", name: "Washington Park" },
-  { code: "WTRTN", name: "Waterton Canyon" },
 ];
 
 // --- Component ---
@@ -267,20 +37,60 @@ export default function NamingWizard() {
   const [pubkey, setPubkey] = useState("");
   const [copied, setCopied] = useState(false);
 
+  // Airport lookup state
+  const [addressInput, setAddressInput] = useState("");
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<string | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+
+  // Pubkey conflict state
+  const [allNodes, setAllNodes] = useState<NodeWithStats[]>([]);
+  const [nodesLoaded, setNodesLoaded] = useState(false);
+
+  // Fetch nodes for conflict checking
+  useEffect(() => {
+    const fetchNodes = async () => {
+      try {
+        const res = await fetch("/api/nodes");
+        const json = await res.json();
+        if (json.success && json.data) {
+          setAllNodes(json.data);
+        }
+      } catch {
+        // Non-critical — conflict checking just won't work
+      } finally {
+        setNodesLoaded(true);
+      }
+    };
+    fetchNodes();
+  }, []);
+
+  // Pubkey conflict check
+  const pubkeyConflict = useMemo(() => {
+    if (!nodesLoaded || pubkey.length < 2) return null;
+    const prefix = pubkey.slice(0, 2).toUpperCase();
+    const conflicting = allNodes.filter(
+      (n) => n.public_key?.slice(0, 2).toUpperCase() === prefix
+    );
+    return conflicting.length > 0
+      ? { count: conflicting.length, prefix }
+      : null;
+  }, [pubkey, allNodes, nodesLoaded]);
+
   const city = cityMode === "known" ? cityCode : customCity.toUpperCase();
 
   const filteredCities = useMemo(() => {
-    if (!citySearch) return knownCities;
+    if (!citySearch) return cities;
     const q = citySearch.toLowerCase();
-    return knownCities.filter(
+    return cities.filter(
       (c) => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
     );
   }, [citySearch]);
 
   const filteredLandmarks = useMemo(() => {
-    if (!landmarkSearch) return knownLandmarks;
+    if (!landmarkSearch) return landmarks;
     const q = landmarkSearch.toLowerCase();
-    return knownLandmarks.filter(
+    return landmarks.filter(
       (l) => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
     );
   }, [landmarkSearch]);
@@ -316,6 +126,46 @@ export default function NamingWizard() {
     navigator.clipboard.writeText(generatedName);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleAirportLookup = async () => {
+    if (!addressInput.trim()) return;
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookupResult(null);
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressInput)}&countrycodes=us&limit=1`,
+        { headers: { "User-Agent": "DenverMeshCore-NamingWizard/1.0" } }
+      );
+      const data = await res.json();
+      if (!data.length) {
+        setLookupError("Location not found. Try a more specific address.");
+        return;
+      }
+      const { lat, lon } = data[0];
+      const userLat = parseFloat(lat);
+      const userLng = parseFloat(lon);
+
+      // Find nearest airport
+      let nearest = airports[0];
+      let minDist = Infinity;
+      for (const ap of airports) {
+        const d = haversineDistance(userLat, userLng, ap.lat, ap.lng);
+        if (d < minDist) {
+          minDist = d;
+          nearest = ap;
+        }
+      }
+
+      setRegion(nearest.code);
+      setLookupResult(`Nearest: ${nearest.code} \u2014 ${nearest.airport} (${Math.round(minDist)} km)`);
+    } catch {
+      setLookupError("Lookup failed. Check your connection and try again.");
+    } finally {
+      setLookupLoading(false);
+    }
   };
 
   return (
@@ -382,18 +232,46 @@ export default function NamingWizard() {
           className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none"
         >
           <option value="">Select region...</option>
-          {regionCodes.map((r) => (
+          {airports.map((r) => (
             <option key={r.code} value={r.code}>
               {r.code} — {r.city} ({r.airport})
             </option>
           ))}
         </select>
-        <p className="text-xs text-foreground-muted mt-2">
-          Not sure?{" "}
-          <a href="https://www.travelmath.com/nearest-airport/" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light">
-            Find your nearest airport
-          </a>
-        </p>
+
+        {/* Airport Auto-Lookup */}
+        <div className="mt-4 pt-4 border-t border-card-border">
+          <p className="text-xs font-semibold text-foreground mb-2">Not sure? Find your nearest airport:</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={addressInput}
+              onChange={(e) => setAddressInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAirportLookup()}
+              placeholder='e.g. "Denver, CO" or "80202"'
+              className="flex-1 bg-night-800/30 border border-card-border rounded-lg px-3 py-2 text-sm text-foreground focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
+            />
+            <button
+              onClick={handleAirportLookup}
+              disabled={lookupLoading || !addressInput.trim()}
+              className="btn-accent text-sm px-4 py-2 whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
+            >
+              {lookupLoading && (
+                <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              Find Nearest
+            </button>
+          </div>
+          {lookupResult && (
+            <p className="text-xs text-forest-500 mt-2">{lookupResult}</p>
+          )}
+          {lookupError && (
+            <p className="text-xs text-red-500 mt-2">{lookupError}</p>
+          )}
+          <p className="text-[10px] text-foreground-muted/50 mt-2">
+            Your address is sent to OpenStreetMap&apos;s Nominatim service to find coordinates. No data is stored — it is only used for this lookup.
+          </p>
+        </div>
       </div>
 
       {/* Step 2: City */}
@@ -574,14 +452,45 @@ export default function NamingWizard() {
           maxLength={4}
           className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
         />
+
+        {/* Conflict indicator */}
+        {pubkey.length >= 2 && nodesLoaded && (
+          <div className="mt-2">
+            {pubkeyConflict ? (
+              <p className="text-xs text-amber-500 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+                Prefix byte 0x{pubkeyConflict.prefix} is used by {pubkeyConflict.count} node(s). Consider a different prefix for uniqueness.
+              </p>
+            ) : (
+              <p className="text-xs text-forest-500 flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Prefix is unique on the Denver mesh!
+              </p>
+            )}
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-3 mt-3">
+          <a
+            href="#prefix-matrix"
+            className="text-mesh hover:text-mesh-light inline-flex items-center gap-1 text-xs"
+          >
+            Denver Prefix Map
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </a>
           <a
             href="https://analyzer.letsmesh.net/nodes/prefix-utilization"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-mesh hover:text-mesh-light inline-flex items-center gap-1 text-xs"
+            className="text-foreground-muted hover:text-mesh inline-flex items-center gap-1 text-xs"
           >
-            Check Prefix Utilization
+            Global Prefix Utilization
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
@@ -622,51 +531,9 @@ export default function NamingWizard() {
           Companion Node Naming
         </h3>
         <p className="text-sm text-foreground-muted mb-6">
-          Companions (personal carry nodes) use a different format. This is <strong className="text-foreground">not</strong> generated above — just follow this pattern:
+          Companions (personal carry nodes) use a different format: <span className="font-mono text-mesh">[EMOJI] [HANDLE] [SUFFIX]</span>
         </p>
-
-        <div className="card-mesh p-5 mb-6">
-          <p className="font-mono text-lg text-mesh mb-3 text-center">
-            [EMOJI] [HANDLE] [##]
-          </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-foreground-muted">
-            <div><span className="font-semibold text-foreground">EMOJI</span> — One per person, claim in Discord</div>
-            <div><span className="font-semibold text-foreground">HANDLE</span> — Your mesh alias (not real name)</div>
-            <div><span className="font-semibold text-foreground">##</span> — Number by purpose, starting at 01</div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-          {[
-            { name: "\u{1F47B} M3SHGH\u00D8ST 01", desc: "Primary carry" },
-            { name: "\u{1F47B} M3SHGH\u00D8ST 02", desc: "Home base" },
-            { name: "\u{1F43F}\uFE0F SQRLNUT 01", desc: "Primary" },
-            { name: "\u{1F525} BURNR F4", desc: "Key prefix suffix" },
-          ].map((ex) => (
-            <div key={ex.name} className="flex items-center gap-3 text-sm">
-              <span className="font-mono text-mesh">{ex.name}</span>
-              <span className="text-foreground-muted">— {ex.desc}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="card-mesh p-4 bg-sunset-500/5 border-sunset-500/20">
-          <p className="text-sm font-semibold text-foreground mb-2">Do Not:</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 text-sm text-foreground-muted">
-            {[
-              "Use your real name",
-              "Put hardware in the name",
-              "Use different emojis per device",
-              "Take someone else\u2019s emoji",
-              "Go over 23 characters",
-            ].map((rule, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-sunset-500">✕</span>
-                <span>{rule}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+        <CompanionNamer />
       </div>
     </div>
   );

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { StatsSection } from '@/components';
 import JsonLd from '@/components/JsonLd';
 import NamingWizard from '@/components/NamingWizard';
+import PrefixMatrix from '@/components/PrefixMatrix';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import { BASE_URL } from '@/lib/constants';
 
@@ -116,6 +117,22 @@ export default function Home() {
               </p>
             </div>
             <NamingWizard />
+          </div>
+        </section>
+
+        {/* Prefix Utilization Matrix */}
+        <section id="prefix-matrix" className="bg-background py-16 sm:py-24">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+                Public Key Prefix Map
+              </h2>
+              <p className="text-lg text-foreground-muted max-w-2xl mx-auto">
+                See which public key prefixes are in use on the Denver mesh.
+                Pick a <span className="text-mesh font-semibold">conflict-free prefix</span> for your node.
+              </p>
+            </div>
+            <PrefixMatrix />
           </div>
         </section>
 

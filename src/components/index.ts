@@ -11,3 +11,5 @@ export { LoadingSkeleton } from './LoadingSkeleton';
 export { NotFound } from './NotFound';
 export { ErrorState } from './ErrorState';
 export { NetworkMapWrapper } from './NetworkMapWrapper';
+export { default as CompanionNamer } from './CompanionNamer';
+export { default as PrefixMatrix } from './PrefixMatrix';

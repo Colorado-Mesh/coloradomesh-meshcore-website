@@ -18,7 +18,7 @@ const navLinks: NavLink[] = [
   { href: '/observer', label: 'Analyzers' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About' },
-  { href: '/start', label: 'Get Started' },
+  { href: '/guides', label: 'Guides' },
 ];
 
 export default function Navigation() {

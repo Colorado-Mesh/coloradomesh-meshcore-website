@@ -78,7 +78,7 @@ export default function Home() {
                   Join Our Discord
                 </a>
                 <Link
-                  href="/start"
+                  href="/guides/getting-started"
                   className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white font-semibold px-8 py-4 rounded-lg border-2 border-white/30 transition-all duration-200 focus-ring text-lg backdrop-blur-sm"
                 >
                   Get Started

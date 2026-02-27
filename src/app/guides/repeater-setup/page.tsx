@@ -1,0 +1,504 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import JsonLd from "@/components/JsonLd";
+import Breadcrumbs from "@/components/Breadcrumbs";
+import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
+import { BASE_URL } from "@/lib/constants";
+
+export const metadata: Metadata = {
+  title: "Repeater Setup Guide | Denver MeshCore",
+  description: "Set up and tune a MeshCore repeater node for the Denver mesh network. Includes TX/RX delay profiles optimized for Denver metro elevations.",
+  keywords: ["MeshCore", "repeater", "setup", "Denver", "mesh network", "LoRa", "txdelay", "rxdelay", "antenna", "solar"],
+  alternates: {
+    canonical: '/guides/repeater-setup',
+  },
+  openGraph: {
+    title: "Repeater Setup Guide | Denver MeshCore",
+    description: "Set up and tune a MeshCore repeater node with TX/RX delay profiles optimized for Denver.",
+    url: `${BASE_URL}/guides/repeater-setup`,
+  },
+};
+
+const delayProfiles = [
+  {
+    name: "HILLTOP",
+    elevation: "Highest",
+    neighbors: "20+",
+    examples: "Lookout Mtn, Flagstaff Summit, Green Mtn",
+    when: "Peak or tower with clear line of sight across the metro. Backbone infrastructure.",
+    commands: `set txdelay 2
+set direct.txdelay 2
+set rxdelay 3`,
+    color: "text-mountain-500 bg-mountain-500/10 border-mountain-500/30",
+  },
+  {
+    name: "FOOTHILLS",
+    elevation: "Mid",
+    neighbors: "10-20",
+    examples: "Morrison ridgeline, Golden, Red Rocks area",
+    when: "Bridges hilltop nodes to suburban coverage.",
+    commands: `set txdelay 1.5
+set direct.txdelay 1
+set rxdelay 3`,
+    color: "text-forest-500 bg-forest-500/10 border-forest-500/30",
+  },
+  {
+    name: "SUBURBAN",
+    elevation: "Average",
+    neighbors: "5-10",
+    examples: "Denver/Aurora/Lakewood rooftop",
+    when: "Typical rooftop install serving your neighborhood.",
+    commands: `set txdelay 0.8
+set direct.txdelay 0.4
+set rxdelay 3`,
+    color: "text-mesh bg-mesh/10 border-mesh/30",
+  },
+  {
+    name: "LOCAL",
+    elevation: "Low",
+    neighbors: "1-3",
+    examples: "Indoor, ground-level, low roof",
+    when: "Only sees a few neighbors. Serves immediate area.",
+    commands: `set txdelay 0.3
+set direct.txdelay 0.1
+set rxdelay 3`,
+    color: "text-sunset-500 bg-sunset-500/10 border-sunset-500/30",
+  },
+  {
+    name: "MOBILE",
+    elevation: "Variable",
+    neighbors: "Variable",
+    examples: "Vehicle, hiking, bike",
+    when: "Moving through the mesh. Always defers to fixed infrastructure.",
+    commands: `set txdelay 3
+set direct.txdelay 2.5
+set rxdelay 3`,
+    color: "text-sunset-700 bg-sunset-700/10 border-sunset-700/30",
+  },
+];
+
+const commonSettings = [
+  {
+    setting: "advert.interval",
+    value: "240",
+    description: "Local advert every 4 hours (neighbors only)",
+  },
+  {
+    setting: "flood.advert.interval",
+    value: "24",
+    description: "Network-wide advert every 24 hours",
+  },
+  {
+    setting: "guest.password",
+    value: "(blank)",
+    description: "Lets community members query repeater status",
+  },
+];
+
+const settingsReference = [
+  {
+    setting: "txdelay",
+    default: "0.5",
+    range: "0-3.0",
+    controls: "Wait before retransmitting floods",
+    rule: "Higher = defer to other nodes",
+  },
+  {
+    setting: "direct.txdelay",
+    default: "0.2",
+    range: "0-3.0",
+    controls: "Wait before retransmitting direct packets",
+    rule: "Usually lower than txdelay",
+  },
+  {
+    setting: "rxdelay",
+    default: "0",
+    range: "0-20.0",
+    controls: "SNR-based processing priority",
+    rule: "Higher = prefer strongest signal",
+  },
+];
+
+const breadcrumbData = generateBreadcrumbSchema([
+  { name: 'Home', url: BASE_URL },
+  { name: 'Guides', url: `${BASE_URL}/guides` },
+  { name: 'Repeater Setup', url: `${BASE_URL}/guides/repeater-setup` },
+]);
+
+export default function RepeaterSetupPage() {
+  return (
+    <>
+      <JsonLd data={breadcrumbData} />
+      <div className="min-h-screen bg-mesh">
+        {/* Hero Section */}
+        <section className="px-6 py-16 md:py-24 text-center">
+          <div className="max-w-4xl mx-auto">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Repeater Setup' }]} />
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
+              Repeater <span className="text-mesh">Setup Guide</span>
+            </h1>
+            <p className="text-xl md:text-2xl text-foreground-muted mb-8">
+              Set up and tune a repeater node for the Denver mesh network
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <a href="#getting-running" className="btn-primary">
+                Getting Started
+              </a>
+              <a href="#profiles" className="btn-outline">
+                TX/RX Delay Profiles
+              </a>
+              <a href="#understanding" className="btn-outline">
+                Technical Reference
+              </a>
+            </div>
+          </div>
+        </section>
+
+        {/* Getting Your Repeater Running */}
+        <section id="getting-running" className="px-6 py-16 bg-background-secondary">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+              Getting Your Repeater Running
+            </h2>
+            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
+              Follow these steps to get a basic repeater node online.
+            </p>
+
+            <div className="card-mesh p-6 md:p-8">
+              <ul className="space-y-4">
+                {[
+                  "Flash with Repeater firmware from the web flasher",
+                  "Place at high elevation with good line of sight",
+                  "Use a quality external antenna for better range",
+                  "Ensure stable power supply (wall adapter or solar preferred)",
+                  "Configure via USB using the web config tool",
+                ].map((step, index) => (
+                  <li key={index} className="flex items-start gap-3 text-foreground-muted">
+                    <span className="text-forest-500 mt-0.5 font-bold">{index + 1}.</span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* Clock sync warning */}
+              <div className="mt-6 p-4 bg-sunset-500/10 border border-sunset-500/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <span className="text-sunset-500 text-xl flex-shrink-0">⚠️</span>
+                  <div>
+                    <h4 className="font-semibold text-foreground mb-1">Clock Sync Required</h4>
+                    <p className="text-foreground-muted text-sm">
+                      Repeaters default to an old date on reboot. You must sync the clock after every power cycle by connecting with the companion app or web config tool. Without a correct clock, timestamps on relayed messages will be wrong.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Repeater Configuration Profiles */}
+        <section id="profiles" className="px-6 py-16">
+          <div className="max-w-6xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+              Repeater Configuration Profiles
+            </h2>
+            <p className="text-foreground-muted text-center mb-4 max-w-3xl mx-auto">
+              Higher elevation nodes wait longer before retransmitting, letting local nodes handle nearby traffic first. The network self-organizes without manual routing.
+            </p>
+            <p className="text-foreground-muted text-center mb-12 max-w-3xl mx-auto text-sm">
+              Choose the profile that best matches your repeater&apos;s location and elevation.
+            </p>
+
+            {/* Profile Selection Table (desktop) */}
+            <div className="hidden lg:block card-mesh overflow-hidden mb-12">
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Profile</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Elevation</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Neighbors</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Example Locations</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">When to Use</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {delayProfiles.map((profile) => (
+                    <tr key={profile.name} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-4 py-3">
+                        <span className={`inline-block px-2 py-1 rounded text-xs font-bold ${profile.color}`}>
+                          {profile.name}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-foreground-muted text-sm">{profile.elevation}</td>
+                      <td className="px-4 py-3 text-foreground-muted text-sm">{profile.neighbors}</td>
+                      <td className="px-4 py-3 text-foreground-muted text-sm">{profile.examples}</td>
+                      <td className="px-4 py-3 text-foreground-muted text-sm">{profile.when}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Profile Cards with CLI Commands */}
+            <div className="space-y-6">
+              {delayProfiles.map((profile) => (
+                <div key={profile.name} className={`card-mesh p-6 border-l-4 ${profile.color}`}>
+                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className={`inline-block px-3 py-1 rounded text-sm font-bold ${profile.color}`}>
+                          {profile.name}
+                        </span>
+                        <span className="text-sm text-foreground-muted">{profile.elevation} elevation</span>
+                      </div>
+                      <p className="text-foreground-muted text-sm mb-1">{profile.when}</p>
+                      <p className="text-foreground-muted text-xs">
+                        <span className="font-medium">Examples:</span> {profile.examples}
+                      </p>
+                      <p className="text-foreground-muted text-xs mt-1">
+                        <span className="font-medium">Typical neighbors:</span> {profile.neighbors}
+                      </p>
+                    </div>
+                    <div className="md:w-72 flex-shrink-0">
+                      <div className="bg-night-900 rounded-lg p-4 font-mono text-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-foreground-muted text-xs">CLI Commands</span>
+                        </div>
+                        <pre className="text-forest-400 whitespace-pre">{profile.commands}</pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Common Settings */}
+        <section id="common" className="px-6 py-16 bg-background-secondary">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+              Common Settings (All Denver Repeaters)
+            </h2>
+            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
+              Apply these settings regardless of your repeater&apos;s profile.
+            </p>
+
+            {/* CLI block */}
+            <div className="card-mesh overflow-hidden mb-8">
+              <div className="bg-night-900 p-6 font-mono text-sm">
+                <div className="text-foreground-muted text-xs mb-3">CLI Commands</div>
+                <pre className="text-forest-400 whitespace-pre">{`set advert.interval 240
+set flood.advert.interval 24
+set guest.password`}</pre>
+              </div>
+            </div>
+
+            {/* Reference table */}
+            <div className="card-mesh overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Setting</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Value</th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">What it does</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {commonSettings.map((row) => (
+                    <tr key={row.setting} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-6 py-3 font-mono text-sm text-mesh">{row.setting}</td>
+                      <td className="px-6 py-3 font-mono text-sm text-foreground-muted">{row.value}</td>
+                      <td className="px-6 py-3 text-sm text-foreground-muted">{row.description}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* Understanding the Settings */}
+        <section id="understanding" className="px-6 py-16">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+              Understanding the Settings
+            </h2>
+            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
+              Technical reference for TX/RX delay configuration.
+            </p>
+
+            {/* txdelay explanation */}
+            <div className="card-mesh p-6 md:p-8 mb-6">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
+                txdelay / direct.txdelay
+              </h3>
+              <ul className="space-y-3 text-foreground-muted">
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Controls how long a repeater waits before retransmitting a received packet.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>
+                    Formula: <code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">unit = estimated_airtime x txdelay</code>, then <code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">delay = random(0..5) x unit</code>
+                  </span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Higher values create a wider random window, meaning more deference to other nodes that may retransmit first.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span><code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">direct.txdelay</code> is the same mechanism but for routed point-to-point messages (usually set lower because direct messages benefit from faster delivery).</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* rxdelay explanation */}
+            <div className="card-mesh p-6 md:p-8 mb-8">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
+                rxdelay — SNR-Based Path Selection
+              </h3>
+              <ul className="space-y-3 text-foreground-muted">
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Delays processing flood packets based on signal quality (SNR).</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Strong signal = processed immediately. Weak signal = delayed and likely dropped as a duplicate.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Effect: the mesh naturally prefers the strongest, cleanest paths without any manual routing configuration.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>All Denver repeaters use <code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">rxdelay 3</code>.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Quick Reference Table */}
+            <div className="card-mesh overflow-hidden">
+              <div className="p-4 border-b border-card-border">
+                <h3 className="font-semibold text-foreground">Quick Reference</h3>
+              </div>
+              <table className="w-full">
+                <thead className="bg-night-800/50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Setting</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Default</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Range</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Controls</th>
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-foreground">Rule of Thumb</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-card-border">
+                  {settingsReference.map((row) => (
+                    <tr key={row.setting} className="hover:bg-night-800/30 transition-colors">
+                      <td className="px-4 py-3 font-mono text-sm text-mesh">{row.setting}</td>
+                      <td className="px-4 py-3 font-mono text-sm text-foreground-muted">{row.default}</td>
+                      <td className="px-4 py-3 font-mono text-sm text-foreground-muted">{row.range}</td>
+                      <td className="px-4 py-3 text-sm text-foreground-muted">{row.controls}</td>
+                      <td className="px-4 py-3 text-sm text-foreground-muted">{row.rule}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* Solar-Powered Repeaters */}
+        <section className="px-6 py-16 bg-background-secondary">
+          <div className="max-w-4xl mx-auto">
+            <div className="card-mesh p-6 md:p-8">
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-sunset-500/10 flex items-center justify-center">
+                  <span className="text-2xl">☀️</span>
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground mb-2">Solar-Powered Repeaters</h2>
+                  <p className="text-foreground-muted mb-4">
+                    Building a solar-powered repeater? We have a detailed guide covering panel selection, charge controllers, battery sizing, and weatherproofing.
+                  </p>
+                  <Link href="/blog/solar-powered-repeater-setup" className="text-mesh hover:text-mesh-light inline-flex items-center gap-2 font-medium">
+                    Read the Solar Repeater Guide
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Owner Info */}
+        <section className="px-6 py-16">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+              Setting Owner Info
+            </h2>
+            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
+              Help the community identify and maintain repeaters by setting owner information.
+            </p>
+
+            <div className="card-mesh p-6 md:p-8">
+              <p className="text-foreground-muted mb-4">
+                Consider including the following details in your repeater&apos;s owner info:
+              </p>
+              <ul className="space-y-2 text-foreground-muted">
+                <li className="flex items-start gap-2">
+                  <span className="text-forest-500 mt-0.5">•</span>
+                  <span><strong className="text-foreground">Callsign or handle</strong> — your ham callsign or Discord username</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-forest-500 mt-0.5">•</span>
+                  <span><strong className="text-foreground">Antenna specs</strong> — type, gain, height above ground</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-forest-500 mt-0.5">•</span>
+                  <span><strong className="text-foreground">Power source</strong> — mains, solar, battery backup</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-forest-500 mt-0.5">•</span>
+                  <span><strong className="text-foreground">Install type</strong> — rooftop, tower, indoor, portable</span>
+                </li>
+              </ul>
+              <div className="mt-6 bg-night-900 rounded-lg p-4 font-mono text-sm">
+                <div className="text-foreground-muted text-xs mb-2">Example</div>
+                <pre className="text-forest-400 whitespace-pre">{`set owner KE0ABC | 6dBi omni @30ft | Solar+Batt | Rooftop`}</pre>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="px-6 py-16 bg-mountain-gradient text-white text-center">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Need Help With Your Repeater?</h2>
+            <p className="text-mountain-100 mb-8 text-lg">
+              Join our Discord community to get advice on placement, antenna selection, and configuration.
+            </p>
+            <div className="flex flex-wrap gap-4 justify-center">
+              <a
+                href="https://discord.gg/QpaW8FTTCE"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-accent"
+              >
+                Join Our Discord
+              </a>
+              <Link href="/guides/naming-standard" className="btn-outline border-white text-white hover:bg-white hover:text-mountain-700">
+                Name Your Repeater
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    </>
+  );
+}

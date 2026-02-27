@@ -4,11 +4,12 @@ import Image from 'next/image';
 const quickLinks = [
   { href: '/', label: 'Home' },
   { href: '/why-meshcore', label: 'Why MeshCore?' },
-  { href: '/nodes', label: 'Nodes' },
+  { href: '/guides', label: 'Guides' },
+  { href: '/guides/getting-started', label: 'Getting Started' },
+  { href: '/guides/repeater-setup', label: 'Repeater Setup' },
   { href: '/observer', label: 'Analyzers' },
   { href: '/blog', label: 'Blog' },
   { href: '/about', label: 'About' },
-  { href: '/start', label: 'Get Started' },
 ];
 
 const communityLinks = [

@@ -114,7 +114,7 @@ const settingsReference = [
     setting: "rxdelay",
     default: "0",
     range: "0-20.0",
-    controls: "SNR-based processing priority",
+    controls: "SNR-based flood processing priority (direct packets unaffected)",
     rule: "Higher = prefer strongest signal",
   },
 ];
@@ -363,7 +363,7 @@ set guest.password`}</pre>
               <ul className="space-y-3 text-foreground-muted">
                 <li className="flex items-start gap-2">
                   <span className="text-mesh mt-0.5">•</span>
-                  <span>Delays processing flood packets based on signal quality (SNR).</span>
+                  <span>Only affects <strong className="text-foreground">flood packets</strong> — direct (point-to-point) packets are always processed immediately. Delays processing of floods based on signal quality (SNR).</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-mesh mt-0.5">•</span>

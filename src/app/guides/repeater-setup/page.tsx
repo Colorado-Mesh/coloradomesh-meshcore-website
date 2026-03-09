@@ -445,7 +445,7 @@ set guest.password`}</pre>
               </ul>
               <div className="mt-6 bg-night-900 rounded-lg p-4 font-mono text-sm">
                 <div className="text-foreground-muted text-xs mb-2">Example</div>
-                <pre className="text-forest-400 whitespace-pre">{`set owner KE0ABC | 6dBi omni @30ft | Solar+Batt | Rooftop`}</pre>
+                <pre className="text-forest-400 whitespace-pre">{`set owner KE0ABC / 6dBi omni @30ft / Solar+Batt / Rooftop`}</pre>
               </div>
             </div>
           </div>

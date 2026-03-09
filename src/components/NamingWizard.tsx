@@ -94,7 +94,7 @@ export default function NamingWizard() {
       (l) => l.name.toLowerCase().includes(q) || l.code.toLowerCase().includes(q)
     );
   }, [landmarkSearch]);
-  const landmark = landmarkMode === "known" ? landmarkCode : customLandmark.toUpperCase();
+  const landmark = landmarkMode === "known" ? landmarkCode : customLandmark;
 
   const generatedName = useMemo(() => {
     const parts: string[] = [];
@@ -102,7 +102,7 @@ export default function NamingWizard() {
     if (!skipCity && city) parts.push(city);
     if (landmark) parts.push(landmark);
     if (nodeType) parts.push(nodeType);
-    if (pubkey) parts.push(pubkey.toUpperCase());
+    if (pubkey) parts.push(pubkey);
     return parts.join("-");
   }, [region, city, skipCity, landmark, nodeType, pubkey]);
 
@@ -113,12 +113,12 @@ export default function NamingWizard() {
   // Validation
   const landmarkMaxLen = skipCity ? 11 : 5;
   const cityValid = skipCity || (city.length >= 1 && city.length <= 5 && /^[A-Z]+$/.test(city));
-  const landmarkValid = landmark.length >= 1 && landmark.length <= landmarkMaxLen && /^[A-Z0-9.+_|]+$/.test(landmark);
+  const landmarkValid = landmark.length >= 1 && landmark.length <= landmarkMaxLen && /^[A-Za-z0-9.+_|]+$/.test(landmark);
   const pubkeyValid = /^[A-Fa-f0-9]{4}$/.test(pubkey);
 
   const errors: string[] = [];
   if (city && !skipCity && !cityValid) errors.push("City must be 1\u20135 letters only");
-  if (landmark && !landmarkValid) errors.push(`Landmark must be 1\u2013${landmarkMaxLen} chars (A-Z, 0-9, +, ., _, |)`);
+  if (landmark && !landmarkValid) errors.push(`Landmark must be 1\u2013${landmarkMaxLen} chars (A-Z, a-z, 0-9, +, ., _, |)`);
   if (pubkey && !pubkeyValid) errors.push("Pub key must be exactly 4 hex chars (0-9, A-F)");
   if (isOverLimit) errors.push("Name exceeds 23-character limit");
 
@@ -357,7 +357,7 @@ export default function NamingWizard() {
           <span className="text-mountain-500 mr-2">3.</span>Landmark
         </label>
         <p className="text-xs text-foreground-muted mb-3">
-          1\u2013{landmarkMaxLen} chars. A-Z, 0-9, and special chars: <span className="font-mono">+ . _ |</span>
+          1\u2013{landmarkMaxLen} chars. Mixed case OK for readability (e.g. RdRcks). A-Z, a-z, 0-9, <span className="font-mono">+ . _ |</span>
         </p>
         <div className="flex gap-2 mb-3">
           <button
@@ -404,9 +404,9 @@ export default function NamingWizard() {
             type="text"
             value={customLandmark}
             onChange={(e) => setCustomLandmark(e.target.value.replace(/[^a-zA-Z0-9.+_|]/g, "").slice(0, landmarkMaxLen))}
-            placeholder="e.g. CHSPK"
+            placeholder="e.g. RdRcks"
             maxLength={landmarkMaxLen}
-            className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
+            className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
           />
         )}
       </div>

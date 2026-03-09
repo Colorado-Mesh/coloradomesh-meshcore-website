@@ -5,12 +5,24 @@ import { CopyButton } from "./CopyButton";
 
 type SuffixStrategy = "pubkey" | "role" | "number";
 
+const companionRoles = [
+  { code: "PRIM", label: "Primary", description: "Default method to contact you" },
+  { code: "SCND", label: "Secondary", description: "Less critical, still used regularly" },
+  { code: "TERT", label: "Tertiary", description: "Used occasionally or for a specific purpose" },
+  { code: "BKUP", label: "Backup", description: "Fallback if other devices are unavailable" },
+  { code: "EMRG", label: "Emergency", description: "Reserved for critical situations" },
+  { code: "MOBL", label: "Mobile", description: "Portable, used on the go (hiking, etc.)" },
+  { code: "VHCL", label: "Vehicle", description: "Installed in a car or other vehicle" },
+  { code: "HOME", label: "Home", description: "Stationary household node" },
+];
+
 export default function CompanionNamer() {
   const [emoji, setEmoji] = useState("");
   const [handle, setHandle] = useState("");
   const [strategy, setStrategy] = useState<SuffixStrategy>("pubkey");
   const [pubkeyPrefix, setPubkeyPrefix] = useState("");
   const [role, setRole] = useState("");
+  const [customRole, setCustomRole] = useState("");
   const [number, setNumber] = useState("");
 
   const suffix = useMemo(() => {
@@ -18,11 +30,11 @@ export default function CompanionNamer() {
       case "pubkey":
         return pubkeyPrefix.toUpperCase();
       case "role":
-        return role.toUpperCase();
+        return (role === "__custom" ? customRole : role).toUpperCase();
       case "number":
         return number ? `MY${number.padStart(2, "0")}` : "";
     }
-  }, [strategy, pubkeyPrefix, role, number]);
+  }, [strategy, pubkeyPrefix, role, customRole, number]);
 
   const generatedName = useMemo(() => {
     const parts: string[] = [];
@@ -165,18 +177,38 @@ export default function CompanionNamer() {
             />
           )}
           {strategy === "role" && (
-            <input
-              type="text"
-              value={role}
-              onChange={(e) =>
-                setRole(
-                  e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 4)
-                )
-              }
-              placeholder="e.g. PRIM, SCND, HOME"
-              maxLength={4}
-              className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
-            />
+            <div className="space-y-2">
+              <select
+                value={role}
+                onChange={(e) => { setRole(e.target.value); setCustomRole(""); }}
+                className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none"
+              >
+                <option value="">Select role...</option>
+                {companionRoles.map((r) => (
+                  <option key={r.code} value={r.code}>
+                    {r.code} — {r.label}
+                  </option>
+                ))}
+                <option value="__custom">Custom...</option>
+              </select>
+              {role === "__custom" && (
+                <input
+                  type="text"
+                  value={customRole}
+                  onChange={(e) =>
+                    setCustomRole(e.target.value.replace(/[^a-zA-Z]/g, "").slice(0, 4))
+                  }
+                  placeholder="e.g. CAMP"
+                  maxLength={4}
+                  className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
+                />
+              )}
+              {role && role !== "__custom" && (
+                <p className="text-xs text-foreground-muted">
+                  {companionRoles.find((r) => r.code === role)?.description}
+                </p>
+              )}
+            </div>
           )}
           {strategy === "number" && (
             <input

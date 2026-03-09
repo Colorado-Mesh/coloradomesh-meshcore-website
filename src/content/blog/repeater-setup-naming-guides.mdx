@@ -1,0 +1,117 @@
+---
+title: "Our Repeater Setup and Naming Guides: Built on Lessons from the Global MeshCore Community"
+date: "2026-03-09"
+excerpt: "How the Australian MeshCore community's pioneering work on repeater tuning and network coordination shaped the guides we use in Denver today."
+author: "Denver MeshCore"
+tags: ["Guides", "Repeaters", "Naming Standard", "Community", "MeshCore"]
+published: true
+---
+
+If you've used our [repeater setup guide](/guides/repeater-setup) or [naming standard wizard](/guides/naming-standard), you might wonder where this stuff comes from. It didn't appear out of thin air. These guides are built on real-world experience from mesh communities around the world, and we want to give credit where it's due.
+
+## The Australian Connection
+
+The MeshCore community in New South Wales, Australia was one of the first to tackle a problem every growing mesh network eventually faces: **how do you keep dozens of repeaters from stepping on each other?**
+
+MeshCore itself was created by **Scott Powell** of [Ripple Radios](https://rippleradios.wordpress.com/) in Melbourne, Australia, so it's no surprise that some of the earliest and most sophisticated deployment guides came from Australian operators.
+
+The [MeshSydney](https://meshsydney.com/wiki) community and the broader [NSW Mesh Users Group](https://nswmesh.au/), a collection of experimenters, bushwalkers, emergency-comms enthusiasts, and tinkerers around the Sydney metro area, built out a network of repeaters across varying terrain. Hills, harbors, suburbs, dense urban cores. Sound familiar? Swap the harbor for the Front Range and you've got Denver.
+
+Their [NSW Meshcore Configuration Guide](https://meshsydney.com/wiki) was one of the first to develop **elevation-based delay profiles** for MeshCore repeaters, a systematic approach to configuring `txdelay` and `rxdelay` values based on where a node sits in the network hierarchy. They established role-based profiles: BACKBONE, CRITICAL, LINK, STANDARD, LOCAL, and MOBILE, each tuned for a specific type of deployment with values like `txdelay 2.0` for hilltop nodes and `txdelay 0.3` for local ground-level installs.
+
+We adapted their profiles for Colorado's geography (renaming CRITICAL to HILLTOP, LINK to FOOTHILLS, etc.) and published the result as our [repeater setup guide](/guides/repeater-setup). The txdelay values are nearly identical because the physics doesn't change between hemispheres, the strategy of making higher nodes wait longer works everywhere.
+
+## Why Repeater Tuning Matters
+
+When you have a single repeater on a hilltop, configuration is simple. But when you have a network of repeaters at different elevations covering overlapping areas, you need a strategy. Without one, here's what happens:
+
+- **Packet collisions.** Multiple repeaters hear the same message and retransmit simultaneously, corrupting each other's signals.
+- **Wasted airtime.** A high-elevation backbone repeater retransmits a message that a local rooftop node already delivered to the recipient.
+- **Unreliable delivery.** Messages bounce around unpredictably instead of taking clean paths through the mesh.
+
+The solution is deceptively simple: **make higher nodes wait longer before retransmitting.**
+
+### txdelay: The Polite Pause
+
+The `txdelay` setting controls how long a repeater waits before retransmitting a flood packet it received. The actual delay is randomized within a window proportional to the setting, so two nodes with the same txdelay won't always collide.
+
+A hilltop backbone repeater with `txdelay 2` creates a wider random window than a rooftop edge node with `txdelay 0.8`. The edge node is more likely to retransmit first. If the edge node's retransmission reaches the destination, the hilltop node hears it and cancels its own retransmission. The message gets delivered without the backbone node ever needing to fire.
+
+This is how the mesh self-organizes: local nodes handle local traffic, and backbone nodes only step in when needed for long-range hops.
+
+### rxdelay: Signal-Quality Filtering
+
+The `rxdelay` setting adds a processing delay to flood packets based on signal quality (SNR). Strong signals get processed immediately. Weak signals get delayed, and often dropped as duplicates before they're ever retransmitted.
+
+The effect: the mesh naturally prefers the strongest, cleanest paths without any manual routing. All Denver repeaters use `rxdelay 3`.
+
+### The Five Profiles
+
+Our guide defines five profiles adapted from the Australian model:
+
+| Profile | txdelay | Best For |
+|---------|---------|----------|
+| **HILLTOP** | 2.0 | Mountain peaks, towers. The backbone. |
+| **FOOTHILLS** | 1.5 | Mid-elevation. Bridges hilltops to suburbs. |
+| **SUBURBAN** | 0.8 | Typical rooftop install. |
+| **LOCAL** | 0.3 | Indoor, ground-level. Few neighbors. |
+| **MOBILE** | 3.0 | Vehicles, hiking. Always defers to fixed nodes. |
+
+The full guide with CLI commands for each profile is at [/guides/repeater-setup](/guides/repeater-setup).
+
+## The Naming Standard
+
+As the network grows, so does the need to know what you're looking at. When you see a node on the mesh, its name should tell you where it is, what it does, and how to identify it.
+
+Our [naming standard v2.0](/guides/naming-standard) follows the format developed by the [Denver Mesh](https://github.com/Denver-Mesh/docs/blob/master/MeshCore/standards/naming/v2.1.md) community and used by the [Colorado Mesh utilities site](https://github.com/Colorado-Mesh/meshcore-utilities-site):
+
+```
+[REGION]-[CITY]-[LANDMARK]-[TYPE]-[PUBKEY]
+```
+
+Each piece serves a purpose:
+
+- **REGION** uses [IATA airport codes](https://en.wikipedia.org/wiki/List_of_airports_in_Colorado) (DEN, COS, FNL, etc.), universally recognized identifiers that immediately tell you the general area.
+- **CITY** is a 1-5 character abbreviation (DENVR, GLDN, LKWD). Can be dropped if the landmark is prominent enough on its own.
+- **LANDMARK** is where the node physically sits, a park, intersection, mountain, or building (CHSPK, RDRKS, SLOAN).
+- **TYPE** identifies the node's role: RC (core repeater), RD (distribution), RE (edge), RM (mobile), TS (room server), TM (mobile room), or TR (room + repeat).
+- **PUBKEY** is the first 4 hex characters of the node's public key, guaranteeing uniqueness across the mesh.
+
+A name like `DEN-GLDN-LKOUT-RC-4D0C` tells you everything at a glance: Denver region, Golden, Lookout Mountain, core repeater, public key prefix 4D0C.
+
+### Why Not Just Name It Whatever?
+
+Without a standard, you get names like "Bob's Node" and "test123" and "Repeater2." When you're troubleshooting a routing issue or trying to figure out why a message took 6 hops instead of 3, those names tell you nothing. A consistent naming convention lets operators and community members:
+
+- **Identify node location** without looking up a map
+- **Understand node role** from the type code
+- **Trace routes** using the public key prefix
+- **Avoid conflicts** since the pubkey suffix guarantees uniqueness
+
+### Companion Naming
+
+Personal carry nodes (companions) use a different format:
+
+```
+[EMOJI] [HANDLE] [SUFFIX]
+```
+
+Like `M3SHGHST 01` or `SQRLNUT F4`. The emoji is your personal identifier across all your devices, the handle is your mesh alias (never your real name since nodes broadcast GPS), and the suffix identifies the specific device by number, role, or public key prefix.
+
+Our [naming wizard](/guides/naming-standard) handles both infrastructure and companion naming with an interactive builder that validates against the standard in real time.
+
+## Standing on Shoulders
+
+Mesh networking is inherently collaborative. The whole point is that the network gets stronger with every node. The same applies to the knowledge behind it.
+
+The [MeshSydney](https://meshsydney.com/wiki) community figured out elevation-based delay profiles through real-world testing across Sydney's terrain. [W6HS](https://w6hs.net/meshcore-repeater-deployment-timing-considerations-for-wide-area-networks/) wrote an excellent deep dive on the timing math behind repeater deployment. The [Denver Mesh](https://github.com/Denver-Mesh/docs) community formalized a naming standard that scales across Colorado. Other Australian communities like [Mesh Brisbane (MBUG)](https://wiki.mbug.com.au/) and [HiveMesh](https://hivemesh.au/) continue to push the boundaries of what community mesh networks can do. We brought these lessons together into guides that work for our network.
+
+If you're starting a mesh community in your area, you don't have to reinvent this. Take what works, adapt it to your geography, and share what you learn. The [LetsMesh Forum](https://forum.letsmesh.net/) maintains a list of MeshCore communities worldwide if you want to connect with others doing the same thing.
+
+## Try the Guides
+
+- **[Repeater Setup Guide](/guides/repeater-setup)** — TX/RX delay profiles, common settings, and technical reference
+- **[Naming Standard Wizard](/guides/naming-standard)** — Interactive name generator for repeaters and companions
+- **[Getting Started](/guides/getting-started)** — New to MeshCore? Start here
+
+Questions? Join our [Discord](https://discord.gg/QpaW8FTTCE). We're always happy to help with repeater placement, configuration, and getting your node named and on the mesh.

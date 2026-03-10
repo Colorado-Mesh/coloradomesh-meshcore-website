@@ -45,6 +45,14 @@ The `rxdelay` setting adds a processing delay to flood packets based on signal q
 
 The effect: the mesh naturally prefers the strongest, cleanest paths without any manual routing. All Denver repeaters use `rxdelay 3`.
 
+### agc.reset.interval: Radio Deafness Prevention
+
+One setting that doesn't get enough attention is `agc.reset.interval`. The SX1262 LoRa chip's Automatic Gain Control can lock up when exposed to strong out-of-band RF interference (think broadcast towers, cell sites, or other transmitters near your repeater). When this happens, the noise floor clamps at -120 dBm and the repeater goes "deaf," unable to hear weaker signals until it's physically rebooted.
+
+The fix is simple: `agc.reset.interval` periodically resets the AGC so the radio can recover automatically. The AGC is also reset after every transmission, so this mainly matters for repeaters that go long periods without transmitting — exactly the behavior you want from a well-tuned hilltop node with a high txdelay.
+
+The MeshCore FAQ recommends a value of `4` (seconds) for the most aggressive recovery, while MeshSydney uses `500` (~8 minutes) for a conservative approach that minimizes any chance of packet loss. All Denver repeaters use `agc.reset.interval 500`, matching the Sydney recommendation.
+
 ### The Five Profiles
 
 Our guide defines five profiles adapted from the Australian model:

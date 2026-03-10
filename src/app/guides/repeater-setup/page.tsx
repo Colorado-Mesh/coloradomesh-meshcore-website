@@ -8,7 +8,7 @@ import { BASE_URL } from "@/lib/constants";
 export const metadata: Metadata = {
   title: "Repeater Setup Guide | Denver MeshCore",
   description: "Set up and tune a MeshCore repeater node for the Denver mesh network. Includes TX/RX delay profiles optimized for Denver metro elevations.",
-  keywords: ["MeshCore", "repeater", "setup", "Denver", "mesh network", "LoRa", "txdelay", "rxdelay", "antenna", "solar"],
+  keywords: ["MeshCore", "repeater", "setup", "Denver", "mesh network", "LoRa", "txdelay", "rxdelay", "agc", "antenna", "solar"],
   alternates: {
     canonical: '/guides/repeater-setup',
   },
@@ -89,6 +89,11 @@ const commonSettings = [
     description: "Network-wide advert every 24 hours",
   },
   {
+    setting: "agc.reset.interval",
+    value: "500",
+    description: "Reset radio AGC every ~8 min to prevent deafness from RF interference",
+  },
+  {
     setting: "guest.password",
     value: "(blank)",
     description: "Lets community members query repeater status",
@@ -116,6 +121,13 @@ const settingsReference = [
     range: "0-20.0",
     controls: "SNR-based flood processing priority (direct packets unaffected)",
     rule: "Higher = prefer strongest signal",
+  },
+  {
+    setting: "agc.reset.interval",
+    default: "0",
+    range: "0-1020",
+    controls: "Periodic AGC reset to prevent radio deafness (seconds)",
+    rule: "Non-zero = auto-recover from RF interference",
   },
 ];
 
@@ -290,6 +302,7 @@ export default function RepeaterSetupPage() {
                 <div className="text-foreground-muted text-xs mb-3">CLI Commands</div>
                 <pre className="text-forest-400 whitespace-pre">{`set advert.interval 240
 set flood.advert.interval 24
+set agc.reset.interval 500
 set guest.password`}</pre>
               </div>
             </div>
@@ -376,6 +389,35 @@ set guest.password`}</pre>
                 <li className="flex items-start gap-2">
                   <span className="text-mesh mt-0.5">•</span>
                   <span>All Denver repeaters use <code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">rxdelay 3</code>.</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* agc.reset.interval explanation */}
+            <div className="card-mesh p-6 md:p-8 mb-8">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
+                agc.reset.interval — Radio Deafness Prevention
+              </h3>
+              <ul className="space-y-3 text-foreground-muted">
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Periodically resets the LoRa radio&apos;s Automatic Gain Control (AGC) to prevent &quot;deafness&quot; caused by strong out-of-band RF interference.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Without this, the SX1262 AGC can lock up, clamping the noise floor at -120 dBm and making the repeater unable to hear weaker signals until rebooted.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>AGC is also reset automatically after every transmission — this setting only matters during long idle/receive periods.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Especially important for hilltop repeaters near broadcast towers or cell sites. Denver repeaters use <code className="bg-night-800/50 px-2 py-0.5 rounded text-sm font-mono text-mesh">agc.reset.interval 500</code> (~8 minutes).</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-mesh mt-0.5">•</span>
+                  <span>Values are stored in 4-second increments (e.g., 60 is rounded to 60). Range: 4–1020 seconds. Set to 0 to disable.</span>
                 </li>
               </ul>
             </div>

@@ -21,13 +21,13 @@ export const metadata: Metadata = {
     'LoRa mesh applications',
     'decentralized communication uses',
     'MeshCore applications',
-    'Denver mesh use cases',
+    'Colorado mesh use cases',
   ],
   alternates: {
     canonical: '/use-cases',
   },
   openGraph: {
-    title: 'MeshCore Use Cases | Denver MeshCore',
+    title: 'MeshCore Use Cases | Colorado MeshCore',
     description:
       'Explore practical applications for mesh networks: emergency preparedness, off-grid communication, and community networks across Colorado.',
     url: `${BASE_URL}/use-cases`,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'MeshCore Use Cases | Denver MeshCore',
+    title: 'MeshCore Use Cases | Colorado MeshCore',
     description:
       'Explore practical applications for mesh networks: emergency preparedness, off-grid communication, and community networks across Colorado.',
   },
@@ -160,7 +160,7 @@ const pageSchema = {
   url: `${BASE_URL}/use-cases`,
   publisher: {
     '@type': 'Organization',
-    name: 'Denver MeshCore',
+    name: 'Colorado MeshCore',
     url: BASE_URL,
   },
   mainEntity: {
@@ -399,7 +399,7 @@ export default function UseCasesPage() {
               Ready to Get Started?
             </h2>
             <p className="text-mountain-100 mb-8 text-lg">
-              Join the Denver MeshCore community and build resilient communication infrastructure.
+              Join the Colorado MeshCore community and build resilient communication infrastructure.
               Whether you&apos;re preparing for emergencies, exploring the backcountry, or
               connecting your neighborhood, we&apos;re here to help.
             </p>

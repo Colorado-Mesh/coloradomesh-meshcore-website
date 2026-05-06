@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     canonical: '/use-cases/off-grid-communication',
   },
   openGraph: {
-    title: 'Off-Grid Communication for Colorado Backcountry | Denver MeshCore',
+    title: 'Off-Grid Communication for Colorado Backcountry | Colorado MeshCore',
     description:
       'Reliable mesh network communication for hiking, camping, and wilderness adventures in Colorado. Stay connected where cell service fails.',
     url: `${BASE_URL}/use-cases/off-grid-communication`,
@@ -164,7 +164,7 @@ const features = [
   {
     title: 'Works Through Mountains',
     description:
-      'Denver MeshCore repeaters are strategically placed on high points across Colorado, extending coverage through valleys and mountain passes.',
+      'Colorado MeshCore repeaters are strategically placed on high points across Colorado, extending coverage through valleys and mountain passes.',
     icon: (
       <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
@@ -223,17 +223,17 @@ const faqs = [
   {
     question: 'How far can MeshCore communicate in the mountains?',
     answer:
-      'Direct line-of-sight range is typically 5-15 miles depending on terrain. With the Denver MeshCore repeater network, messages can travel across the entire Front Range through multiple hops.',
+      'Direct line-of-sight range is typically 5-15 miles depending on terrain. With the Colorado MeshCore repeater network, messages can travel across the entire Front Range through multiple hops.',
   },
   {
     question: 'Will MeshCore work in deep canyons or valleys?',
     answer:
-      'Yes, if there are repeaters on nearby high points. The Denver MeshCore network is designed with repeaters strategically placed to provide coverage through valleys and mountain passes.',
+      'Yes, if there are repeaters on nearby high points. The Colorado MeshCore network is designed with repeaters strategically placed to provide coverage through valleys and mountain passes.',
   },
   {
     question: 'What happens if I\'m the only MeshCore user in an area?',
     answer:
-      'You can still communicate with anyone else in direct radio range (typically several miles). For extended range, you\'ll benefit from the network of repeaters that Denver MeshCore volunteers maintain.',
+      'You can still communicate with anyone else in direct radio range (typically several miles). For extended range, you\'ll benefit from the network of repeaters that Colorado MeshCore volunteers maintain.',
   },
   {
     question: 'Is MeshCore reliable enough for emergency use?',
@@ -243,7 +243,7 @@ const faqs = [
   {
     question: 'How do I get started with off-grid communication in Colorado?',
     answer:
-      'Get a compatible LoRa radio, flash it with MeshCore firmware, and join the Denver MeshCore Discord community for help with setup and to connect with other users in your area.',
+      'Get a compatible LoRa radio, flash it with MeshCore firmware, and join the Colorado MeshCore Discord community for help with setup and to connect with other users in your area.',
   },
 ];
 
@@ -438,7 +438,7 @@ export default function OffGridCommunicationPage() {
               Ready for Off-Grid Adventures?
             </h2>
             <p className="text-mountain-100 mb-8 text-lg">
-              Join Denver MeshCore and stay connected on your next Colorado backcountry adventure.
+              Join Colorado MeshCore and stay connected on your next Colorado backcountry adventure.
               Get your device, connect to the network, and explore with confidence.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">

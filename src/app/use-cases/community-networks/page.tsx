@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     canonical: '/use-cases/community-networks',
   },
   openGraph: {
-    title: 'Community Mesh Networks | Denver MeshCore',
+    title: 'Community Mesh Networks | Colorado MeshCore',
     description:
       'Build a resilient community mesh network for your neighborhood. Connect with neighbors, stay prepared for emergencies, and create lasting local communication infrastructure.',
     url: `${BASE_URL}/use-cases/community-networks`,
@@ -35,7 +35,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Community Mesh Networks | Denver MeshCore',
+    title: 'Community Mesh Networks | Colorado MeshCore',
     description:
       'Build a resilient community mesh network for your neighborhood. Connect with neighbors and create lasting local communication infrastructure.',
   },
@@ -224,12 +224,12 @@ const pageSchema = {
     'Learn how to build a community mesh network for your neighborhood using MeshCore technology.',
   author: {
     '@type': 'Organization',
-    name: 'Denver MeshCore',
+    name: 'Colorado MeshCore',
     url: BASE_URL,
   },
   publisher: {
     '@type': 'Organization',
-    name: 'Denver MeshCore',
+    name: 'Colorado MeshCore',
     url: BASE_URL,
   },
   mainEntityOfPage: {
@@ -440,11 +440,11 @@ export default function CommunityNetworksPage() {
           </div>
         </section>
 
-        {/* Denver MeshCore Advantage */}
+        {/* Colorado MeshCore Advantage */}
         <section className="px-6 py-16 bg-mountain-gradient text-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-8">
-              Join the Denver MeshCore Community
+              Join the Colorado MeshCore Community
             </h2>
             <div className="space-y-6 text-mountain-100 text-left max-w-3xl mx-auto">
               <p className="text-lg">
@@ -453,7 +453,7 @@ export default function CommunityNetworksPage() {
                 the Colorado Front Range.
               </p>
               <p className="text-lg">
-                Your local network can connect to the broader Denver MeshCore infrastructure,
+                Your local network can connect to the broader Colorado MeshCore infrastructure,
                 extending your reach and providing access to repeaters across the region. This
                 means your community benefits from the collective effort of mesh enthusiasts
                 throughout Colorado.
@@ -512,7 +512,7 @@ export default function CommunityNetworksPage() {
             </h2>
             <p className="text-mountain-100 mb-8 text-lg">
               Start small, grow organically, and create lasting communication infrastructure for
-              your community. The Denver MeshCore community is here to help you succeed.
+              your community. The Colorado MeshCore community is here to help you succeed.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link href="/start" className="btn-accent">

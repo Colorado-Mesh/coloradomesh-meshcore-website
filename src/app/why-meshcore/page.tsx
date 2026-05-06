@@ -4,6 +4,7 @@ import JsonLd from '@/components/JsonLd';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import { generateFAQSchema } from '@/lib/schemas/faq';
+import { BASE_URL, SITE_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'Why MeshCore?',
@@ -16,22 +17,20 @@ export const metadata: Metadata = {
     'LoRa mesh',
     'off-grid communication',
     'decentralized network',
-    'Denver mesh',
+    'Colorado mesh',
   ],
   alternates: {
     canonical: '/why-meshcore',
   },
   openGraph: {
-    title: 'Why MeshCore? | Denver MeshCore',
+    title: `Why MeshCore? | ${SITE_NAME}`,
     description:
       'Faster messaging, better battery life, and city-scale reliability. Discover why MeshCore is the choice for serious mesh networking.',
-    url: 'https://denvermc.com/why-meshcore',
+    url: `${BASE_URL}/why-meshcore`,
   },
   twitter: {
     card: 'summary_large_image',
-    site: '@denver_meshcore',
-    creator: '@denver_meshcore',
-    title: 'Why MeshCore? | Denver MeshCore',
+    title: `Why MeshCore? | ${SITE_NAME}`,
     description:
       'Faster messaging, better battery life, and city-scale reliability. Discover why MeshCore is the choice for serious mesh networking.',
     images: ['/logo-512.png'],
@@ -39,8 +38,8 @@ export const metadata: Metadata = {
 };
 
 const breadcrumbData = generateBreadcrumbSchema([
-  { name: 'Home', url: 'https://denvermc.com' },
-  { name: 'Why MeshCore?', url: 'https://denvermc.com/why-meshcore' },
+  { name: 'Home', url: BASE_URL },
+  { name: 'Why MeshCore?', url: `${BASE_URL}/why-meshcore` },
 ]);
 
 // FAQ data for MeshCore vs Meshtastic comparison questions
@@ -435,7 +434,7 @@ export default function WhyMeshCorePage() {
               <p className="text-lg">
                 MeshCore shines when you want to build lasting infrastructure &mdash; fixed repeaters on rooftops
                 and high points that create reliable, city-scale coverage. If you&apos;re looking to participate in
-                the Denver mesh network, MeshCore is our choice because it&apos;s optimized for exactly what we&apos;re building.
+                the Colorado MeshCore network, MeshCore is our choice because it&apos;s optimized for exactly what we&apos;re building.
               </p>
             </div>
             <div className="mt-8 text-center">
@@ -459,7 +458,7 @@ export default function WhyMeshCorePage() {
           <div className="max-w-3xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Try MeshCore?</h2>
             <p className="text-mountain-100 mb-8 text-lg">
-              Join the Denver MeshCore community. Get your hardware, flash the firmware, and become part of
+              Join the Colorado MeshCore community. Get your hardware, flash the firmware, and become part of
               Colorado&apos;s growing mesh network.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">

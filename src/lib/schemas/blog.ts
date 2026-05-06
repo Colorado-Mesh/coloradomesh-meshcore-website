@@ -26,7 +26,7 @@ export function generateBlogPostSchema(post: BlogPostSchemaInput) {
     },
     publisher: {
       '@type': 'Organization',
-      name: 'Denver MeshCore',
+      name: 'Colorado MeshCore',
       logo: {
         '@type': 'ImageObject',
         url: `${BASE_URL}/logo-512.png`,

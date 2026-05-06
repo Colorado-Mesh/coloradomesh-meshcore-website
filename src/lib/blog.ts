@@ -122,7 +122,7 @@ export function getPostBySlug(slug: string): BlogPost | null {
       date: data.date as string,
       ...(dateModified && { dateModified }),
       excerpt: data.excerpt as string,
-      author: (data.author as string) || 'Denver MeshCore',
+      author: (data.author as string) || 'Colorado MeshCore',
       tags: (data.tags as string[]) || [],
       published: data.published !== false,
       content,

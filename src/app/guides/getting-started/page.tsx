@@ -7,15 +7,15 @@ import { generateHowToSchema, meshCoreSetupHowTo } from "@/lib/schemas/howto";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Getting Started with MeshCore | Denver MeshCore",
-  description: "Learn how to join the Denver mesh network. Hardware requirements, firmware setup guide, configuration instructions, and community resources.",
-  keywords: ["MeshCore", "mesh network", "getting started", "Denver", "LoRa", "ESP32", "firmware", "setup guide", "tutorial"],
+  title: "Getting Started with MeshCore | Colorado MeshCore",
+  description: "Learn how to join the Colorado MeshCore network. Hardware requirements, firmware setup guide, configuration instructions, and community resources.",
+  keywords: ["MeshCore", "mesh network", "getting started", "Colorado", "Denver", "Front Range", "LoRa", "ESP32", "firmware", "setup guide", "tutorial"],
   alternates: {
     canonical: '/guides/getting-started',
   },
   openGraph: {
-    title: "Getting Started with MeshCore | Denver MeshCore",
-    description: "Learn how to join the Denver mesh network with our step-by-step setup guide.",
+    title: "Getting Started with MeshCore | Colorado MeshCore",
+    description: "Learn how to join the Colorado MeshCore network with our step-by-step setup guide.",
     url: `${BASE_URL}/guides/getting-started`,
   },
 };
@@ -85,7 +85,7 @@ const setupSteps = [
   {
     number: 3,
     title: "Join the Community",
-    description: "Connect with other Denver MeshCore members on Discord to get help, share experiences, and coordinate network improvements.",
+    description: "Connect with other Colorado MeshCore operators on Discord to get help, share experiences, and coordinate network improvements.",
     tips: [
       "Introduce yourself in the #introductions channel",
       "Ask questions in #support if you need help",
@@ -123,7 +123,7 @@ const configTips = [
       "Higher elevation = better range (line of sight)",
       "TX Power: Use maximum for best coverage",
       "Enable GPS for positioning on the network map",
-      "Join the Denver MeshCore Discord for local help",
+      "Join the Colorado MeshCore Discord for local help",
     ],
   },
 ];
@@ -160,7 +160,7 @@ export default function GettingStartedPage() {
               Get Started with <span className="text-mesh">MeshCore</span>
             </h1>
             <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Join the Denver mesh network and connect with the community
+              Join the Colorado MeshCore network and connect with the community
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a href="#hardware" className="btn-primary">
@@ -250,7 +250,7 @@ export default function GettingStartedPage() {
               Step-by-Step Setup Guide
             </h2>
             <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Follow these steps to get your node up and running on the Denver mesh network.
+              Follow these steps to get your node up and running on the Colorado MeshCore network.
             </p>
 
             <div className="space-y-8">
@@ -384,8 +384,8 @@ export default function GettingStartedPage() {
               >
                 Join Our Discord
               </a>
-              <Link href="/observer" className="btn-outline border-white text-white hover:bg-white hover:text-mountain-700">
-                View Network Status
+              <Link href="/map" className="btn-outline border-white text-white hover:bg-white hover:text-mountain-700">
+                View Live Map
               </Link>
             </div>
           </div>

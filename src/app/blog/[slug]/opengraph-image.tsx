@@ -1,7 +1,7 @@
 import { ImageResponse } from 'next/og';
 import { getPostBySlug, getPostSlugs } from '@/lib/blog';
 
-export const alt = 'Denver MeshCore Blog Post';
+export const alt = 'Colorado MeshCore Blog Post';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -14,7 +14,7 @@ export default async function OGImage({ params }: { params: Promise<{ slug: stri
   const { slug } = await params;
   const post = getPostBySlug(slug);
 
-  const title = post?.title || 'Denver MeshCore Blog';
+  const title = post?.title || 'Colorado MeshCore Blog';
   const readingTime = post?.readingTime || '';
 
   return new ImageResponse(
@@ -54,7 +54,7 @@ export default async function OGImage({ params }: { params: Promise<{ slug: stri
             />
           </div>
           <span style={{ color: '#9ca3af', fontSize: '24px', fontWeight: 500 }}>
-            Denver MeshCore
+            Colorado MeshCore
           </span>
         </div>
 
@@ -77,7 +77,7 @@ export default async function OGImage({ params }: { params: Promise<{ slug: stri
         {/* Bottom: metadata */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
           <span style={{ color: '#22c55e', fontSize: '20px', fontWeight: 600 }}>
-            denvermc.com/blog
+            meshcore.coloradomesh.org/blog
           </span>
           {readingTime && (
             <span style={{ color: '#6b7280', fontSize: '20px' }}>

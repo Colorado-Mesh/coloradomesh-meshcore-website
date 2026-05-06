@@ -3,19 +3,19 @@ import Link from 'next/link';
 import JsonLd from '@/components/JsonLd';
 import Breadcrumbs from '@/components/Breadcrumbs';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
-import { BASE_URL } from '@/lib/constants';
+import { BASE_URL, SITE_NAME } from '@/lib/constants';
 
 export const metadata: Metadata = {
   title: 'About',
   description:
-    "Learn about MeshCore technology and the Denver mesh networking community. MeshCore is an open-source mesh networking firmware using LoRa radios for decentralized, off-grid communication across Colorado's Front Range.",
+    `Learn about MeshCore technology and the ${SITE_NAME} community. MeshCore is an open-source mesh networking firmware using LoRa radios for decentralized, off-grid communication across Colorado's Front Range and beyond.`,
   alternates: {
     canonical: '/about',
   },
   openGraph: {
-    title: 'About Denver MeshCore',
+    title: `About ${SITE_NAME}`,
     description:
-      "Learn about MeshCore technology and the Denver mesh networking community building Colorado's decentralized communication network.",
+      `Learn about MeshCore technology and the ${SITE_NAME} community building Colorado's decentralized communication network.`,
     url: `${BASE_URL}/about`,
   },
 };
@@ -35,7 +35,7 @@ export default function AboutPage() {
           <div className="max-w-4xl mx-auto">
             <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'About' }]} />
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              About Denver MeshCore
+              About Colorado MeshCore
             </h1>
             <p className="text-lg md:text-xl text-foreground-muted max-w-2xl mx-auto">
               Building a resilient, decentralized communication network across the Front Range
@@ -140,15 +140,15 @@ export default function AboutPage() {
           </div>
         </section>
 
-        {/* The Denver Community Section */}
+        {/* The Colorado Mesh Community Section */}
         <section className="px-6 py-16 bg-mountain-gradient text-white">
           <div className="max-w-6xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
-              The Denver Community
+              The Colorado Mesh Community
             </h2>
             <div className="max-w-3xl mx-auto space-y-6 text-mountain-100">
               <p className="text-lg">
-                Denver MeshCore is a grassroots community of radio enthusiasts, technology advocates,
+                Colorado MeshCore is a grassroots community of radio enthusiasts, technology advocates,
                 and emergency preparedness minded individuals working together to build a resilient
                 communication network across Colorado.
               </p>
@@ -279,7 +279,7 @@ export default function AboutPage() {
               Community Driven
             </h2>
             <p className="text-lg text-foreground-muted mb-8 max-w-2xl mx-auto">
-              Denver MeshCore is built entirely by volunteers who believe in the power of
+              Colorado MeshCore is built entirely by volunteers who believe in the power of
               decentralized communication. There are no corporations, no subscriptions,
               no data harvesting &mdash; just a community working together for the common good.
             </p>
@@ -313,26 +313,26 @@ export default function AboutPage() {
               Resources & Links
             </h2>
             <div className="grid md:grid-cols-3 gap-6">
-              {/* Analyzers Link */}
+              {/* Live network map */}
               <Link
-                href="/observer"
+                href="/map"
                 className="card-mesh p-6 hover:border-mesh transition-colors group"
               >
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-mesh/10 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-mesh/20 transition-colors">
                     <svg className="w-6 h-6 text-mesh" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l5.553 2.776A1 1 0 0021 18.882V8.118a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                     </svg>
                   </div>
                   <div>
                     <h3 className="text-lg font-bold mb-1 text-foreground group-hover:text-mesh transition-colors">
-                      Denver Analyzers
+                      Live Network Map
                     </h3>
                     <p className="text-sm text-foreground-muted mb-2">
-                      View real-time network statistics and node activity for the Denver area.
+                      Real-time map of operator-run nodes across Colorado, with live position and link data.
                     </p>
                     <span className="text-mesh text-sm inline-flex items-center gap-1">
-                      View Analyzers
+                      Open Map
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                       </svg>
@@ -413,7 +413,7 @@ export default function AboutPage() {
             <p className="text-lg text-mountain-100 mb-8">
               Whether you&apos;re a radio enthusiast, a prepper, a developer, or just someone
               who believes in community-owned infrastructure, there&apos;s a place for you in
-              Denver MeshCore.
+              Colorado MeshCore.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link href="/start" className="btn-accent">

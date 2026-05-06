@@ -6,15 +6,15 @@ import { generateFAQSchema, startPageFAQData } from "@/lib/schemas/faq";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Troubleshooting & Resources | Denver MeshCore",
-  description: "Common MeshCore troubleshooting issues and solutions, plus helpful resources and community links for the Denver mesh network.",
-  keywords: ["MeshCore", "troubleshooting", "help", "Denver", "mesh network", "FAQ", "resources", "support"],
+  title: "Troubleshooting & Resources | Colorado MeshCore",
+  description: "Common MeshCore troubleshooting issues and solutions, plus helpful resources and community links for the Colorado MeshCore network.",
+  keywords: ["MeshCore", "troubleshooting", "help", "Colorado", "Denver", "Front Range", "mesh network", "FAQ", "resources", "support"],
   alternates: {
     canonical: '/guides/troubleshooting',
   },
   openGraph: {
-    title: "Troubleshooting & Resources | Denver MeshCore",
-    description: "Common issues and solutions for the Denver MeshCore mesh network.",
+    title: "Troubleshooting & Resources | Colorado MeshCore",
+    description: "Common issues and solutions for the Colorado MeshCore network.",
     url: `${BASE_URL}/guides/troubleshooting`,
   },
 };
@@ -100,7 +100,7 @@ const resources = [
     description: "View the Meadowood analyzer node on LetsMesh",
   },
   {
-    name: "Denver MeshCore Discord",
+    name: "Colorado MeshCore Discord",
     url: "https://discord.gg/QpaW8FTTCE",
     description: "Community chat, support, and coordination",
   },

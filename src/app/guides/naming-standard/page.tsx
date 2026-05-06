@@ -7,15 +7,15 @@ import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Node Naming Standard v2.1 | Denver MeshCore",
-  description: "Denver MeshCore node naming standard v2.1. Interactive wizard for generating valid repeater and room server names. Companion naming instructions included.",
-  keywords: ["MeshCore", "naming standard", "node name", "Denver", "mesh network", "repeater", "room server", "naming wizard"],
+  title: "Node Naming Standard v2.1 | Colorado MeshCore",
+  description: "Colorado MeshCore node naming standard v2.1. Interactive wizard for generating valid repeater and room server names. Companion naming instructions included.",
+  keywords: ["MeshCore", "naming standard", "node name", "Colorado", "Denver", "Front Range", "mesh network", "repeater", "room server", "naming wizard"],
   alternates: {
     canonical: '/guides/naming-standard',
   },
   openGraph: {
-    title: "Node Naming Standard v2.1 | Denver MeshCore",
-    description: "Interactive wizard for naming your Denver MeshCore nodes following the v2.1 standard.",
+    title: "Node Naming Standard v2.1 | Colorado MeshCore",
+    description: "Interactive wizard for naming your Colorado MeshCore nodes following the v2.1 standard.",
     url: `${BASE_URL}/guides/naming-standard`,
   },
 };

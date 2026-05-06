@@ -1,5 +1,5 @@
 /**
- * Discord webhook integration for Denver MeshCore
+ * Discord webhook integration for Colorado MeshCore
  * Handles message formatting and delivery to Discord channels
  */
 
@@ -52,7 +52,7 @@ export function buildHealthSummaryEmbed(health: NetworkHealth): DiscordEmbed {
   const score = health.network_score ?? 0;
 
   return {
-    title: `${STATUS_EMOJI[status]} Denver MeshCore Network Status`,
+    title: `${STATUS_EMOJI[status]} Colorado MeshCore Network Status`,
     description: getStatusDescription(status, score),
     color: DISCORD_COLORS[status],
     fields: [
@@ -89,7 +89,7 @@ export function buildHealthSummaryEmbed(health: NetworkHealth): DiscordEmbed {
       ...(health.score_breakdown ? [buildScoreBreakdownField(health.score_breakdown)] : []),
     ],
     footer: {
-      text: `${SITE_NAME} | denvermc.com`,
+      text: `${SITE_NAME} | meshcore.coloradomesh.org`,
     },
     timestamp: new Date().toISOString(),
   };
@@ -147,7 +147,7 @@ export function buildStatusChangeEmbed(
       },
     ],
     footer: {
-      text: `${SITE_NAME} | View details at denvermc.com`,
+      text: `${SITE_NAME} | View details at meshcore.coloradomesh.org`,
     },
     timestamp: new Date().toISOString(),
   };
@@ -173,7 +173,7 @@ export function buildWebhookPayload(
 
 function getStatusDescription(status: HealthStatus, score: number): string {
   if (status === 'healthy' && score >= 70) {
-    return 'The Denver MeshCore network is operating optimally.';
+    return 'The Colorado MeshCore network is operating optimally.';
   }
   if (status === 'healthy') {
     return 'The network is healthy but could be performing better.';

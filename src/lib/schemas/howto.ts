@@ -56,9 +56,9 @@ export function generateHowToSchema(
 
 // Pre-built HowTo schema data for MeshCore setup
 export const meshCoreSetupHowTo = {
-  name: 'How to Set Up a MeshCore Node for Denver Mesh Network',
+  name: 'How to Set Up a MeshCore Node for the Colorado Mesh Network',
   description:
-    'Step-by-step guide to flash firmware, configure your device, and join the Denver MeshCore community mesh network.',
+    'Step-by-step guide to flash firmware, configure your device, and join the Colorado MeshCore community mesh network.',
   totalTime: 'PT30M',
   estimatedCost: '50-100',
   supply: [
@@ -79,7 +79,7 @@ export const meshCoreSetupHowTo = {
       url: 'https://meshcore.co.uk/apps.html',
     },
     {
-      name: 'Join the Denver MeshCore Community',
+      name: 'Join the Colorado MeshCore Community',
       text: 'Connect with the community on Discord for help, share your node location, and start communicating on the mesh network.',
       url: 'https://discord.gg/QpaW8FTTCE',
     },

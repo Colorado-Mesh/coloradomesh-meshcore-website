@@ -6,15 +6,15 @@ import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Repeater Setup Guide | Denver MeshCore",
-  description: "Set up and tune a MeshCore repeater node for the Denver mesh network. Includes TX/RX delay profiles optimized for Denver metro elevations.",
-  keywords: ["MeshCore", "repeater", "setup", "Denver", "mesh network", "LoRa", "txdelay", "rxdelay", "agc", "antenna", "solar"],
+  title: "Repeater Setup Guide | Colorado MeshCore",
+  description: "Set up and tune a MeshCore repeater node for the Colorado MeshCore network. Includes TX/RX delay profiles optimized for Denver metro and Front Range elevations.",
+  keywords: ["MeshCore", "repeater", "setup", "Colorado", "Denver", "Front Range", "mesh network", "LoRa", "txdelay", "rxdelay", "agc", "antenna", "solar"],
   alternates: {
     canonical: '/guides/repeater-setup',
   },
   openGraph: {
-    title: "Repeater Setup Guide | Denver MeshCore",
-    description: "Set up and tune a MeshCore repeater node with TX/RX delay profiles optimized for Denver.",
+    title: "Repeater Setup Guide | Colorado MeshCore",
+    description: "Set up and tune a MeshCore repeater node with TX/RX delay profiles optimized for the Front Range.",
     url: `${BASE_URL}/guides/repeater-setup`,
   },
 };
@@ -150,7 +150,7 @@ export default function RepeaterSetupPage() {
               Repeater <span className="text-mesh">Setup Guide</span>
             </h1>
             <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Set up and tune a repeater node for the Denver mesh network
+              Set up and tune a repeater node for the Colorado MeshCore network
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a href="#getting-running" className="btn-primary">
@@ -290,7 +290,7 @@ export default function RepeaterSetupPage() {
         <section id="common" className="px-6 py-16 bg-background-secondary">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Common Settings (All Denver Repeaters)
+              Common Settings (Colorado MeshCore Repeaters)
             </h2>
             <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
               Apply these settings regardless of your repeater&apos;s profile.

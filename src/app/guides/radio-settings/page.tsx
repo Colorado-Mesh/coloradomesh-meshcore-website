@@ -6,15 +6,15 @@ import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Radio Settings & Channels | Denver MeshCore",
-  description: "Denver MeshCore radio settings, frequency configuration, and channel list for the Front Range mesh network.",
-  keywords: ["MeshCore", "radio settings", "LoRa", "frequency", "channels", "Denver", "mesh network", "910.525 MHz"],
+  title: "Radio Settings & Channels | Colorado MeshCore",
+  description: "Colorado MeshCore radio settings, frequency configuration, and channel list for the Front Range mesh network.",
+  keywords: ["MeshCore", "radio settings", "LoRa", "frequency", "channels", "Colorado", "Denver", "Front Range", "mesh network", "910.525 MHz"],
   alternates: {
     canonical: '/guides/radio-settings',
   },
   openGraph: {
-    title: "Radio Settings & Channels | Denver MeshCore",
-    description: "Denver MeshCore radio settings, frequency configuration, and channel list.",
+    title: "Radio Settings & Channels | Colorado MeshCore",
+    description: "Colorado MeshCore radio settings, frequency configuration, and channel list.",
     url: `${BASE_URL}/guides/radio-settings`,
   },
 };
@@ -104,7 +104,7 @@ export default function RadioSettingsPage() {
               Channels
             </h2>
             <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Join these channels to communicate with other Denver MeshCore members.
+              Join these channels to communicate with other Colorado MeshCore members.
             </p>
 
             <div className="card-mesh overflow-hidden">

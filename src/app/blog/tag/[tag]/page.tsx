@@ -31,12 +31,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   return {
     title: `Posts tagged "${displayTag}"`,
-    description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag} from the Denver MeshCore community.`,
+    description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag} from the Colorado MeshCore community.`,
     alternates: {
       canonical: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}`,
     },
     openGraph: {
-      title: `Posts tagged "${displayTag}" | Denver MeshCore`,
+      title: `Posts tagged "${displayTag}" | Colorado MeshCore`,
       description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag}.`,
       url: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}`,
       type: 'website',
@@ -100,7 +100,7 @@ export default async function TagPage({ params }: PageProps) {
                 Posts tagged &ldquo;{displayTag}&rdquo;
               </h1>
               <p className="text-xl text-foreground-muted max-w-2xl mx-auto">
-                {posts.length} post{posts.length === 1 ? '' : 's'} from the Denver MeshCore community
+                {posts.length} post{posts.length === 1 ? '' : 's'} from the Colorado MeshCore community
               </p>
             </div>
           </div>

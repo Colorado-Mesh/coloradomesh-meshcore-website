@@ -6,15 +6,15 @@ import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { BASE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
-  title: "Guides | Denver MeshCore",
-  description: "Guides for getting started, radio settings, repeater setup, naming standards, and troubleshooting on the Denver MeshCore mesh network.",
-  keywords: ["MeshCore", "guides", "Denver", "mesh network", "LoRa", "setup", "repeater", "troubleshooting"],
+  title: "Guides | Colorado MeshCore",
+  description: "Guides for getting started, radio settings, repeater setup, naming standards, and troubleshooting on the Colorado MeshCore mesh network.",
+  keywords: ["MeshCore", "guides", "Colorado", "Denver", "Front Range", "mesh network", "LoRa", "setup", "repeater", "troubleshooting"],
   alternates: {
     canonical: '/guides',
   },
   openGraph: {
-    title: "Guides | Denver MeshCore",
-    description: "Guides for getting started, radio settings, repeater setup, naming standards, and troubleshooting on the Denver MeshCore mesh network.",
+    title: "Guides | Colorado MeshCore",
+    description: "Guides for getting started, radio settings, repeater setup, naming standards, and troubleshooting on the Colorado MeshCore mesh network.",
     url: `${BASE_URL}/guides`,
   },
 };
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const guides = [
   {
     title: "Getting Started",
-    description: "Get your first node up and running on the Denver mesh network. Hardware recommendations, firmware flashing, and configuration.",
+    description: "Get your first node up and running on the Colorado MeshCore network. Hardware recommendations, firmware flashing, and configuration.",
     href: "/guides/getting-started",
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -55,7 +55,7 @@ const guides = [
   },
   {
     title: "Naming Standard",
-    description: "Name your node following the Denver MeshCore v2.0 naming standard. Interactive wizard included.",
+    description: "Name your node following the Colorado MeshCore v2.0 naming standard. Interactive wizard included.",
     href: "/guides/naming-standard",
     icon: (
       <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -96,7 +96,7 @@ export default function GuidesPage() {
               <span className="text-mesh">Guides</span>
             </h1>
             <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Everything you need to join and contribute to the Denver mesh network
+              Everything you need to join and contribute to the Colorado MeshCore network
             </p>
           </div>
         </section>

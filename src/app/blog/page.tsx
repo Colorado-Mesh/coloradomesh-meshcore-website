@@ -6,14 +6,14 @@ import { BASE_URL } from '@/lib/constants';
 export const metadata: Metadata = {
   title: 'Blog',
   description:
-    'News, tutorials, and updates from the Denver MeshCore community. Learn about mesh networking, MeshCore technology, and community events.',
+    'News, tutorials, and updates from the Colorado MeshCore community. Learn about mesh networking, MeshCore technology, and community events.',
   alternates: {
     canonical: `${BASE_URL}/blog`,
   },
   openGraph: {
-    title: 'Blog | Denver MeshCore',
+    title: 'Blog | Colorado MeshCore',
     description:
-      'News, tutorials, and updates from the Denver MeshCore community.',
+      'News, tutorials, and updates from the Colorado MeshCore community.',
     url: `${BASE_URL}/blog`,
     type: 'website',
   },
@@ -49,7 +49,7 @@ export default function BlogPage() {
               Blog
             </h1>
             <p className="text-xl text-foreground-muted max-w-2xl mx-auto">
-              News, tutorials, and updates from the Denver MeshCore community.
+              News, tutorials, and updates from the Colorado MeshCore community.
             </p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export default function BlogPage() {
               </h2>
               <p className="text-foreground-muted max-w-md mx-auto">
                 We&apos;re working on some great content. Check back soon for
-                news, tutorials, and updates from the Denver MeshCore community.
+                news, tutorials, and updates from the Colorado MeshCore community.
               </p>
             </div>
           ) : (

@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     canonical: '/use-cases/emergency-communication',
   },
   openGraph: {
-    title: 'Emergency Communication Network Colorado | Denver MeshCore',
+    title: 'Emergency Communication Network Colorado | Colorado MeshCore',
     description:
       'When cell towers fail during wildfires, blizzards, or power outages, MeshCore keeps Colorado communities connected. Build resilient emergency communication infrastructure.',
     url: `${BASE_URL}/use-cases/emergency-communication`,
@@ -47,12 +47,12 @@ const articleSchema = {
   description: 'How MeshCore provides disaster-ready mesh communication when traditional networks fail in Colorado.',
   author: {
     '@type': 'Organization',
-    name: 'Denver MeshCore',
+    name: 'Colorado MeshCore',
     url: BASE_URL,
   },
   publisher: {
     '@type': 'Organization',
-    name: 'Denver MeshCore',
+    name: 'Colorado MeshCore',
     url: BASE_URL,
   },
   mainEntityOfPage: {
@@ -245,9 +245,9 @@ const gettingStartedSteps = [
   },
   {
     step: 3,
-    title: 'Join the Denver Network',
+    title: 'Join the Colorado MeshCore Network',
     description:
-      'Connect to the existing Denver MeshCore network. Your node automatically discovers and links with nearby repeaters.',
+      'Connect to the existing Colorado MeshCore network. Your node automatically discovers and links with nearby repeaters.',
   },
   {
     step: 4,
@@ -274,7 +274,7 @@ const faqSchema = {
       name: 'How far can MeshCore communicate in Colorado mountains?',
       acceptedAnswer: {
         '@type': 'Answer',
-        text: 'Line-of-sight communication can reach 10+ miles between nodes. With repeaters placed on peaks and high points, the Denver MeshCore network provides coverage across the Front Range and beyond.',
+        text: 'Line-of-sight communication can reach 10+ miles between nodes. With repeaters placed on peaks and high points, the Colorado MeshCore network provides coverage across the Front Range and beyond.',
       },
     },
     {
@@ -489,7 +489,7 @@ export default function EmergencyCommunicationPage() {
               Join Colorado&apos;s Growing Emergency Network
             </h2>
             <p className="text-mountain-100 text-lg mb-8 max-w-2xl mx-auto">
-              The Denver MeshCore network is already providing coverage across the Front Range.
+              The Colorado MeshCore network is already providing coverage across the Front Range.
               Every new node makes the emergency network more resilient.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
@@ -516,7 +516,7 @@ export default function EmergencyCommunicationPage() {
             </h2>
             <p className="text-mountain-100 mb-8 text-lg">
               The best time to build emergency communication infrastructure is before you need it.
-              Join the Denver MeshCore community and help build Colorado&apos;s disaster-ready mesh network.
+              Join the Colorado MeshCore community and help build Colorado&apos;s disaster-ready mesh network.
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <Link href="/start" className="btn-accent">

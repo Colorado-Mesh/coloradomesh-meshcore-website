@@ -103,4 +103,4 @@ Join our [Discord community](https://discord.gg/QpaW8FTTCE) for questions and di
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the repository's GPL-3.0-or-later license unless a specific file states otherwise.

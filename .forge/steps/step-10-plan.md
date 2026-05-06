@@ -22,6 +22,10 @@ Validate the redesigned Colorado MeshCore site across automated checks, browser 
 - `src/app/api/map/nodes/route.ts` — force Node.js dynamic runtime for MQTT-backed runtime configuration.
 - `src/app/api/map/stats/route.ts` — force Node.js dynamic runtime for MQTT-backed runtime configuration.
 - `.github/workflows/docker-release.yml` — correct the OCI image license label so the release image metadata does not claim MIT for GPL-derived map work.
+- `LICENSE` — replace stale MIT/Denver metadata with GPL-3.0-or-later repository licensing.
+- `CONTRIBUTING.md` — align contribution licensing guidance with the repository license.
+- `compose.yaml` — stop forcing sample map data in Docker when MQTT is configured.
+- `.env.example` — document blank sample-data default and explicit demo-mode behavior.
 
 ## Ordered Implementation Checklist
 1. Write this focused Step 10 execution plan from the master plan and current code observations.
@@ -35,8 +39,9 @@ Validate the redesigned Colorado MeshCore site across automated checks, browser 
 9. Address final review FIX-1 by implementing lazy MQTT ingestion in `src/lib/map/store.ts`: connect only when MQTT is configured and sample data is off, subscribe to the configured topic, normalize JSON payloads into `MapNode` records, cache latest nodes in memory, merge incremental per-node messages without discarding unrelated cached nodes, and report connection/message state through `MapSnapshot.connection` and `MapStats.connectionState`.
 10. Address final review FIX-2 by replacing the release workflow OCI license label with a GPL-compatible SPDX expression for the distributed image.
 11. Address focused re-review feedback by including the MQTT password in the config key so credential changes recreate the client.
-12. Re-run automated checks and targeted MQTT-config smoke checks.
-13. Stage Step 10 files, request Forge re-review/final review, save updated review artifacts, and commit if approved.
+12. Address final full-review blockers by aligning root/contribution licensing with GPL-3.0-or-later and removing Docker sample-data overrides that mask configured MQTT.
+13. Re-run automated checks and targeted MQTT-config smoke checks.
+14. Stage Step 10 files, request Forge re-review/final review, save updated review artifacts, and commit if approved.
 
 ## Interfaces and Data Contracts
 - Supported public live-data endpoints remain `GET /api/map/nodes` and `GET /api/map/stats`.

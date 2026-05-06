@@ -66,6 +66,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'hourly',
       priority: 0.6,
     },
+    {
+      url: `${BASE_URL}/tools`,
+      lastModified: STATIC_LAST_EDITED,
+      changeFrequency: 'monthly',
+      priority: 0.75,
+    },
+    {
+      url: `${BASE_URL}/tools/repeater-name`,
+      lastModified: STATIC_LAST_EDITED,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/tools/companion-name`,
+      lastModified: STATIC_LAST_EDITED,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/tools/prefix-matrix`,
+      lastModified: STATIC_LAST_EDITED,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/tools/serial-usb`,
+      lastModified: STATIC_LAST_EDITED,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    },
   ];
 
   // Use case pages (auto-discovered from file system)

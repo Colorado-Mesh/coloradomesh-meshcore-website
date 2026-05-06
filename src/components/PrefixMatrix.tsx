@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo, useCallback } from "react";
-import type { NodeWithStats } from "@/lib/types";
+import type { ApiResponse, MapNode } from "@/lib/types";
+import { API_ROUTES } from "@/lib/constants";
 
 interface PrefixMatrixProps {
   onSelectPrefix?: (hex: string) => void;
@@ -9,11 +10,11 @@ interface PrefixMatrixProps {
 
 interface CellData {
   hex: string;
-  nodes: NodeWithStats[];
+  nodes: MapNode[];
 }
 
 export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
-  const [nodes, setNodes] = useState<NodeWithStats[]>([]);
+  const [nodes, setNodes] = useState<MapNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
@@ -21,33 +22,38 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
   const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const fetchNodes = async () => {
       try {
-        const res = await fetch("/api/nodes");
-        const json = await res.json();
+        const res = await fetch(API_ROUTES.MAP_NODES);
+        const json = (await res.json()) as ApiResponse<MapNode[]>;
+        if (cancelled) return;
         if (json.success && json.data) {
           setNodes(json.data);
         } else {
           setError("Failed to load node data");
         }
       } catch {
-        setError("Failed to connect to API");
+        if (!cancelled) setError("Failed to connect to API");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     fetchNodes();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Build the 256-cell grid indexed by first byte of public key
   const grid = useMemo(() => {
-    const map = new Map<string, NodeWithStats[]>();
+    const map = new Map<string, MapNode[]>();
     for (let i = 0; i < 256; i++) {
       map.set(i.toString(16).padStart(2, "0").toUpperCase(), []);
     }
     for (const node of nodes) {
-      if (node.public_key && node.public_key.length >= 2) {
-        const prefix = node.public_key.slice(0, 2).toUpperCase();
+      if (node.publicKey && node.publicKey.length >= 2) {
+        const prefix = node.publicKey.slice(0, 2).toUpperCase();
         const existing = map.get(prefix);
         if (existing) existing.push(node);
       }
@@ -67,7 +73,7 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
       for (const node of cellNodes) {
         if (
           node.name?.toLowerCase().includes(q) ||
-          node.public_key?.toLowerCase().includes(q)
+          node.publicKey?.toLowerCase().includes(q)
         ) {
           matches.add(hex);
         }
@@ -222,7 +228,7 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                     title={`${cell.hex}: ${
                       occupied
                         ? `${count} node(s)`
-                        : "Free \u2014 click to use"
+                        : "Free — click to use"
                     }`}
                     className={`flex-1 aspect-square rounded-sm text-[9px] font-mono flex items-center justify-center transition-all ${
                       isSelected
@@ -287,7 +293,7 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                        node.is_online ? "bg-forest-500" : "bg-foreground-muted/30"
+                        node.isOnline ? "bg-forest-500" : "bg-foreground-muted/30"
                       }`}
                     />
                     <span className="text-foreground truncate">
@@ -296,11 +302,11 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 ml-2">
                     <span className="font-mono text-xs text-foreground-muted">
-                      {node.public_key?.slice(0, 8)}...
+                      {node.publicKey?.slice(0, 8)}...
                     </span>
-                    {node.last_seen && (
+                    {node.lastHeardAt && (
                       <span className="text-xs text-foreground-muted/50">
-                        {formatLastSeen(node.last_seen)}
+                        {formatLastSeen(node.lastHeardAt)}
                       </span>
                     )}
                   </div>

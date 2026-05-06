@@ -23,3 +23,5 @@ export { ErrorState } from './ErrorState';
 export { NetworkMapWrapper } from './NetworkMapWrapper';
 export { default as CompanionNamer } from './CompanionNamer';
 export { default as PrefixMatrix } from './PrefixMatrix';
+export { default as ToolShell } from './tools/ToolShell';
+export { default as SerialUsbTool } from './tools/SerialUsbTool';

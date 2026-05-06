@@ -5,7 +5,8 @@ import { airports } from "@/lib/data/airports";
 import { cities } from "@/lib/data/cities";
 import { landmarks } from "@/lib/data/landmarks";
 import { haversineDistance } from "@/lib/utils/haversine";
-import type { NodeWithStats } from "@/lib/types";
+import type { ApiResponse, MapNode } from "@/lib/types";
+import { API_ROUTES, COMMUNITY_NAME, SITE_NAME } from "@/lib/constants";
 import CompanionNamer from "./CompanionNamer";
 
 // --- Static Data ---
@@ -43,26 +44,31 @@ export default function NamingWizard() {
   const [lookupResult, setLookupResult] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  // Pubkey conflict state
-  const [allNodes, setAllNodes] = useState<NodeWithStats[]>([]);
+  // Pubkey conflict state — sourced from the live map snapshot
+  const [allNodes, setAllNodes] = useState<MapNode[]>([]);
   const [nodesLoaded, setNodesLoaded] = useState(false);
 
   // Fetch nodes for conflict checking
   useEffect(() => {
+    let cancelled = false;
     const fetchNodes = async () => {
       try {
-        const res = await fetch("/api/nodes");
-        const json = await res.json();
+        const res = await fetch(API_ROUTES.MAP_NODES);
+        const json = (await res.json()) as ApiResponse<MapNode[]>;
+        if (cancelled) return;
         if (json.success && json.data) {
           setAllNodes(json.data);
         }
       } catch {
         // Non-critical — conflict checking just won't work
       } finally {
-        setNodesLoaded(true);
+        if (!cancelled) setNodesLoaded(true);
       }
     };
     fetchNodes();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Pubkey conflict check
@@ -70,7 +76,7 @@ export default function NamingWizard() {
     if (!nodesLoaded || pubkey.length < 2) return null;
     const prefix = pubkey.slice(0, 2).toUpperCase();
     const conflicting = allNodes.filter(
-      (n) => n.public_key?.slice(0, 2).toUpperCase() === prefix
+      (n) => n.publicKey?.slice(0, 2).toUpperCase() === prefix
     );
     return conflicting.length > 0
       ? { count: conflicting.length, prefix }
@@ -137,7 +143,7 @@ export default function NamingWizard() {
     try {
       const res = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addressInput)}&countrycodes=us&limit=1`,
-        { headers: { "User-Agent": "DenverMeshCore-NamingWizard/1.0" } }
+        { headers: { "User-Agent": "ColoradoMeshCore-NamingWizard/1.0" } }
       );
       const data = await res.json();
       if (!data.length) {
@@ -468,7 +474,7 @@ export default function NamingWizard() {
                 <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                Prefix is unique on the Denver mesh!
+                Prefix is unique on the {COMMUNITY_NAME} network!
               </p>
             )}
           </div>
@@ -476,10 +482,10 @@ export default function NamingWizard() {
 
         <div className="flex flex-wrap gap-3 mt-3">
           <a
-            href="#prefix-matrix"
+            href="/tools/prefix-matrix"
             className="text-mesh hover:text-mesh-light inline-flex items-center gap-1 text-xs"
           >
-            Denver Prefix Map
+            {SITE_NAME} Prefix Map
             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

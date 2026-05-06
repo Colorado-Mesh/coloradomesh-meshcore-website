@@ -1,0 +1,78 @@
+import type { ReactNode } from 'react';
+import Link from 'next/link';
+
+import Breadcrumbs, { type BreadcrumbItem } from '@/components/Breadcrumbs';
+import { HeroPanel, SectionEyebrow } from '@/components/brand';
+
+interface ToolShellProps {
+  eyebrow?: string;
+  title: ReactNode;
+  description?: ReactNode;
+  apiTag?: string;
+  breadcrumbs: BreadcrumbItem[];
+  children: ReactNode;
+  asideEyebrow?: string;
+  aside?: ReactNode;
+}
+
+export default function ToolShell({
+  eyebrow = 'Operator Tools',
+  title,
+  description,
+  apiTag,
+  breadcrumbs,
+  children,
+  asideEyebrow,
+  aside,
+}: ToolShellProps) {
+  return (
+    <div className="min-h-screen">
+      <HeroPanel
+        background="topo-grid"
+        showMountains={false}
+        eyebrow={eyebrow}
+        title={title}
+        description={description}
+        actions={
+          <>
+            <Link href="/tools" className="btn-secondary">
+              All tools
+            </Link>
+            <Link href="/map" className="btn-outline">
+              Network map
+            </Link>
+          </>
+        }
+        meta={
+          <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+              <Breadcrumbs items={breadcrumbs} />
+              {apiTag && (
+                <span className="text-foreground-dim mono uppercase tracking-[0.18em]">
+                  {apiTag}
+                </span>
+              )}
+            </div>
+          </div>
+        }
+      />
+
+      <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+        <div className={`mx-auto max-w-5xl ${aside ? 'lg:max-w-7xl lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8' : ''}`}>
+          <div className="space-y-8">{children}</div>
+
+          {aside && (
+            <aside className="mt-10 lg:mt-0 space-y-4">
+              {asideEyebrow && (
+                <SectionEyebrow tone="sky">{asideEyebrow}</SectionEyebrow>
+              )}
+              <div className="panel p-5 text-sm text-foreground-muted leading-relaxed space-y-3">
+                {aside}
+              </div>
+            </aside>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}

@@ -1,24 +1,55 @@
-/**
- * Application-wide constants for Denver MeshCore
- */
+const DEFAULT_BASE_URL = 'https://meshcore.coloradomesh.org';
+
+const trimTrailingSlash = (url: string) => url.replace(/\/+$/, '');
+
+export const RUNTIME_ENV = {
+  SITE_URL: 'NEXT_PUBLIC_SITE_URL',
+  MAP_TILE_URL: 'NEXT_PUBLIC_MAP_TILE_URL',
+  MQTT_URL: 'MESHCORE_MQTT_URL',
+  MQTT_USERNAME: 'MESHCORE_MQTT_USERNAME',
+  MQTT_PASSWORD: 'MESHCORE_MQTT_PASSWORD',
+  MQTT_TOPIC: 'MESHCORE_MQTT_TOPIC',
+  MQTT_CLIENT_ID: 'MESHCORE_MQTT_CLIENT_ID',
+  MAP_HISTORY_ENABLED: 'MESHCORE_MAP_HISTORY_ENABLED',
+  MAP_SAMPLE_DATA: 'MESHCORE_MAP_SAMPLE_DATA',
+} as const;
+
+export const BRAND = {
+  communityName: 'Colorado Mesh',
+  siteName: 'Colorado MeshCore',
+  siteTitle: 'Colorado MeshCore Community Platform',
+  tagline: "Colorado's decentralized MeshCore network community",
+  description:
+    "Join Colorado MeshCore's growing mesh network community. Connect with fellow MeshCore operators, share knowledge, and help build resilient off-grid communication infrastructure across Colorado.",
+  baseUrl: trimTrailingSlash(process.env.NEXT_PUBLIC_SITE_URL || DEFAULT_BASE_URL),
+  discordInviteUrl: 'https://discord.gg/QpaW8FTTCE',
+  meshcoreDocsUrl: 'https://meshcore.co',
+  letsMeshUrl: 'https://letsmesh.net',
+  githubOrgUrl: 'https://github.com/Colorado-Mesh',
+  logoPath: '/logo-512.png',
+  iconPath: '/favicon.ico',
+} as const;
 
 // =============================================================================
 // Site Information
 // =============================================================================
 
-export const BASE_URL = 'https://denvermc.com';
-export const SITE_NAME = 'Denver MeshCore';
-export const SITE_TAGLINE = 'Colorado\'s decentralized mesh network community';
-export const SITE_DESCRIPTION = 'Join Colorado\'s growing mesh network community. Connect with fellow mesh enthusiasts, share knowledge, and help build resilient off-grid communication infrastructure.';
+export const BASE_URL = BRAND.baseUrl;
+export const SITE_NAME = BRAND.siteName;
+export const SITE_TITLE = BRAND.siteTitle;
+export const COMMUNITY_NAME = BRAND.communityName;
+export const SITE_TAGLINE = BRAND.tagline;
+export const SITE_DESCRIPTION = BRAND.description;
+export const SITE_LOGO_PATH = BRAND.logoPath;
 
 // =============================================================================
 // External Links
 // =============================================================================
 
-export const DISCORD_INVITE_URL = 'https://discord.gg/QpaW8FTTCE';
-export const MESHCORE_DOCS_URL = 'https://meshcore.co';
-export const LETSMESH_URL = 'https://letsmesh.net';
-export const GITHUB_ORG_URL = 'https://github.com/ryandonovan93';
+export const DISCORD_INVITE_URL = BRAND.discordInviteUrl;
+export const MESHCORE_DOCS_URL = BRAND.meshcoreDocsUrl;
+export const LETSMESH_URL = BRAND.letsMeshUrl;
+export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
 
 // =============================================================================
 // API Configuration
@@ -30,10 +61,13 @@ export const API_ROUTES = {
   HEALTH: '/api/health',
   PACKETS: '/api/packets',
   DISCORD_WEBHOOK: '/api/discord-webhook',
+  MAP_NODES: '/api/map/nodes',
+  MAP_STATS: '/api/map/stats',
+  MAP_STREAM: '/api/map/stream',
 } as const;
 
 export const API_CACHE_TIMES = {
-  STATS: 60, // seconds
+  STATS: 60,
   HEALTH: 30,
   NODES: 30,
 } as const;
@@ -42,19 +76,10 @@ export const API_CACHE_TIMES = {
 // Network Configuration
 // =============================================================================
 
-/** Online threshold in milliseconds (15 minutes) */
 export const ONLINE_THRESHOLD_MS = 15 * 60 * 1000;
-
-/** Repeater online threshold in milliseconds (12 hours) - matches default advert interval */
 export const REPEATER_ONLINE_THRESHOLD_MS = 12 * 60 * 60 * 1000;
-
-/** Map visibility threshold in milliseconds (24 hours) - nodes not seen within this time are hidden from map */
 export const MAP_VISIBILITY_THRESHOLD_MS = 24 * 60 * 60 * 1000;
-
-/** Default refresh interval for live data (1 minute) */
 export const DEFAULT_REFRESH_INTERVAL = 60000;
-
-/** Observer refresh interval (120 seconds) */
 export const OBSERVER_REFRESH_INTERVAL = 120000;
 
 // =============================================================================
@@ -93,8 +118,7 @@ export const MAX_PAGE_SIZE = 100;
 // Bot Configuration
 // =============================================================================
 
-/** Bot node name filtered from top_users leaderboard (automated, not a human messenger) */
-export const BOT_NODE_NAME = 'denvermc.com BOT';
+export const BOT_NODE_NAME = 'meshcore.coloradomesh.org BOT';
 
 // =============================================================================
 // Validation

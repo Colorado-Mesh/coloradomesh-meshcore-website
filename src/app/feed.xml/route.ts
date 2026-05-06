@@ -1,5 +1,5 @@
 import { getAllPosts } from '@/lib/blog';
-import { BASE_URL, SITE_NAME } from '@/lib/constants';
+import { BASE_URL, SITE_DESCRIPTION, SITE_NAME } from '@/lib/constants';
 
 function escapeXml(str: string): string {
   return str
@@ -34,7 +34,7 @@ ${post.tags.map((tag) => `      <category>${escapeXml(tag)}</category>`).join('\
   <channel>
     <title>${escapeXml(SITE_NAME)} Blog</title>
     <link>${BASE_URL}/blog</link>
-    <description>News, tutorials, and updates from the Denver MeshCore community.</description>
+    <description>${escapeXml(SITE_DESCRIPTION)}</description>
     <language>en-us</language>
     <lastBuildDate>${latestDate}</lastBuildDate>
     <atom:link href="${BASE_URL}/feed.xml" rel="self" type="application/rss+xml"/>

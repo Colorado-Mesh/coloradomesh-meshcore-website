@@ -1,4 +1,4 @@
-# Netlify configuration for Denver MeshCore Community Platform
+# Netlify configuration for Colorado MeshCore Community Platform
 # Uses Next.js 16+ with App Router
 
 [build]
@@ -8,8 +8,8 @@
   publish = ".next"
 
 [build.environment]
-  # Use Node.js 20 LTS
-  NODE_VERSION = "20"
+  # Use Node.js 24
+  NODE_VERSION = "24"
   # Ensure npm version compatibility
   NPM_VERSION = "10"
   # Skip dependency cache to ensure fresh install

@@ -8,7 +8,14 @@ import JsonLd, {
   websiteSchema,
   communityOrganizationSchema,
 } from "@/components/JsonLd";
-import { BASE_URL } from "@/lib/constants";
+import {
+  BASE_URL,
+  COMMUNITY_NAME,
+  SITE_DESCRIPTION,
+  SITE_LOGO_PATH,
+  SITE_NAME,
+  SITE_TITLE,
+} from "@/lib/constants";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -25,15 +32,15 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: "Denver MeshCore Community Platform",
-    template: "%s | Denver MeshCore",
+    default: SITE_TITLE,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    "A community platform for Denver MeshCore mesh networking enthusiasts. Building Colorado's decentralized mesh network community using LoRa technology for off-grid communication.",
+  description: SITE_DESCRIPTION,
   keywords: [
     "mesh network",
-    "Denver",
     "Colorado",
+    "Colorado Mesh",
+    "Colorado MeshCore",
     "MeshCore",
     "decentralized",
     "LoRa",
@@ -42,9 +49,9 @@ export const metadata: Metadata = {
     "Front Range",
     "radio network",
   ],
-  authors: [{ name: "Denver MeshCore Community" }],
-  creator: "Denver MeshCore Community",
-  publisher: "Denver MeshCore Community",
+  authors: [{ name: `${COMMUNITY_NAME} Community` }],
+  creator: `${COMMUNITY_NAME} Community`,
+  publisher: `${COMMUNITY_NAME} Community`,
   robots: {
     index: true,
     follow: true,
@@ -75,27 +82,23 @@ export const metadata: Metadata = {
     type: "website",
     locale: "en_US",
     url: BASE_URL,
-    siteName: "Denver MeshCore",
-    title: "Denver MeshCore Community Platform",
-    description:
-      "Building Colorado's decentralized mesh network community. Connect off-grid using LoRa technology across the Front Range.",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
     images: [
       {
-        url: "/logo-512.png",
+        url: SITE_LOGO_PATH,
         width: 512,
         height: 512,
-        alt: "Denver MeshCore Community Logo",
+        alt: `${SITE_NAME} logo`,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    site: "@denver_meshcore",
-    creator: "@denver_meshcore",
-    title: "Denver MeshCore Community Platform",
-    description:
-      "Building Colorado's decentralized mesh network community. Connect off-grid using LoRa technology across the Front Range.",
-    images: ["/logo-512.png"],
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    images: [SITE_LOGO_PATH],
   },
   category: "technology",
 };

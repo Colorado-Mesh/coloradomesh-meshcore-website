@@ -1,7 +1,7 @@
 {
-  "name": "Denver MeshCore",
-  "short_name": "DenverMC",
-  "description": "Denver MeshCore Community Platform - Building Colorado's decentralized mesh network",
+  "name": "Colorado MeshCore",
+  "short_name": "ColoradoMC",
+  "description": "Colorado MeshCore Community Platform - Building Colorado's decentralized MeshCore network",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0f1419",

@@ -1,5 +1,5 @@
-# Denver MeshCore Community Platform
-# https://denvermc.com
+# Colorado MeshCore Community Platform
+# https://meshcore.coloradomesh.org
 
 User-agent: *
 Allow: /
@@ -30,7 +30,7 @@ User-agent: cohere-ai
 Allow: /
 
 # Sitemap Location
-Sitemap: https://denvermc.com/sitemap.xml
+Sitemap: https://meshcore.coloradomesh.org/sitemap.xml
 
 # Disallow API endpoints from indexing
 Disallow: /api/

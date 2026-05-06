@@ -32,3 +32,22 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  docker-build:
+    name: Docker Build Smoke
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image without pushing
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: colorado-meshcore-site:ci

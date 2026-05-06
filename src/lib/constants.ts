@@ -56,20 +56,9 @@ export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
 // =============================================================================
 
 export const API_ROUTES = {
-  NODES: '/api/nodes',
-  STATS: '/api/stats',
-  HEALTH: '/api/health',
-  PACKETS: '/api/packets',
-  DISCORD_WEBHOOK: '/api/discord-webhook',
   MAP_NODES: '/api/map/nodes',
   MAP_STATS: '/api/map/stats',
   MAP_STREAM: '/api/map/stream',
-} as const;
-
-export const API_CACHE_TIMES = {
-  STATS: 60,
-  HEALTH: 30,
-  NODES: 30,
 } as const;
 
 // =============================================================================
@@ -80,7 +69,6 @@ export const ONLINE_THRESHOLD_MS = 15 * 60 * 1000;
 export const REPEATER_ONLINE_THRESHOLD_MS = 12 * 60 * 60 * 1000;
 export const MAP_VISIBILITY_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 export const DEFAULT_REFRESH_INTERVAL = 60000;
-export const OBSERVER_REFRESH_INTERVAL = 120000;
 
 // =============================================================================
 // UI Constants
@@ -113,12 +101,6 @@ export const NODE_TYPE_COLORS: Record<NodeType, string> = {
 
 export const DEFAULT_PAGE_SIZE = 20;
 export const MAX_PAGE_SIZE = 100;
-
-// =============================================================================
-// Bot Configuration
-// =============================================================================
-
-export const BOT_NODE_NAME = 'meshcore.coloradomesh.org BOT';
 
 // =============================================================================
 // Validation

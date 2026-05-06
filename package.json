@@ -7,17 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "db:migrate": "tsx src/lib/db/migrate.ts"
+    "typecheck": "tsc --noEmit"
   },
   "engines": {
     "node": ">=24 <26"
   },
   "dependencies": {
-    "@libsql/client": "^0.15.15",
     "@mdx-js/loader": "^3.0.1",
     "@mdx-js/react": "^3.0.1",
-    "@netlify/functions": "^5.1.2",
     "@next/mdx": "^15.1.6",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
@@ -26,6 +23,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "gray-matter": "^4.0.3",
     "leaflet": "^1.9.4",
     "mqtt": "^5.14.1",
     "next": "16.1.1",
@@ -33,12 +31,11 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-leaflet": "^5.0.0",
+    "reading-time": "^1.5.0",
     "rehype-slug": "^6.0.0",
     "remark-gfm": "^4.0.0",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5",
-    "gray-matter": "^4.0.3",
-    "reading-time": "^1.5.0"
+    "typescript": "^5"
   }
 }

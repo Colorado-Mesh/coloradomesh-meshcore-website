@@ -20,7 +20,6 @@ export {
   buildMapStats,
   deriveMapNodeStatus,
   normalizeCoordinates,
-  normalizeLegacyNode,
   normalizeLiveMapNode,
   normalizeMapNodeRole,
   normalizeTimestamp,

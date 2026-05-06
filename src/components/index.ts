@@ -13,9 +13,6 @@ export {
 export type { MetricItem } from './brand';
 export { default as JsonLd } from './JsonLd';
 export { StatsSection } from './StatsSection';
-export { ObserverStats } from './ObserverStats';
-export { NetworkHealthCard } from './NetworkHealthCard';
-export { TopContributors } from './TopContributors';
 export { CopyButton } from './CopyButton';
 export { LoadingSkeleton } from './LoadingSkeleton';
 export { NotFound } from './NotFound';

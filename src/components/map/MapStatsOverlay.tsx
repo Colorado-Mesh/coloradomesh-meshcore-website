@@ -11,7 +11,6 @@ const SOURCE_TONE: Record<string, { label: string; tone: string }> = {
   sample: { label: 'Sample data', tone: 'cm-overlay__tag--sunset' },
   empty: { label: 'No live data', tone: 'cm-overlay__tag--dim' },
   mqtt: { label: 'Live MQTT', tone: 'cm-overlay__tag--mesh' },
-  legacy: { label: 'Database', tone: 'cm-overlay__tag--sky' },
 };
 
 export default function MapStatsOverlay({ stats, visibleMarkers, lastUpdated }: MapStatsOverlayProps) {

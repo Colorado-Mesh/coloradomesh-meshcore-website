@@ -1,13 +1,12 @@
-# Netlify _redirects file for Denver MeshCore Community Platform
+# Netlify _redirects file for Colorado MeshCore
 # Note: Most redirects are handled in netlify.toml, this is for quick additions
 
 # Redirect common aliases
 /home    /    301
 
 # Short URLs for sharing (example patterns)
-# /mesh    /getting-started    301
-# /nodes   /observer           301
-# /join    /about              301
+# /mesh    /guides/getting-started    301
+# /join    /about                    301
 
 # Legacy URL patterns (if migrating from another platform)
 # /blog/*  /posts/:splat       301

@@ -3,7 +3,6 @@ import {
   ONLINE_THRESHOLD_MS,
   REPEATER_ONLINE_THRESHOLD_MS,
 } from '@/lib/constants';
-import type { NodeWithStats } from '@/lib/types';
 import type {
   MapCoordinates,
   MapLink,
@@ -141,43 +140,6 @@ function batteryPercentageFromMillivolts(millivolts: number | null): number | nu
 
   const percentage = ((millivolts - 3300) / (4200 - 3300)) * 100;
   return Math.max(0, Math.min(100, Math.round(percentage)));
-}
-
-export function normalizeLegacyNode(node: NodeWithStats, now = new Date()): MapNode {
-  const role = normalizeMapNodeRole(node.node_type);
-  const lastHeardAt = normalizeTimestamp(node.last_seen);
-  const status = node.is_online ? 'online' : deriveMapNodeStatus(lastHeardAt, role, now);
-
-  return {
-    id: node.id,
-    publicKey: node.public_key,
-    name: node.name || node.id,
-    role,
-    coordinates: normalizeCoordinates(node.latitude, node.longitude),
-    lastHeardAt,
-    status,
-    isOnline: status === 'online',
-    model: node.model,
-    firmwareVersion: node.firmware_version,
-    hardwareVersion: node.hardware_version,
-    clientVersion: node.client_version,
-    battery: node.battery_mv === null ? null : {
-      millivolts: node.battery_mv,
-      percentage: batteryPercentageFromMillivolts(node.battery_mv),
-    },
-    radio: {
-      noiseFloor: node.noise_floor,
-    },
-    uptimeSeconds: node.uptime_secs,
-    metadata: {
-      packetsToday: node.packets_today,
-      packetsTotal: node.packets_total,
-      errorCount: node.error_count,
-      queueLength: node.queue_len,
-      txAirSeconds: node.tx_air_secs,
-      rxAirSeconds: node.rx_air_secs,
-    },
-  };
 }
 
 export function normalizeLiveMapNode(input: unknown, now = new Date()): MapNode | null {

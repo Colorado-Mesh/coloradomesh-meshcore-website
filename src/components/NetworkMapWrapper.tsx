@@ -1,49 +1,81 @@
 'use client';
 
-import dynamic from 'next/dynamic';
-import type { NodeWithStats } from '@/lib/types';
+import { useEffect, useState, type ComponentType, type CSSProperties } from 'react';
+import type { MapNode, MapStats } from '@/lib/types';
 
-// Dynamic import to avoid SSR issues with Leaflet
-const NetworkMap = dynamic(
-  () => import('./NetworkMap').then((mod) => mod.NetworkMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="bg-night-800 rounded-lg animate-pulse" style={{ height: '500px' }}>
-        <div className="flex items-center justify-center h-full text-foreground-muted">
-          <div className="flex items-center gap-3">
-            <svg
-              className="h-6 w-6 animate-spin text-mesh"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Loading map...
+interface NetworkMapWrapperProps {
+  nodes?: MapNode[];
+  stats?: MapStats | null;
+  loading?: boolean;
+  error?: string | null;
+  lastUpdated?: Date | null;
+  refreshInterval?: number;
+  className?: string;
+  height?: number | string;
+}
+
+const DEFAULT_HEIGHT = 560;
+
+function resolveHeight(height: number | string | undefined): CSSProperties['height'] {
+  if (typeof height === 'number') return `${height}px`;
+  if (typeof height === 'string' && height.length > 0) return height;
+  return `${DEFAULT_HEIGHT}px`;
+}
+
+export function MapLoadingState({
+  className = '',
+  height,
+}: {
+  className?: string;
+  height?: number | string;
+}) {
+  return (
+    <div className="cm-map-shell">
+      <div
+        className={`cm-map ${className}`.trim()}
+        style={{ height: resolveHeight(height) }}
+      >
+        <div className="cm-map__state">
+          <div className="cm-map__state-inner">
+            <span className="status-dot status-dot-pulse" aria-hidden />
+            <span className="mono text-xs uppercase tracking-[0.18em] text-foreground-dim">
+              Loading mesh map…
+            </span>
           </div>
         </div>
       </div>
-    ),
-  }
-);
+    </div>
+  );
+}
 
-interface NetworkMapWrapperProps {
-  nodes?: NodeWithStats[];
-  className?: string;
+let networkMapPromise: Promise<ComponentType<NetworkMapWrapperProps>> | null = null;
+function loadNetworkMap(): Promise<ComponentType<NetworkMapWrapperProps>> {
+  if (!networkMapPromise) {
+    networkMapPromise = import('./NetworkMap').then((mod) => mod.NetworkMap);
+  }
+  return networkMapPromise;
 }
 
 export function NetworkMapWrapper(props: NetworkMapWrapperProps) {
+  const [NetworkMap, setNetworkMap] = useState<ComponentType<NetworkMapWrapperProps> | null>(
+    null
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    loadNetworkMap().then((Component) => {
+      if (mounted) setNetworkMap(() => Component);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  if (!NetworkMap) {
+    return <MapLoadingState height={props.height} className={props.className} />;
+  }
+
   return <NetworkMap {...props} />;
 }
+
+export default NetworkMapWrapper;

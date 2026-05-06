@@ -1,152 +1,260 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import L, { type LatLngBounds, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { NodeWithStats } from '@/lib/types';
-import { MAP_VISIBILITY_THRESHOLD_MS, OBSERVER_REFRESH_INTERVAL } from '@/lib/constants';
 
-// Fix for default marker icons in Next.js - only run on client
-if (typeof window !== 'undefined') {
-  delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-}
+import type { MapNode, MapNodeRole, MapNodeStatus, MapStats } from '@/lib/types';
+import { useMapSnapshot } from '@/hooks/useMapSnapshot';
+import { DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
 
-// Custom marker icons by node type
-const createIcon = (color: string, isOnline: boolean) => {
-  if (typeof window === 'undefined') return undefined;
-  const opacity = isOnline ? 1 : 0.5;
-  return L.divIcon({
-    className: 'custom-marker',
-    html: `
-      <div style="
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
-        background: ${color};
-        border: 3px solid white;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-        opacity: ${opacity};
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      ">
-        ${isOnline ? '<div style="width: 8px; height: 8px; background: white; border-radius: 50%;"></div>' : ''}
-      </div>
-    `,
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-    popupAnchor: [0, -12],
-  });
-};
-
-const NODE_COLORS: Record<string, string> = {
-  gateway: '#f97316', // orange - observers/gateways
-  companion: '#8b5cf6', // purple
-  repeater: '#22c55e', // forest-500
-  room_server: '#0ea5e9', // mesh
-};
-
-// Display names for the legend
-const NODE_TYPE_LABELS: Record<string, string> = {
-  gateway: 'Observer',
-  companion: 'Companion',
-  repeater: 'Repeater',
-  room_server: 'Room Server',
-};
-
-const DEFAULT_NODE_COLOR = '#6b7280'; // gray for unknown types
-
-/**
- * Get the color for a node based on type or name pattern
- * Observers are detected by name even if node_type isn't 'gateway'
- */
-function getNodeColor(node: NodeWithStats): string {
-  // Check if name indicates this is an observer
-  const name = node.name?.toLowerCase() || '';
-  if (name.includes('observer') || name.includes('0bserver') ||
-      name.includes('obs3rver') || name.includes('0bs3rver')) {
-    return NODE_COLORS.gateway;
-  }
-  return NODE_COLORS[node.node_type] || DEFAULT_NODE_COLOR;
-}
-
-/**
- * Check if a node was seen within the map visibility threshold (24 hours)
- */
-function isNodeRecentlyActive(node: NodeWithStats): boolean {
-  if (!node.last_seen) return false;
-  const lastSeenTime = new Date(node.last_seen).getTime();
-  return Date.now() - lastSeenTime < MAP_VISIBILITY_THRESHOLD_MS;
-}
+import MapControls from './map/MapControls';
+import MapLegend from './map/MapLegend';
+import MapStatsOverlay from './map/MapStatsOverlay';
+import NodePopup from './map/NodePopup';
+import { buildMarkerHtml } from './map/markers';
 
 interface NetworkMapProps {
-  nodes?: NodeWithStats[];
+  nodes?: MapNode[];
+  stats?: MapStats | null;
+  loading?: boolean;
+  error?: string | null;
+  lastUpdated?: Date | null;
+  refreshInterval?: number;
   className?: string;
+  height?: number | string;
 }
 
-export function NetworkMap({ nodes, className = '' }: NetworkMapProps) {
-  const [mapNodes, setMapNodes] = useState<NodeWithStats[]>(nodes || []);
-  const [loading, setLoading] = useState(!nodes);
-  const [error, setError] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
+const COLORADO_CENTER: LatLngTuple = [39.5501, -105.7821];
+const COLORADO_ZOOM = 7;
+const TILE_URL = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
-  // Denver area center coordinates
-  const denverCenter: [number, number] = [39.7392, -104.9903];
+type LocatedMapNode = MapNode & {
+  coordinates: NonNullable<MapNode['coordinates']>;
+};
 
-  // Ensure component is mounted before rendering map
+function hasCoordinates(node: MapNode): node is LocatedMapNode {
+  const coords = node.coordinates;
+  if (!coords) return false;
+  const { latitude, longitude } = coords;
+  return (
+    typeof latitude === 'number' &&
+    typeof longitude === 'number' &&
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    latitude >= -90 &&
+    latitude <= 90 &&
+    longitude >= -180 &&
+    longitude <= 180
+  );
+}
+
+interface FitBoundsProps {
+  bounds: LatLngBounds | null;
+}
+
+function FitBounds({ bounds }: FitBoundsProps) {
+  const map = useMap();
   useEffect(() => {
-    setMounted(true);
+    if (!bounds) return;
+    map.fitBounds(bounds, { padding: [48, 48], maxZoom: 12 });
+  }, [bounds, map]);
+  return null;
+}
+
+function MapStateLayer({ children }: { children: React.ReactNode }) {
+  return <div className="cm-map__state">{children}</div>;
+}
+
+function normalize(value: string | null | undefined): string {
+  return value ? value.toLowerCase() : '';
+}
+
+function matchesQuery(node: LocatedMapNode, query: string): boolean {
+  if (!query) return true;
+  const needle = query.trim().toLowerCase();
+  if (!needle) return true;
+  if (normalize(node.name).includes(needle)) return true;
+  if (normalize(node.publicKey).includes(needle)) return true;
+  if (normalize(node.id).includes(needle)) return true;
+  return false;
+}
+
+export function NetworkMap({
+  nodes: providedNodes,
+  stats: providedStats,
+  loading: loadingProp,
+  error: errorProp,
+  lastUpdated: lastUpdatedProp,
+  refreshInterval = DEFAULT_REFRESH_INTERVAL,
+  className = '',
+  height = 560,
+}: NetworkMapProps) {
+  const externallyControlled = providedNodes !== undefined;
+  const snapshot = useMapSnapshot({
+    enabled: !externallyControlled,
+    refreshInterval,
+  });
+
+  const nodes = useMemo(
+    () => (externallyControlled ? providedNodes ?? [] : snapshot.nodes),
+    [externallyControlled, providedNodes, snapshot.nodes]
+  );
+  const stats = externallyControlled ? providedStats ?? null : snapshot.stats;
+  const loading = loadingProp ?? snapshot.loading;
+  const error = errorProp ?? snapshot.error;
+  const lastUpdated = lastUpdatedProp ?? snapshot.lastUpdated;
+
+  // Strip the default Leaflet marker icon URL resolver so divIcon styling is consistent.
+  useEffect(() => {
+    delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
   }, []);
 
-  useEffect(() => {
-    if (nodes) {
-      setMapNodes(nodes);
-      return;
-    }
-
-    async function fetchNodes() {
-      try {
-        const res = await fetch('/api/nodes', { cache: 'no-store' });
-        const data = await res.json();
-        if (data.success && data.data) {
-          setMapNodes(data.data);
-        } else {
-          setError(data.error || 'Failed to fetch nodes');
-        }
-      } catch (err) {
-        setError('Failed to load map data');
-        console.error(err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    // Initial fetch
-    fetchNodes();
-
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchNodes, OBSERVER_REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [nodes]);
-
-  // Filter nodes with valid coordinates AND seen within 24 hours
-  const nodesWithLocation = mapNodes.filter(
-    (node) => node.latitude !== null && node.longitude !== null && isNodeRecentlyActive(node)
+  const locatedNodes = useMemo<LocatedMapNode[]>(
+    () => nodes.filter(hasCoordinates),
+    [nodes]
   );
 
-  // Calculate map bounds if we have nodes
-  const bounds = nodesWithLocation.length > 0
-    ? L.latLngBounds(
-        nodesWithLocation.map((node) => [node.latitude!, node.longitude!])
-      )
-    : null;
+  const [query, setQuery] = useState('');
+  const [selectedRoles, setSelectedRoles] = useState<Set<MapNodeRole>>(() => new Set());
+  const [selectedStatuses, setSelectedStatuses] = useState<Set<MapNodeStatus>>(
+    () => new Set()
+  );
 
-  if (!mounted || loading) {
+  const toggleRole = useCallback((role: MapNodeRole) => {
+    setSelectedRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  }, []);
+
+  const toggleStatus = useCallback((status: MapNodeStatus) => {
+    setSelectedStatuses((prev) => {
+      const next = new Set(prev);
+      if (next.has(status)) next.delete(status);
+      else next.add(status);
+      return next;
+    });
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setQuery('');
+    setSelectedRoles(new Set());
+    setSelectedStatuses(new Set());
+  }, []);
+
+  const availableRoles = useMemo<MapNodeRole[]>(() => {
+    const set = new Set<MapNodeRole>();
+    for (const node of locatedNodes) set.add(node.role);
+    return Array.from(set);
+  }, [locatedNodes]);
+
+  const availableStatuses = useMemo<MapNodeStatus[]>(() => {
+    const set = new Set<MapNodeStatus>();
+    for (const node of locatedNodes) set.add(node.status);
+    return Array.from(set);
+  }, [locatedNodes]);
+
+  const effectiveSelectedRoles = useMemo<Set<MapNodeRole>>(() => {
+    if (selectedRoles.size === 0) return selectedRoles;
+    const next = new Set<MapNodeRole>();
+    for (const role of selectedRoles) {
+      if (availableRoles.includes(role)) next.add(role);
+    }
+    return next;
+  }, [selectedRoles, availableRoles]);
+
+  const effectiveSelectedStatuses = useMemo<Set<MapNodeStatus>>(() => {
+    if (selectedStatuses.size === 0) return selectedStatuses;
+    const next = new Set<MapNodeStatus>();
+    for (const status of selectedStatuses) {
+      if (availableStatuses.includes(status)) next.add(status);
+    }
+    return next;
+  }, [selectedStatuses, availableStatuses]);
+
+  const filtersActive =
+    query.trim().length > 0 ||
+    effectiveSelectedRoles.size > 0 ||
+    effectiveSelectedStatuses.size > 0;
+
+  const markerNodes = useMemo<LocatedMapNode[]>(() => {
+    return locatedNodes.filter((node) => {
+      if (!matchesQuery(node, query)) return false;
+      if (effectiveSelectedRoles.size > 0 && !effectiveSelectedRoles.has(node.role)) {
+        return false;
+      }
+      if (
+        effectiveSelectedStatuses.size > 0 &&
+        !effectiveSelectedStatuses.has(node.status)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [locatedNodes, query, effectiveSelectedRoles, effectiveSelectedStatuses]);
+
+  const bounds = useMemo<LatLngBounds | null>(() => {
+    if (markerNodes.length === 0) return null;
+    if (markerNodes.length === 1) {
+      const { latitude, longitude } = markerNodes[0].coordinates;
+      return L.latLng(latitude, longitude).toBounds(20000); // ~20km
+    }
+    return L.latLngBounds(
+      markerNodes.map(
+        (node): LatLngTuple => [node.coordinates.latitude, node.coordinates.longitude]
+      )
+    );
+  }, [markerNodes]);
+
+  const activeRoles = useMemo(() => {
+    const set = new Set<MapNodeRole>();
+    for (const node of markerNodes) set.add(node.role);
+    return set;
+  }, [markerNodes]);
+
+  const iconCache = useMemo(() => {
+    const cache = new Map<string, L.DivIcon>();
+    const buildKey = (role: MapNodeRole, status: MapNodeStatus) => `${role}:${status}`;
+    return {
+      get(node: MapNode): L.DivIcon {
+        const key = buildKey(node.role, node.status);
+        const cached = cache.get(key);
+        if (cached) return cached;
+        const icon = L.divIcon({
+          className: 'cm-marker-icon',
+          html: buildMarkerHtml(node.role, node.status),
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+          popupAnchor: [0, -14],
+        });
+        cache.set(key, icon);
+        return icon;
+      },
+    };
+  }, []);
+
+  const containerStyle = { height: typeof height === 'number' ? `${height}px` : height };
+  const containerClass = `cm-map ${className}`.trim();
+  const showControls = !loading && !error && locatedNodes.length > 0;
+
+  if (loading) {
     return (
-      <div className={`bg-night-800 rounded-lg animate-pulse ${className}`} style={{ height: '500px' }}>
-        <div className="flex items-center justify-center h-full text-foreground-muted">
-          Loading map...
+      <div className="cm-map-shell">
+        <div className={containerClass} style={containerStyle}>
+          <MapStateLayer>
+            <div className="cm-map__state-inner">
+              <span className="status-dot status-dot-pulse" aria-hidden />
+              <span className="mono text-xs uppercase tracking-[0.18em] text-foreground-dim">
+                Initializing map…
+              </span>
+            </div>
+          </MapStateLayer>
         </div>
       </div>
     );
@@ -154,119 +262,123 @@ export function NetworkMap({ nodes, className = '' }: NetworkMapProps) {
 
   if (error) {
     return (
-      <div className={`bg-night-800 rounded-lg ${className}`} style={{ height: '500px' }}>
-        <div className="flex items-center justify-center h-full text-error">
-          {error}
+      <div className="cm-map-shell">
+        <div className={containerClass} style={containerStyle}>
+          <MapStateLayer>
+            <div className="cm-map__state-inner">
+              <span className="status-dot status-dot-red" aria-hidden />
+              <div>
+                <div className="text-foreground font-medium">Could not load map data</div>
+                <div className="text-sm text-foreground-muted mt-1">{error}</div>
+              </div>
+            </div>
+          </MapStateLayer>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className={`rounded-lg overflow-hidden relative z-0 ${className}`} style={{ height: '500px' }}>
-      <MapContainer
-        center={bounds ? bounds.getCenter() : denverCenter}
-        zoom={bounds ? undefined : 10}
-        bounds={bounds || undefined}
-        boundsOptions={{ padding: [50, 50] }}
-        className="h-full w-full"
-        style={{ background: '#1a1a2e' }}
-      >
-        {/* Dark mode tile layer */}
-        <TileLayer
-          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-
-        {/* Node markers */}
-        {nodesWithLocation.map((node) => (
-          <Marker
-            key={node.id}
-            position={[node.latitude!, node.longitude!]}
-            icon={createIcon(
-              getNodeColor(node),
-              node.is_online
-            )}
-          >
-            <Popup className="node-popup">
-              <div className="min-w-[200px]">
-                <div className="flex items-center gap-2 mb-2">
-                  <span
-                    className={`h-2 w-2 rounded-full ${
-                      node.is_online ? 'bg-green-500' : 'bg-gray-500'
-                    }`}
-                  />
-                  <span className="font-bold text-gray-900">
-                    {node.name || 'Unnamed Node'}
-                  </span>
-                </div>
-
-                <div className="text-xs text-gray-600 space-y-1">
-                  <div className="flex justify-between">
-                    <span>Type:</span>
-                    <span className="font-medium capitalize">{node.node_type.replace('_', ' ')}</span>
-                  </div>
-
-                  {node.firmware_version && (
-                    <div className="flex justify-between">
-                      <span>Firmware:</span>
-                      <span className="font-mono">{node.firmware_version}</span>
-                    </div>
-                  )}
-
-                  <div className="flex justify-between">
-                    <span>Packets Today:</span>
-                    <span className="font-mono">{node.packets_today}</span>
-                  </div>
-
-                  {node.last_seen && (
-                    <div className="flex justify-between">
-                      <span>Last Seen:</span>
-                      <span>{new Date(node.last_seen).toLocaleString(undefined, { timeZoneName: 'short' })}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-2 pt-2 border-t border-gray-200">
-                  <code className="text-[10px] text-gray-500">
-                    ID: {node.public_key.slice(0, 2)}
-                  </code>
+  if (locatedNodes.length === 0) {
+    return (
+      <div className="cm-map-shell">
+        <div className={containerClass} style={containerStyle}>
+          <MapStateLayer>
+            <div className="cm-map__state-inner cm-map__state-inner--empty">
+              <span className="status-dot status-dot-amber" aria-hidden />
+              <div>
+                <div className="text-foreground font-medium">No located nodes yet</div>
+                <div className="text-sm text-foreground-muted mt-1 max-w-sm">
+                  Once Colorado MeshCore receives node positions, they will appear here. Until then,
+                  check the source overlay below for sample data status.
                 </div>
               </div>
-            </Popup>
-          </Marker>
-        ))}
-      </MapContainer>
-
-      {/* Legend */}
-      <div className="absolute bottom-4 left-4 bg-night-900/90 backdrop-blur-sm rounded-lg p-3 z-[1000]">
-        <div className="text-xs text-foreground-muted mb-2 font-medium">Node Types</div>
-        <div className="space-y-1">
-          {Object.entries(NODE_COLORS).map(([type, color]) => (
-            <div key={type} className="flex items-center gap-2 text-xs text-foreground">
-              <span
-                className="h-3 w-3 rounded-full"
-                style={{ background: color }}
-              />
-              <span>{NODE_TYPE_LABELS[type] || type.replace('_', ' ')}</span>
             </div>
-          ))}
+          </MapStateLayer>
+          <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
         </div>
       </div>
+    );
+  }
 
-      {/* Stats overlay */}
-      <div className="absolute top-4 right-4 bg-night-900/90 backdrop-blur-sm rounded-lg p-3 z-[1000]">
-        <div className="text-sm text-foreground">
-          <span className="text-mesh font-bold">{nodesWithLocation.length}</span>
-          <span className="text-foreground-muted"> active nodes</span>
-        </div>
-        <div className="text-xs text-foreground-muted">
-          {nodesWithLocation.filter(n => n.is_online).length} online now
-        </div>
-        <div className="text-[10px] text-foreground-muted/70 mt-1">
-          Showing nodes seen in last 24h
-        </div>
+  const center: LatLngTuple = bounds
+    ? [bounds.getCenter().lat, bounds.getCenter().lng]
+    : COLORADO_CENTER;
+
+  return (
+    <div className="cm-map-shell">
+      {showControls && (
+        <MapControls
+          query={query}
+          onQueryChange={setQuery}
+          availableRoles={availableRoles}
+          selectedRoles={effectiveSelectedRoles}
+          onToggleRole={toggleRole}
+          availableStatuses={availableStatuses}
+          selectedStatuses={effectiveSelectedStatuses}
+          onToggleStatus={toggleStatus}
+          onClear={clearFilters}
+          matchCount={markerNodes.length}
+          totalCount={locatedNodes.length}
+          filtersActive={filtersActive}
+        />
+      )}
+
+      <div className={containerClass} style={containerStyle}>
+        {markerNodes.length === 0 ? (
+          <>
+            <MapStateLayer>
+              <div className="cm-map__state-inner cm-map__state-inner--empty">
+                <span className="status-dot status-dot-amber" aria-hidden />
+                <div>
+                  <div className="text-foreground font-medium">No nodes match the current filter</div>
+                  <div className="text-sm text-foreground-muted mt-1 max-w-sm">
+                    {locatedNodes.length === 1
+                      ? '1 located node is hidden by the active filter.'
+                      : `${locatedNodes.length} located nodes are hidden by the active filter.`}{' '}
+                    Adjust the search or role chips above, or clear the filter to plot every node.
+                  </div>
+                </div>
+              </div>
+            </MapStateLayer>
+            <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
+            <MapLegend activeRoles={new Set(availableRoles)} />
+          </>
+        ) : (
+          <>
+            <MapContainer
+              center={center}
+              zoom={markerNodes.length === 1 ? 11 : COLORADO_ZOOM}
+              scrollWheelZoom
+              className="cm-map__leaflet"
+              style={{ background: 'var(--night-sky-950)' }}
+            >
+              <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+              <FitBounds bounds={bounds} />
+
+              {markerNodes.map((node) => (
+                <Marker
+                  key={node.publicKey || node.id}
+                  position={[node.coordinates.latitude, node.coordinates.longitude]}
+                  icon={iconCache.get(node)}
+                >
+                  <Popup className="cm-popup-wrapper">
+                    <NodePopup node={node} />
+                  </Popup>
+                </Marker>
+              ))}
+            </MapContainer>
+
+            <MapStatsOverlay
+              stats={stats}
+              visibleMarkers={markerNodes.length}
+              lastUpdated={lastUpdated}
+            />
+            <MapLegend activeRoles={activeRoles} />
+          </>
+        )}
       </div>
     </div>
   );
 }
+
+export default NetworkMap;

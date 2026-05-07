@@ -12,7 +12,7 @@
 # /blog/*  /posts/:splat       301
 
 # External redirects (example)
-# /discord  https://discord.gg/your-invite  302
+# /discord  https://discord.gg/Tuuv9hGPnX  302
 
 # Note: Next.js App Router handles 404s automatically
 # The catch-all redirect below is NOT needed with Next.js

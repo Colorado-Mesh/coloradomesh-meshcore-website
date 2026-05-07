@@ -502,7 +502,7 @@ set guest.password`}</pre>
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a
-                href="https://discord.gg/QpaW8FTTCE"
+                href="https://discord.gg/Tuuv9hGPnX"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-accent"

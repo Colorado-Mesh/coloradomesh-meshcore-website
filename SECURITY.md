@@ -18,7 +18,7 @@ We take the security of Denver MeshCore seriously. If you believe you have found
 
 1. **GitHub Security Advisories (Preferred)**: Use [GitHub's private vulnerability reporting](https://github.com/Denver-MeshCore/denvermc/security/advisories/new) to submit your report directly and securely.
 
-2. **Discord**: For less critical issues, you can reach out privately to maintainers via our [Discord server](https://discord.gg/XRyNqs55sN).
+2. **Discord**: For less critical issues, you can reach out privately to maintainers via our [Discord server](https://discord.gg/Tuuv9hGPnX).
 
 ### What to Include
 

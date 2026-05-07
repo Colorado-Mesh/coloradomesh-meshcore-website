@@ -101,7 +101,7 @@ const resources = [
   },
   {
     name: "Colorado MeshCore Discord",
-    url: "https://discord.gg/QpaW8FTTCE",
+    url: "https://discord.gg/Tuuv9hGPnX",
     description: "Community chat, support, and coordination",
   },
 ];
@@ -179,7 +179,7 @@ export default function TroubleshootingPage() {
                 Still having trouble? Our community is here to help!
               </p>
               <a
-                href="https://discord.gg/QpaW8FTTCE"
+                href="https://discord.gg/Tuuv9hGPnX"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-primary inline-flex items-center gap-2"

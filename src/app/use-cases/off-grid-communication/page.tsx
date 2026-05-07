@@ -446,7 +446,7 @@ export default function OffGridCommunicationPage() {
                 Get Started
               </Link>
               <a
-                href="https://discord.gg/QpaW8FTTCE"
+                href="https://discord.gg/Tuuv9hGPnX"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-outline border-white text-white hover:bg-white hover:text-night-950"

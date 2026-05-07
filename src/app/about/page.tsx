@@ -204,7 +204,7 @@ export default function AboutPage() {
                 <p className="text-sm text-foreground-muted mb-4">
                   Connect with the community, ask questions, and stay updated on network developments.
                 </p>
-                <a href="https://discord.gg/QpaW8FTTCE" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light font-medium text-sm inline-flex items-center gap-1">
+                <a href="https://discord.gg/Tuuv9hGPnX" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light font-medium text-sm inline-flex items-center gap-1">
                   Join Server
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -261,7 +261,7 @@ export default function AboutPage() {
                 <p className="text-sm text-foreground-muted mb-4">
                   Share your knowledge, help newcomers set up their first node, and grow the community.
                 </p>
-                <a href="https://discord.gg/QpaW8FTTCE" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light font-medium text-sm inline-flex items-center gap-1">
+                <a href="https://discord.gg/Tuuv9hGPnX" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light font-medium text-sm inline-flex items-center gap-1">
                   Get Involved
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -419,7 +419,7 @@ export default function AboutPage() {
               <Link href="/start" className="btn-accent">
                 Get Started
               </Link>
-              <a href="https://discord.gg/QpaW8FTTCE" target="_blank" rel="noopener noreferrer" className="btn-outline border-white text-white hover:bg-white hover:text-night-950">
+              <a href="https://discord.gg/Tuuv9hGPnX" target="_blank" rel="noopener noreferrer" className="btn-outline border-white text-white hover:bg-white hover:text-night-950">
                 Join Discord
               </a>
             </div>

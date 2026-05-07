@@ -81,7 +81,7 @@ export const meshCoreSetupHowTo = {
     {
       name: 'Join the Colorado MeshCore Community',
       text: 'Connect with the community on Discord for help, share your node location, and start communicating on the mesh network.',
-      url: 'https://discord.gg/QpaW8FTTCE',
+      url: 'https://discord.gg/Tuuv9hGPnX',
     },
   ],
 };

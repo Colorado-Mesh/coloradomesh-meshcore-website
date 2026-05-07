@@ -186,7 +186,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               Have questions or want to discuss this topic?
             </p>
             <a
-              href="https://discord.gg/QpaW8FTTCE"
+              href="https://discord.gg/Tuuv9hGPnX"
               target="_blank"
               rel="noopener noreferrer"
               className="btn-accent inline-flex items-center gap-2"

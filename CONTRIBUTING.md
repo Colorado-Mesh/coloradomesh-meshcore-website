@@ -99,7 +99,7 @@ Use the GitHub issue templates to suggest features. Include:
 
 ## Questions?
 
-Join our [Discord community](https://discord.gg/QpaW8FTTCE) for questions and discussions.
+Join our [Discord community](https://discord.gg/Tuuv9hGPnX) for questions and discussions.
 
 ## License
 

@@ -93,7 +93,7 @@ const setupSteps = [
     ],
     link: {
       text: "Join Discord",
-      url: "https://discord.gg/QpaW8FTTCE",
+      url: "https://discord.gg/Tuuv9hGPnX",
     },
   },
 ];
@@ -234,7 +234,7 @@ export default function GettingStartedPage() {
               </div>
               <p className="text-center text-foreground-muted mt-4 text-sm">
                 Need help choosing? Ask in our{" "}
-                <a href="https://discord.gg/QpaW8FTTCE" className="text-mesh hover:text-mesh-light">
+                <a href="https://discord.gg/Tuuv9hGPnX" className="text-mesh hover:text-mesh-light">
                   Discord community
                 </a>
                 !
@@ -377,7 +377,7 @@ export default function GettingStartedPage() {
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
               <a
-                href="https://discord.gg/QpaW8FTTCE"
+                href="https://discord.gg/Tuuv9hGPnX"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn-accent"

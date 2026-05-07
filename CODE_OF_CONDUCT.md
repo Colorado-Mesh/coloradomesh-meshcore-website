@@ -50,7 +50,7 @@ This Code of Conduct also applies when an individual is officially representing 
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the community leaders responsible for enforcement at:
 
-* **Discord**: [discord.gg/QpaW8FTTCE](https://discord.gg/QpaW8FTTCE) (contact moderators)
+* **Discord**: [discord.gg/Tuuv9hGPnX](https://discord.gg/Tuuv9hGPnX) (contact moderators)
 * **Email**: [Contact through GitHub Issues](https://github.com/Denver-MeshCore/denvermc/issues)
 
 All complaints will be reviewed and investigated promptly and fairly.

@@ -109,7 +109,7 @@ denvermc-org/
 
 ## Community
 
-- **Discord**: [discord.gg/QpaW8FTTCE](https://discord.gg/QpaW8FTTCE)
+- **Discord**: [discord.gg/Tuuv9hGPnX](https://discord.gg/Tuuv9hGPnX)
 - **MeshCore**: [meshcore.co.uk](https://meshcore.co.uk)
 - **LetsMesh**: [letsmesh.net](https://letsmesh.net)
 

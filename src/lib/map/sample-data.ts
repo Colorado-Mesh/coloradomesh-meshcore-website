@@ -1,3 +1,4 @@
+import { getMapFeatures, getMapRuntimeConfig, getMapWarnings } from './config';
 import type { MapConnectionStatus, MapLink, MapNode, MapRoute, MapSnapshot, MapSnapshotSource } from './types';
 import { buildMapStats } from './normalize';
 
@@ -6,6 +7,7 @@ function minutesAgo(now: Date, minutes: number): string {
 }
 
 export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
+  const config = getMapRuntimeConfig();
   const source: MapSnapshotSource = {
     type: 'sample',
     label: 'Sample Colorado MeshCore map data',
@@ -126,5 +128,7 @@ export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
     stats,
     connection,
     source,
+    warnings: getMapWarnings(config),
+    features: getMapFeatures(config),
   };
 }

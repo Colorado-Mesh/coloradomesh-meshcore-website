@@ -96,6 +96,35 @@ export interface MapConnectionStatus {
   message: string;
 }
 
+export type MapSnapshotWarningSeverity = 'info' | 'warning' | 'critical';
+
+export interface MapSnapshotWarning {
+  id: string;
+  severity: MapSnapshotWarningSeverity;
+  message: string;
+}
+
+export type MapAdvancedFeatureStatus = 'available' | 'unavailable' | 'deferred';
+
+export interface MapAdvancedFeature {
+  id: string;
+  label: string;
+  status: MapAdvancedFeatureStatus;
+  message: string;
+}
+
+export interface MapRuntimePublicConfig {
+  tileUrl: string;
+  tileAttribution: string;
+  defaultCenter: MapCoordinates;
+  defaultZoom: number;
+  sampleData: boolean;
+  demoMode: boolean;
+  sourceLabel: string;
+  warnings: MapSnapshotWarning[];
+  features: MapAdvancedFeature[];
+}
+
 export interface MapStats {
   totalNodes: number;
   onlineNodes: number;
@@ -120,4 +149,6 @@ export interface MapSnapshot {
   stats: MapStats;
   connection: MapConnectionStatus;
   source: MapSnapshotSource;
+  warnings: MapSnapshotWarning[];
+  features: MapAdvancedFeature[];
 }

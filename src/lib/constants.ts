@@ -4,7 +4,13 @@ const trimTrailingSlash = (url: string) => url.replace(/\/+$/, '');
 
 export const RUNTIME_ENV = {
   SITE_URL: 'NEXT_PUBLIC_SITE_URL',
-  MAP_TILE_URL: 'NEXT_PUBLIC_MAP_TILE_URL',
+  MAP_TILE_URL: 'MESHCORE_MAP_TILE_URL',
+  LEGACY_PUBLIC_MAP_TILE_URL: 'NEXT_PUBLIC_MAP_TILE_URL',
+  MAP_TILE_ATTRIBUTION: 'MESHCORE_MAP_TILE_ATTRIBUTION',
+  MAP_DEFAULT_LATITUDE: 'MESHCORE_MAP_DEFAULT_LATITUDE',
+  MAP_DEFAULT_LONGITUDE: 'MESHCORE_MAP_DEFAULT_LONGITUDE',
+  MAP_DEFAULT_ZOOM: 'MESHCORE_MAP_DEFAULT_ZOOM',
+  MAP_DEMO_MODE: 'MESHCORE_MAP_DEMO_MODE',
   LIVE_MAP_API_URL: 'MESHCORE_LIVE_MAP_API_URL',
   LIVE_MAP_API_TOKEN: 'MESHCORE_LIVE_MAP_API_TOKEN',
   LIVE_MAP_API_REFRESH_SECONDS: 'MESHCORE_LIVE_MAP_API_REFRESH_SECONDS',
@@ -59,6 +65,8 @@ export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
 // =============================================================================
 
 export const API_ROUTES = {
+  MAP_SNAPSHOT: '/api/map/snapshot',
+  MAP_RUNTIME: '/api/map/runtime',
   MAP_NODES: '/api/map/nodes',
   MAP_STATS: '/api/map/stats',
   MAP_STREAM: '/api/map/stream',

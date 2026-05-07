@@ -1,5 +1,5 @@
 import mqtt, { type MqttClient } from 'mqtt';
-import { getMapRuntimeConfig, type MapRuntimeConfig } from './config';
+import { getMapFeatures, getMapRuntimeConfig, getMapWarnings, type MapRuntimeConfig } from './config';
 import { buildMapStats, normalizeLiveMapNode, uniqueMapNodes } from './normalize';
 import { buildSampleMapSnapshot } from './sample-data';
 import type {
@@ -84,6 +84,8 @@ function buildEmptyMapSnapshot(now = new Date()): MapSnapshot {
     stats,
     connection,
     source,
+    warnings: getMapWarnings({ sampleData: false, demoMode: false }),
+    features: getMapFeatures({ liveMapApiConfigured: false }),
   };
 }
 
@@ -201,10 +203,21 @@ function applyMqttPayload(payload: unknown) {
 function buildLiveMapApiUrl(config: MapRuntimeConfig): string | null {
   if (!config.liveMapApiUrl) return null;
 
-  const endpoint = new URL(config.liveMapApiUrl);
-  endpoint.searchParams.set('mode', 'full');
-  if (config.liveMapApiToken) endpoint.searchParams.set('token', config.liveMapApiToken);
-  return endpoint.toString();
+  try {
+    const endpoint = new URL(config.liveMapApiUrl);
+    endpoint.username = '';
+    endpoint.password = '';
+    endpoint.searchParams.set('mode', 'full');
+    return endpoint.toString();
+  } catch {
+    return null;
+  }
+}
+
+function buildLiveMapApiHeaders(config: MapRuntimeConfig): HeadersInit {
+  const headers: Record<string, string> = { accept: 'application/json' };
+  if (config.liveMapApiToken) headers.authorization = `Bearer ${config.liveMapApiToken}`;
+  return headers;
 }
 
 async function refreshLiveMapApiSnapshot(config: MapRuntimeConfig, now = new Date()) {
@@ -223,11 +236,15 @@ async function refreshLiveMapApiSnapshot(config: MapRuntimeConfig, now = new Dat
   }
 
   const url = buildLiveMapApiUrl(config);
-  if (!url) return;
+  if (!url) {
+    liveMapApiState.lastFetchedAt = now.toISOString();
+    liveMapApiState.lastError = 'Unable to fetch live map API data';
+    return;
+  }
 
   try {
     const response = await fetch(url, {
-      headers: { accept: 'application/json' },
+      headers: buildLiveMapApiHeaders(config),
       cache: 'no-store',
     });
 
@@ -241,9 +258,9 @@ async function refreshLiveMapApiSnapshot(config: MapRuntimeConfig, now = new Dat
     liveMapApiState.routes = hasPayloadKey(payload, 'routes') ? readLinks(payload, 'routes') as MapRoute[] : [];
     liveMapApiState.lastFetchedAt = now.toISOString();
     liveMapApiState.lastError = null;
-  } catch (error) {
+  } catch {
     liveMapApiState.lastFetchedAt = now.toISOString();
-    liveMapApiState.lastError = error instanceof Error ? error.message : 'Unable to fetch live map API data';
+    liveMapApiState.lastError = 'Unable to fetch live map API data';
   }
 }
 
@@ -268,7 +285,7 @@ async function buildLiveMapApiSnapshot(config: MapRuntimeConfig, now = new Date(
     configured: true,
     sampleData: false,
     historyEnabled: config.historyEnabled,
-    topic: config.liveMapApiUrl,
+    topic: null,
     lastConnectedAt: liveMapApiState.lastFetchedAt,
     lastMessageAt: liveMapApiState.lastFetchedAt,
     message,
@@ -285,6 +302,8 @@ async function buildLiveMapApiSnapshot(config: MapRuntimeConfig, now = new Date(
     stats,
     connection,
     source,
+    warnings: getMapWarnings(config),
+    features: getMapFeatures(config),
   };
 }
 
@@ -395,6 +414,8 @@ function buildMqttMapSnapshot(config: MapRuntimeConfig, now = new Date()): MapSn
     stats,
     connection,
     source,
+    warnings: getMapWarnings(config),
+    features: getMapFeatures(config),
   };
 }
 

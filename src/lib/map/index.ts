@@ -3,19 +3,24 @@ export type {
   MapConnectionState,
   MapConnectionStatus,
   MapCoordinates,
+  MapAdvancedFeature,
+  MapAdvancedFeatureStatus,
   MapLink,
   MapNode,
   MapNodeRole,
   MapNodeStatus,
   MapRadioMetrics,
   MapRoute,
+  MapRuntimePublicConfig,
   MapSnapshot,
   MapSnapshotSource,
   MapSnapshotSourceType,
+  MapSnapshotWarning,
+  MapSnapshotWarningSeverity,
   MapStats,
 } from './types';
 export type { MapRuntimeConfig } from './config';
-export { getMapRuntimeConfig } from './config';
+export { getMapFeatures, getMapPublicRuntimeConfig, getMapRuntimeConfig, getMapWarnings } from './config';
 export {
   buildMapStats,
   deriveMapNodeStatus,

@@ -1,4 +1,6 @@
 export type {
+  MapAdvancedFeature,
+  MapAdvancedFeatureStatus,
   MapBattery,
   MapConnectionState,
   MapConnectionStatus,
@@ -9,9 +11,12 @@ export type {
   MapNodeStatus,
   MapRadioMetrics,
   MapRoute,
+  MapRuntimePublicConfig,
   MapSnapshot,
   MapSnapshotSource,
   MapSnapshotSourceType,
+  MapSnapshotWarning,
+  MapSnapshotWarningSeverity,
   MapStats,
 } from './map';
 

@@ -5,7 +5,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L, { type LatLngBounds, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import type { MapNode, MapNodeRole, MapNodeStatus, MapStats } from '@/lib/types';
+import type { MapNode, MapNodeRole, MapNodeStatus, MapRuntimePublicConfig, MapStats } from '@/lib/types';
 import { useMapSnapshot } from '@/hooks/useMapSnapshot';
 import { DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
 
@@ -21,6 +21,7 @@ interface NetworkMapProps {
   loading?: boolean;
   error?: string | null;
   lastUpdated?: Date | null;
+  runtimeConfig?: MapRuntimePublicConfig | null;
   refreshInterval?: number;
   className?: string;
   height?: number | string;
@@ -89,6 +90,7 @@ export function NetworkMap({
   loading: loadingProp,
   error: errorProp,
   lastUpdated: lastUpdatedProp,
+  runtimeConfig: runtimeConfigProp,
   refreshInterval = DEFAULT_REFRESH_INTERVAL,
   className = '',
   height = 560,
@@ -104,6 +106,7 @@ export function NetworkMap({
     [externallyControlled, providedNodes, snapshot.nodes]
   );
   const stats = externallyControlled ? providedStats ?? null : snapshot.stats;
+  const runtimeConfig = runtimeConfigProp ?? snapshot.runtimeConfig;
   const loading = loadingProp ?? snapshot.loading;
   const error = errorProp ?? snapshot.error;
   const lastUpdated = lastUpdatedProp ?? snapshot.lastUpdated;
@@ -300,9 +303,15 @@ export function NetworkMap({
     );
   }
 
+  const fallbackCenter: LatLngTuple = runtimeConfig
+    ? [runtimeConfig.defaultCenter.latitude, runtimeConfig.defaultCenter.longitude]
+    : COLORADO_CENTER;
   const center: LatLngTuple = bounds
     ? [bounds.getCenter().lat, bounds.getCenter().lng]
-    : COLORADO_CENTER;
+    : fallbackCenter;
+  const zoom = runtimeConfig?.defaultZoom ?? COLORADO_ZOOM;
+  const tileUrl = runtimeConfig?.tileUrl ?? TILE_URL;
+  const tileAttribution = runtimeConfig?.tileAttribution ?? TILE_ATTRIBUTION;
 
   return (
     <div className="cm-map-shell">
@@ -347,12 +356,12 @@ export function NetworkMap({
           <>
             <MapContainer
               center={center}
-              zoom={markerNodes.length === 1 ? 11 : COLORADO_ZOOM}
+              zoom={markerNodes.length === 1 ? 11 : zoom}
               scrollWheelZoom
               className="cm-map__leaflet"
               style={{ background: 'var(--night-sky-950)' }}
             >
-              <TileLayer attribution={TILE_ATTRIBUTION} url={TILE_URL} />
+              <TileLayer attribution={tileAttribution} url={tileUrl} />
               <FitBounds bounds={bounds} />
 
               {markerNodes.map((node) => (

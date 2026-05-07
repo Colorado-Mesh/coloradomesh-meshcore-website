@@ -1,0 +1,28 @@
+{
+  "verdict": "APPROVED",
+  "summary": "Prior blocker is resolved. Live-map fetch errors are now redacted before being surfaced through snapshot connection messages, credentialed upstream URL userinfo is stripped before fetch, bearer tokens are no longer appended to query strings, and tests cover credentialed error-message leakage. No new blocking issue was identified in the staged Step 2 changes.",
+  "required_fixes": [],
+  "recommended_followups": [
+    {
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts",
+      "line": 57,
+      "note": "Consider documenting that MESHCORE_MAP_TILE_URL must be browser-safe/public, since /api/map/runtime intentionally exposes the configured tile URL."
+    },
+    {
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts",
+      "line": 386,
+      "note": "Future hardening could redact MQTT error messages as well, especially if operators place credentials in MQTT URLs instead of username/password env vars."
+    }
+  ],
+  "verification_notes": {
+    "diff_basis": "provided_list",
+    "implementer_verification_reviewed": [
+      "npm run lint: passed",
+      "npm run typecheck: passed",
+      "npm run test:unit: passed",
+      "npm run build: passed with existing warnings",
+      "Production API smoke for /api/map/snapshot, /api/map/runtime, /api/map/nodes, and /api/map/stats: successful and no live-map token exposure reported"
+    ],
+    "prior_blocker_status": "resolved"
+  }
+}

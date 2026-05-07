@@ -2,7 +2,17 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { API_ROUTES, DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
-import type { ApiResponse, MapNode, MapStats } from '@/lib/types';
+import type {
+  ApiResponse,
+  MapAdvancedFeature,
+  MapConnectionStatus,
+  MapNode,
+  MapRuntimePublicConfig,
+  MapSnapshot,
+  MapSnapshotSource,
+  MapSnapshotWarning,
+  MapStats,
+} from '@/lib/types';
 
 interface UseMapSnapshotOptions {
   refreshInterval?: number;
@@ -12,6 +22,11 @@ interface UseMapSnapshotOptions {
 interface UseMapSnapshotReturn {
   nodes: MapNode[];
   stats: MapStats | null;
+  connection: MapConnectionStatus | null;
+  source: MapSnapshotSource | null;
+  warnings: MapSnapshotWarning[];
+  features: MapAdvancedFeature[];
+  runtimeConfig: MapRuntimePublicConfig | null;
   loading: boolean;
   error: string | null;
   lastUpdated: Date | null;
@@ -44,6 +59,11 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
 
   const [nodes, setNodes] = useState<MapNode[]>([]);
   const [stats, setStats] = useState<MapStats | null>(null);
+  const [connection, setConnection] = useState<MapConnectionStatus | null>(null);
+  const [source, setSource] = useState<MapSnapshotSource | null>(null);
+  const [warnings, setWarnings] = useState<MapSnapshotWarning[]>([]);
+  const [features, setFeatures] = useState<MapAdvancedFeature[]>([]);
+  const [runtimeConfig, setRuntimeConfig] = useState<MapRuntimePublicConfig | null>(null);
   const [loading, setLoading] = useState(enabled);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -55,15 +75,20 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
     }
 
     try {
-      const [nextNodes, nextStats] = await Promise.all([
-        fetchApiResponse<MapNode[]>(API_ROUTES.MAP_NODES),
-        fetchApiResponse<MapStats>(API_ROUTES.MAP_STATS),
+      const [snapshot, nextRuntimeConfig] = await Promise.all([
+        fetchApiResponse<MapSnapshot>(API_ROUTES.MAP_SNAPSHOT),
+        fetchApiResponse<MapRuntimePublicConfig>(API_ROUTES.MAP_RUNTIME),
       ]);
 
-      setNodes(nextNodes);
-      setStats(nextStats);
+      setNodes(snapshot.nodes);
+      setStats(snapshot.stats);
+      setConnection(snapshot.connection);
+      setSource(snapshot.source);
+      setWarnings(snapshot.warnings);
+      setFeatures(snapshot.features);
+      setRuntimeConfig(nextRuntimeConfig);
       setError(null);
-      setLastUpdated(new Date());
+      setLastUpdated(new Date(snapshot.generatedAt));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch map data');
     } finally {
@@ -83,6 +108,11 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
   return {
     nodes,
     stats,
+    connection,
+    source,
+    warnings,
+    features,
+    runtimeConfig,
     loading,
     error,
     lastUpdated,

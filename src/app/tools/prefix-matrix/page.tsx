@@ -7,7 +7,7 @@ import { BASE_URL, COMMUNITY_NAME, SITE_NAME } from '@/lib/constants';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 
 const PAGE_TITLE = 'Prefix Matrix';
-const PAGE_DESCRIPTION = `See how the 256 first-byte public-key prefixes are distributed across ${COMMUNITY_NAME} nodes. Pick a free prefix before generating a new MeshCore identity key.`;
+const PAGE_DESCRIPTION = `Plan a unique 4-character public-key prefix across ${COMMUNITY_NAME} nodes. Drill in from the 256 first-byte tiles to a 16×16 subgrid of full 4-character prefixes, with reserved IDs, duplicates, and repeater collisions surfaced from the live snapshot.`;
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -43,7 +43,7 @@ export default function PrefixMatrixPage() {
           </>
         }
         description={PAGE_DESCRIPTION}
-        apiTag="GET /api/map/nodes"
+        apiTag="GET /api/map/snapshot"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Tools', href: '/tools' },
@@ -53,15 +53,21 @@ export default function PrefixMatrixPage() {
         aside={
           <>
             <p>
-              Each cell is a possible first byte of a MeshCore public key
+              The first grid is the 256 possible first-byte prefixes
               (<code className="text-mesh">0x00</code>–
-              <code className="text-mesh">0xFF</code>). The matrix counts how many
-              currently visible {SITE_NAME} nodes occupy each prefix, sourced from{' '}
-              <code className="text-mesh">/api/map/nodes</code>.
+              <code className="text-mesh">0xFF</code>) of a MeshCore public key.
+              Counts come from the live snapshot at{' '}
+              <code className="text-mesh">/api/map/snapshot</code> shared by the
+              {' '}{SITE_NAME} map.
             </p>
             <p>
-              Click an empty cell to inspect it, or use{' '}
-              <em>Suggest Free Prefix</em> for a random unused byte.
+              Click any tile to drill into a 16×16 subgrid of full 4-character
+              prefixes. Tiles flag duplicates, repeater/room-server collisions,
+              and reserved IDs.
+            </p>
+            <p>
+              Use <em>Suggest Free Prefix</em> for a deterministic unoccupied
+              4-character prefix you can paste into the key generator.
             </p>
           </>
         }

@@ -28,7 +28,7 @@ export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
   const nodes: MapNode[] = [
     {
       id: 'cm-denver-gateway',
-      publicKey: 'cm-denver-gateway',
+      publicKey: 'A10F4C8D9E7B6A5C3D2E1F0A9B8C7D6E5F4A3B2C1D0E9F8A7B6C5D4E3F2A1B0C',
       name: 'Colorado Mesh Denver Gateway',
       role: 'gateway',
       coordinates: { latitude: 39.7392, longitude: -104.9903, altitudeMeters: 1609 },
@@ -43,7 +43,7 @@ export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
     },
     {
       id: 'cm-golden-repeater',
-      publicKey: 'cm-golden-repeater',
+      publicKey: 'B20F4C8D9E7B6A5C3D2E1F0A9B8C7D6E5F4A3B2C1D0E9F8A7B6C5D4E3F2A1B0C',
       name: 'Golden Ridge Repeater',
       role: 'repeater',
       coordinates: { latitude: 39.7555, longitude: -105.2211, altitudeMeters: 2042 },
@@ -58,7 +58,7 @@ export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
     },
     {
       id: 'cm-boulder-node',
-      publicKey: 'cm-boulder-node',
+      publicKey: 'A10F9C8D7E6B5A4C3D2E1F0A9B8C7D6E5F4A3B2C1D0E9F8A7B6C5D4E3F2A1B0C',
       name: 'Boulder Field Node',
       role: 'node',
       coordinates: { latitude: 40.015, longitude: -105.2705, altitudeMeters: 1655 },
@@ -73,7 +73,7 @@ export function buildSampleMapSnapshot(now = new Date()): MapSnapshot {
     },
     {
       id: 'cm-castle-rock-mobile',
-      publicKey: 'cm-castle-rock-mobile',
+      publicKey: 'C30F4C8D9E7B6A5C3D2E1F0A9B8C7D6E5F4A3B2C1D0E9F8A7B6C5D4E3F2A1B0C',
       name: 'Castle Rock Mobile',
       role: 'companion',
       coordinates: { latitude: 39.3722, longitude: -104.8561, altitudeMeters: 1897 },

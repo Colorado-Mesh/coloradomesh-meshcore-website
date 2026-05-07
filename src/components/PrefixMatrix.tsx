@@ -1,123 +1,88 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
-import type { ApiResponse, MapNode } from "@/lib/types";
-import { API_ROUTES } from "@/lib/constants";
+import { useCallback, useMemo, useState } from "react";
+import { useMapSnapshot } from "@/hooks/useMapSnapshot";
+import {
+  buildPrefixAnalysis,
+  HEX_CHARS,
+  searchPrefixAnalysis,
+  suggestFreePrefix,
+  type PrefixCell,
+  type PrefixCellSeverity,
+  type PrefixPrimaryCell,
+} from "@/lib/meshcore-tools/prefixes";
 
 interface PrefixMatrixProps {
-  onSelectPrefix?: (hex: string) => void;
-}
-
-interface CellData {
-  hex: string;
-  nodes: MapNode[];
+  onSelectPrefix?: (prefix4: string) => void;
 }
 
 export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
-  const [nodes, setNodes] = useState<MapNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const { nodes, loading, error, refetch } = useMapSnapshot();
+  const [selectedPrimary, setSelectedPrimary] = useState<string | null>(null);
+  const [selectedSecondary, setSelectedSecondary] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [showHelp, setShowHelp] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const fetchNodes = async () => {
-      try {
-        const res = await fetch(API_ROUTES.MAP_NODES);
-        const json = (await res.json()) as ApiResponse<MapNode[]>;
-        if (cancelled) return;
-        if (json.success && json.data) {
-          setNodes(json.data);
-        } else {
-          setError("Failed to load node data");
-        }
-      } catch {
-        if (!cancelled) setError("Failed to connect to API");
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    fetchNodes();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const analysis = useMemo(() => buildPrefixAnalysis(nodes), [nodes]);
 
-  // Build the 256-cell grid indexed by first byte of public key
-  const grid = useMemo(() => {
-    const map = new Map<string, MapNode[]>();
-    for (let i = 0; i < 256; i++) {
-      map.set(i.toString(16).padStart(2, "0").toUpperCase(), []);
-    }
-    for (const node of nodes) {
-      if (node.publicKey && node.publicKey.length >= 2) {
-        const prefix = node.publicKey.slice(0, 2).toUpperCase();
-        const existing = map.get(prefix);
-        if (existing) existing.push(node);
+  const primaryRows = useMemo(() => {
+    const rows: PrefixPrimaryCell[][] = [];
+    for (const first of HEX_CHARS) {
+      const row: PrefixPrimaryCell[] = [];
+      for (const second of HEX_CHARS) {
+        const cell = analysis.primaryCells.get(`${first}${second}`);
+        if (cell) row.push(cell);
       }
+      rows.push(row);
     }
-    return map;
-  }, [nodes]);
+    return rows;
+  }, [analysis]);
 
-  // Search filtering
-  const highlightedCells = useMemo(() => {
-    if (!search.trim()) return null;
-    const q = search.toLowerCase();
-    const matches = new Set<string>();
-    for (const [hex, cellNodes] of grid) {
-      if (hex.toLowerCase().includes(q)) {
-        matches.add(hex);
-      }
-      for (const node of cellNodes) {
-        if (
-          node.name?.toLowerCase().includes(q) ||
-          node.publicKey?.toLowerCase().includes(q)
-        ) {
-          matches.add(hex);
-        }
-      }
-    }
-    return matches;
-  }, [search, grid]);
+  const searchResult = useMemo(
+    () => searchPrefixAnalysis(analysis, search),
+    [analysis, search],
+  );
+  const isSearching = search.trim().length > 0;
 
-  const freeCount = useMemo(() => {
+  const totalNodes = analysis.nodeInfos.length;
+  const freePrimaryCount = useMemo(() => {
     let count = 0;
-    for (const cellNodes of grid.values()) {
-      if (cellNodes.length === 0) count++;
+    for (const cell of analysis.primaryCells.values()) {
+      if (cell.count === 0) count += 1;
     }
     return count;
-  }, [grid]);
+  }, [analysis]);
 
-  const suggestFreePrefix = useCallback(() => {
-    const freeHexes: string[] = [];
-    for (const [hex, cellNodes] of grid) {
-      if (cellNodes.length === 0) freeHexes.push(hex);
-    }
-    if (freeHexes.length === 0) return;
-    const randomFirst = freeHexes[Math.floor(Math.random() * freeHexes.length)];
-    // Generate random second byte
-    const randomSecond = Math.floor(Math.random() * 256)
-      .toString(16)
-      .padStart(2, "0")
-      .toUpperCase();
-    const suggested = randomFirst + randomSecond;
+  const handleSuggestFreePrefix = useCallback(() => {
+    const suggested = suggestFreePrefix(analysis, {
+      preferredPrefix2: selectedPrimary ?? undefined,
+    });
+    if (!suggested) return;
+    const primary = suggested.slice(0, 2);
+    setSelectedPrimary(primary);
+    setSelectedSecondary(suggested);
     onSelectPrefix?.(suggested);
-    setSelectedCell(randomFirst);
-  }, [grid, onSelectPrefix]);
+  }, [analysis, onSelectPrefix, selectedPrimary]);
 
-  const hexRow = (rowIdx: number): CellData[] => {
-    const cells: CellData[] = [];
-    for (let col = 0; col < 16; col++) {
-      const byte = rowIdx * 16 + col;
-      const hex = byte.toString(16).padStart(2, "0").toUpperCase();
-      cells.push({ hex, nodes: grid.get(hex) || [] });
-    }
-    return cells;
-  };
+  const handlePrimaryClick = useCallback((prefix2: string) => {
+    setSelectedPrimary((current) => {
+      const next = current === prefix2 ? null : prefix2;
+      setSelectedSecondary(null);
+      return next;
+    });
+  }, []);
 
-  if (loading) {
+  const handleSecondaryClick = useCallback(
+    (cell: PrefixCell) => {
+      setSelectedSecondary((current) => (current === cell.id ? null : cell.id));
+      if (cell.selectable) {
+        onSelectPrefix?.(cell.id);
+      }
+    },
+    [onSelectPrefix],
+  );
+
+  if (loading && nodes.length === 0) {
     return (
       <div className="card-mesh p-8">
         <div className="flex items-center justify-center gap-3">
@@ -128,12 +93,14 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
     );
   }
 
-  if (error) {
+  if (error && nodes.length === 0) {
     return (
       <div className="card-mesh p-8 text-center">
         <p className="text-red-500 mb-2">{error}</p>
         <button
-          onClick={() => window.location.reload()}
+          onClick={() => {
+            void refetch();
+          }}
           className="text-mesh hover:text-mesh-light text-sm"
         >
           Retry
@@ -142,7 +109,24 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
     );
   }
 
-  const selectedNodes = selectedCell ? grid.get(selectedCell) || [] : [];
+  const selectedPrimaryCell = selectedPrimary
+    ? analysis.primaryCells.get(selectedPrimary) ?? null
+    : null;
+  const selectedSecondaryCell = selectedSecondary
+    ? analysis.secondaryCells.get(selectedSecondary) ?? null
+    : null;
+
+  const secondaryRows: PrefixCell[][] = [];
+  if (selectedPrimaryCell) {
+    for (let r = 0; r < HEX_CHARS.length; r++) {
+      const row: PrefixCell[] = [];
+      for (let c = 0; c < HEX_CHARS.length; c++) {
+        const cell = selectedPrimaryCell.subCells[r * HEX_CHARS.length + c];
+        if (cell) row.push(cell);
+      }
+      secondaryRows.push(row);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -152,11 +136,14 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by node name or public key..."
+          placeholder="Search by prefix, node name, public key, or role..."
+          aria-label="Search prefix matrix"
+          data-testid="prefix-matrix-search"
           className="flex-1 bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground text-sm focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
         />
         <button
-          onClick={suggestFreePrefix}
+          onClick={handleSuggestFreePrefix}
+          data-testid="prefix-matrix-suggest"
           className="btn-accent px-4 py-2.5 text-sm whitespace-nowrap"
         >
           Suggest Free Prefix
@@ -164,128 +151,126 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 text-xs text-foreground-muted">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-night-800/50 border border-card-border" />
-          <span>Free ({freeCount})</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-mesh/30 border border-mesh/50" />
-          <span>1 node</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded bg-amber-500/40 border border-amber-500/60" />
-          <span>2+ nodes (crowded)</span>
-        </div>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-foreground-muted">
+        <LegendSwatch className="bg-night-800/50 border border-card-border" label={`Free (${freePrimaryCount}/256 first bytes)`} />
+        <LegendSwatch className="bg-mesh/30 border border-mesh/50" label="Used" />
+        <LegendSwatch className="bg-amber-500/40 border border-amber-500/60" label="Duplicate prefix" />
+        <LegendSwatch className="bg-red-500/40 border border-red-500/60" label="Repeater collision" />
+        <LegendSwatch className="bg-foreground-muted/20 border border-foreground-muted/40" label="Reserved" />
         <span className="text-foreground-muted/50">|</span>
-        <span>{nodes.length} nodes across {256 - freeCount} prefixes</span>
+        <span data-testid="prefix-matrix-summary">
+          {totalNodes} nodes · {analysis.occupiedPrefixCount} occupied 4-char prefixes
+          {analysis.duplicatePrefixCount > 0 && ` · ${analysis.duplicatePrefixCount} duplicates`}
+          {analysis.repeaterCollisionCount > 0 && ` · ${analysis.repeaterCollisionCount} repeater collisions`}
+        </span>
       </div>
 
-      {/* Grid */}
-      <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="min-w-[520px]">
-          {/* Column headers */}
-          <div className="flex gap-0.5 mb-0.5 pl-8">
-            {Array.from({ length: 16 }, (_, i) => (
-              <div
-                key={i}
-                className="flex-1 text-center text-[10px] font-mono text-foreground-muted/50"
-              >
-                {i.toString(16).toUpperCase()}
-              </div>
-            ))}
-          </div>
-
-          {/* Rows */}
-          {Array.from({ length: 16 }, (_, rowIdx) => (
-            <div key={rowIdx} className="flex gap-0.5 mb-0.5">
-              {/* Row header */}
-              <div className="w-7 flex items-center justify-end pr-1 text-[10px] font-mono text-foreground-muted/50">
-                {rowIdx.toString(16).toUpperCase()}x
-              </div>
-
-              {hexRow(rowIdx).map((cell) => {
-                const count = cell.nodes.length;
-                const occupied = count > 0;
-                const crowded = count >= 2;
-                const isSelected = selectedCell === cell.hex;
-                const isDimmed =
-                  highlightedCells !== null && !highlightedCells.has(cell.hex);
-
-                return (
-                  <button
-                    key={cell.hex}
-                    onClick={() => {
-                      if (isSelected) {
-                        setSelectedCell(null);
-                      } else {
-                        setSelectedCell(cell.hex);
-                        if (!occupied) {
-                          onSelectPrefix?.(cell.hex);
-                        }
-                      }
-                    }}
-                    title={`${cell.hex}: ${
-                      occupied
-                        ? `${count} node(s)`
-                        : "Free — click to use"
-                    }`}
-                    className={`flex-1 aspect-square rounded-sm text-[9px] font-mono flex items-center justify-center transition-all ${
-                      isSelected
-                        ? occupied
-                          ? "bg-red-500/80 text-white ring-1 ring-red-400 scale-110 z-10"
-                          : "bg-mesh text-white ring-1 ring-mesh scale-110 z-10"
-                        : crowded
-                        ? "bg-amber-500/40 border border-amber-500/60 text-amber-400 hover:bg-amber-500/50"
-                        : occupied
-                        ? "bg-mesh/30 border border-mesh/50 text-mesh hover:bg-mesh/40"
-                        : "bg-night-800/50 border border-card-border text-foreground-muted/30 hover:border-mesh/50 hover:text-foreground-muted"
-                    } ${isDimmed ? "opacity-20" : ""}`}
-                  >
-                    {occupied ? count : ""}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
+      {/* Primary 16x16 grid (first byte) */}
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between">
+          <h4 className="text-xs uppercase tracking-wider text-foreground-muted">
+            First-byte prefix (2 chars)
+          </h4>
+          <p className="text-[11px] text-foreground-muted/70">
+            Click a tile to drill into its 4-character subgrid
+          </p>
         </div>
+        <PrefixGrid
+          rows={primaryRows}
+          selectedId={selectedPrimary}
+          highlightedIds={isSearching ? searchResult.matchedPrimaryPrefixes : null}
+          onCellClick={(cell) => handlePrimaryClick(cell.id)}
+          renderCellContent={(cell) => (cell.count > 0 ? cell.count : "")}
+          getCellTitle={(cell) => {
+            const reservedTag = cell.reserved ? " · reserved" : "";
+            return cell.count > 0
+              ? `${cell.id}: ${cell.count} node(s) across ${cell.occupiedSubCellCount} prefixes${reservedTag}`
+              : `${cell.id}: free${reservedTag}`;
+          }}
+          testIdPrefix="prefix-matrix-primary"
+        />
       </div>
 
-      {/* Detail Panel */}
-      {selectedCell && (
-        <div className="card-mesh p-4">
-          <div className="flex items-center justify-between mb-3">
+      {/* Secondary 16x16 grid (3rd/4th characters of selected primary) */}
+      {selectedPrimaryCell && (
+        <div className="card-mesh p-4 space-y-3">
+          <div className="flex items-center justify-between">
             <h4 className="font-mono text-sm font-bold text-foreground">
-              Prefix: 0x{selectedCell}
+              0x{selectedPrimaryCell.id}__ subgrid
             </h4>
             <button
-              onClick={() => setSelectedCell(null)}
+              onClick={() => {
+                setSelectedPrimary(null);
+                setSelectedSecondary(null);
+              }}
               className="text-foreground-muted hover:text-foreground text-sm"
             >
               Close
             </button>
           </div>
-          {selectedNodes.length === 0 ? (
+          <p className="text-xs text-foreground-muted">
+            Each tile is a full 4-character prefix starting with 0x{selectedPrimaryCell.id}.
+            Click a free tile to use it. Reserved and occupied tiles cannot be selected.
+          </p>
+          <PrefixGrid
+            rows={secondaryRows}
+            selectedId={selectedSecondary}
+            highlightedIds={isSearching ? searchResult.matchedPrefixes : null}
+            onCellClick={handleSecondaryClick}
+            renderCellContent={(cell) => (cell.count > 0 ? cell.count : cell.reserved ? "·" : "")}
+            getCellTitle={(cell) => describeCell(cell)}
+            testIdPrefix="prefix-matrix-secondary"
+          />
+        </div>
+      )}
+
+      {/* Detail panel for the selected 4-character prefix */}
+      {selectedSecondaryCell && (
+        <div className="card-mesh p-4" data-testid="prefix-matrix-detail">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="font-mono text-sm font-bold text-foreground">
+              Prefix: 0x{selectedSecondaryCell.id}
+            </h4>
+            <button
+              onClick={() => setSelectedSecondary(null)}
+              className="text-foreground-muted hover:text-foreground text-sm"
+            >
+              Close
+            </button>
+          </div>
+
+          {selectedSecondaryCell.severity === "repeater-collision" && (
+            <SeverityNotice
+              tone="red"
+              text={`Repeater/room-server collision — ${selectedSecondaryCell.count} infrastructure nodes share this 4-character prefix.`}
+            />
+          )}
+          {selectedSecondaryCell.severity === "duplicate" && (
+            <SeverityNotice
+              tone="amber"
+              text={`${selectedSecondaryCell.count} nodes share 0x${selectedSecondaryCell.id}. Pick a different 4-character prefix to avoid routing ambiguity.`}
+            />
+          )}
+          {selectedSecondaryCell.reserved && (
+            <SeverityNotice
+              tone="muted"
+              text="Reserved prefix — do not use for new MeshCore identities."
+            />
+          )}
+          {selectedSecondaryCell.severity === "free" && (
             <div className="text-center py-4">
               <p className="text-forest-500 font-semibold text-sm mb-1">
                 This prefix is free!
               </p>
               <p className="text-xs text-foreground-muted">
-                No nodes are using the 0x{selectedCell} prefix byte.
+                No nodes are using the 0x{selectedSecondaryCell.id} prefix.
               </p>
             </div>
-          ) : (
-            <div className="space-y-2">
-              {selectedNodes.length >= 2 && (
-                <p className="text-xs text-amber-500 flex items-center gap-1.5 pb-1">
-                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                  {selectedNodes.length} nodes share this prefix byte &mdash; consider a less crowded prefix.
-                </p>
-              )}
-              <div className="max-h-48 overflow-y-auto space-y-1">
-              {selectedNodes.map((node) => (
+          )}
+
+          {selectedSecondaryCell.nodes.length > 0 && (
+            <div className="max-h-48 overflow-y-auto space-y-1 mt-2">
+              {selectedSecondaryCell.nodes.map((node) => (
                 <div
                   key={node.id}
                   className="flex items-center justify-between text-sm py-1.5 border-b border-card-border last:border-0"
@@ -295,14 +280,16 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${
                         node.isOnline ? "bg-forest-500" : "bg-foreground-muted/30"
                       }`}
+                      aria-hidden
                     />
-                    <span className="text-foreground truncate">
-                      {node.name || "Unnamed"}
+                    <span className="text-foreground truncate">{node.name}</span>
+                    <span className="text-[10px] uppercase tracking-wider text-foreground-muted/70 ml-1">
+                      {node.role}
                     </span>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 ml-2">
                     <span className="font-mono text-xs text-foreground-muted">
-                      {node.publicKey?.slice(0, 8)}...
+                      {node.publicKey?.slice(0, 8) ?? node.prefix4}…
                     </span>
                     {node.lastHeardAt && (
                       <span className="text-xs text-foreground-muted/50">
@@ -312,7 +299,6 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                   </div>
                 </div>
               ))}
-              </div>
             </div>
           )}
         </div>
@@ -350,7 +336,7 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
                     MeshCore Key Generator
                   </a>
                 </li>
-                <li>Enter your desired 2-character hex prefix (first byte)</li>
+                <li>Enter your desired 4-character hex prefix</li>
                 <li>Click &ldquo;Generate Key&rdquo; &mdash; it finds a matching Ed25519 key pair in seconds</li>
                 <li>Copy the <strong className="text-foreground">private key</strong> (128 hex characters)</li>
               </ol>
@@ -392,6 +378,138 @@ export default function PrefixMatrix({ onSelectPrefix }: PrefixMatrixProps) {
         )}
       </div>
     </div>
+  );
+}
+
+interface PrefixGridProps<TCell extends PrefixCell> {
+  rows: readonly (readonly TCell[])[];
+  selectedId: string | null;
+  highlightedIds: ReadonlySet<string> | null;
+  onCellClick: (cell: TCell) => void;
+  renderCellContent: (cell: TCell) => React.ReactNode;
+  getCellTitle: (cell: TCell) => string;
+  testIdPrefix: string;
+}
+
+function PrefixGrid<TCell extends PrefixCell>({
+  rows,
+  selectedId,
+  highlightedIds,
+  onCellClick,
+  renderCellContent,
+  getCellTitle,
+  testIdPrefix,
+}: PrefixGridProps<TCell>) {
+  return (
+    <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+      <div className="min-w-[520px]">
+        {/* Column headers */}
+        <div className="flex gap-0.5 mb-0.5 pl-8">
+          {HEX_CHARS.map((c) => (
+            <div
+              key={c}
+              className="flex-1 text-center text-[10px] font-mono text-foreground-muted/50"
+            >
+              {c}
+            </div>
+          ))}
+        </div>
+
+        {rows.map((row, rowIdx) => (
+          <div key={rowIdx} className="flex gap-0.5 mb-0.5">
+            <div className="w-7 flex items-center justify-end pr-1 text-[10px] font-mono text-foreground-muted/50">
+              {HEX_CHARS[rowIdx]}x
+            </div>
+            {row.map((cell) => {
+              const isSelected = selectedId === cell.id;
+              const isDimmed = highlightedIds !== null && !highlightedIds.has(cell.id);
+              return (
+                <button
+                  key={cell.id}
+                  onClick={() => onCellClick(cell)}
+                  title={getCellTitle(cell)}
+                  data-testid={`${testIdPrefix}-${cell.id}`}
+                  data-severity={cell.severity}
+                  className={`flex-1 aspect-square rounded-sm text-[9px] font-mono flex items-center justify-center transition-all ${cellClassName(cell.severity, isSelected)} ${isDimmed ? "opacity-20" : ""}`}
+                >
+                  {renderCellContent(cell)}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function cellClassName(severity: PrefixCellSeverity, isSelected: boolean): string {
+  if (isSelected) {
+    if (severity === "repeater-collision") return "bg-red-500/80 text-white ring-1 ring-red-400 scale-110 z-10";
+    if (severity === "duplicate") return "bg-amber-500/80 text-white ring-1 ring-amber-400 scale-110 z-10";
+    if (severity === "used") return "bg-mesh/70 text-white ring-1 ring-mesh scale-110 z-10";
+    if (severity === "reserved") return "bg-foreground-muted/40 text-foreground ring-1 ring-foreground-muted/60 scale-110 z-10";
+    return "bg-mesh text-white ring-1 ring-mesh scale-110 z-10";
+  }
+  switch (severity) {
+    case "repeater-collision":
+      return "bg-red-500/40 border border-red-500/60 text-red-200 hover:bg-red-500/50";
+    case "duplicate":
+      return "bg-amber-500/40 border border-amber-500/60 text-amber-400 hover:bg-amber-500/50";
+    case "used":
+      return "bg-mesh/30 border border-mesh/50 text-mesh hover:bg-mesh/40";
+    case "reserved":
+      return "bg-foreground-muted/15 border border-foreground-muted/30 text-foreground-muted/70 hover:border-foreground-muted/50";
+    case "free":
+    default:
+      return "bg-night-800/50 border border-card-border text-foreground-muted/30 hover:border-mesh/50 hover:text-foreground-muted";
+  }
+}
+
+function describeCell(cell: PrefixCell): string {
+  if (cell.severity === "repeater-collision") {
+    return `0x${cell.id}: repeater collision (${cell.count} nodes)`;
+  }
+  if (cell.severity === "duplicate") {
+    return `0x${cell.id}: duplicate (${cell.count} nodes)`;
+  }
+  if (cell.severity === "used") {
+    return `0x${cell.id}: 1 node`;
+  }
+  if (cell.reserved) {
+    return `0x${cell.id}: reserved`;
+  }
+  return `0x${cell.id}: free — click to use`;
+}
+
+function LegendSwatch({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className={`w-4 h-4 rounded ${className}`} aria-hidden />
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function SeverityNotice({ tone, text }: { tone: "red" | "amber" | "muted"; text: string }) {
+  const colorClass =
+    tone === "red"
+      ? "text-red-400"
+      : tone === "amber"
+      ? "text-amber-500"
+      : "text-foreground-muted";
+  return (
+    <p className={`text-xs flex items-start gap-1.5 ${colorClass}`}>
+      <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+        />
+      </svg>
+      <span>{text}</span>
+    </p>
   );
 }
 

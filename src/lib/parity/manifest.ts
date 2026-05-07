@@ -96,10 +96,18 @@ export const PARITY_MANIFEST: ParityItem[] = [
         path: 'static/js/prefix_matrix.js',
       },
     ],
-    local: ['src/components/PrefixMatrix.tsx'],
-    status: 'planned',
-    coverage: [],
-    notes: 'Move from first-byte occupancy to full 4-character public-key prefix analysis.',
+    local: [
+      'src/lib/meshcore-tools/prefixes.ts',
+      'src/components/PrefixMatrix.tsx',
+      'src/components/NamingWizard.tsx',
+      'src/app/tools/prefix-matrix/page.tsx',
+    ],
+    status: 'implemented',
+    coverage: [
+      { type: 'unit', ref: 'src/lib/meshcore-tools/__tests__/prefixes.test.ts' },
+      { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/tools/prefix-matrix)' },
+    ],
+    notes: 'PrefixMatrix and NamingWizard share `buildPrefixAnalysis` over the canonical `/api/map/snapshot`, render a primary 16×16 first-byte grid plus a 4-character subgrid, surface reserved/duplicate/repeater-collision states, and offer a deterministic Suggest Free Prefix. The reserved-prefix list is intentionally small and typed locally; expand only with a documented upstream source.',
   },
   {
     id: 'serial-usb-settings-json-apply',

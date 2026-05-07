@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { airports } from "@/lib/data/airports";
 import { cities } from "@/lib/data/cities";
 import { landmarks } from "@/lib/data/landmarks";
 import { haversineDistance } from "@/lib/utils/haversine";
-import type { ApiResponse, MapNode } from "@/lib/types";
-import { API_ROUTES, COMMUNITY_NAME, SITE_NAME } from "@/lib/constants";
+import { COMMUNITY_NAME, SITE_NAME } from "@/lib/constants";
 import { MESHCORE_NODE_TYPES } from "@/lib/meshcore-data/node-types";
 import { createRepeaterConfigExport, stringifySettingsJson } from "@/lib/meshcore-tools/config-export";
 import { buildRepeaterName } from "@/lib/meshcore-tools/naming";
+import {
+  buildPrefixAnalysis,
+  normalizePublicKeyPrefix,
+} from "@/lib/meshcore-tools/prefixes";
+import { useMapSnapshot } from "@/hooks/useMapSnapshot";
 import CompanionNamer from "./CompanionNamer";
 
 // --- Component ---
@@ -35,44 +39,56 @@ export default function NamingWizard() {
   const [lookupResult, setLookupResult] = useState<string | null>(null);
   const [lookupError, setLookupError] = useState<string | null>(null);
 
-  // Pubkey conflict state — sourced from the live map snapshot
-  const [allNodes, setAllNodes] = useState<MapNode[]>([]);
-  const [nodesLoaded, setNodesLoaded] = useState(false);
+  // Pubkey conflict state — sourced from the canonical map snapshot
+  const { nodes: allNodes, loading: nodesLoading, error: nodesError } = useMapSnapshot();
+  const nodesLoaded = !nodesLoading && !nodesError;
 
-  // Fetch nodes for conflict checking
-  useEffect(() => {
-    let cancelled = false;
-    const fetchNodes = async () => {
-      try {
-        const res = await fetch(API_ROUTES.MAP_NODES);
-        const json = (await res.json()) as ApiResponse<MapNode[]>;
-        if (cancelled) return;
-        if (json.success && json.data) {
-          setAllNodes(json.data);
-        }
-      } catch {
-        // Non-critical — conflict checking just won't work
-      } finally {
-        if (!cancelled) setNodesLoaded(true);
-      }
-    };
-    fetchNodes();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // Shared 4-character prefix analysis powers conflict warnings
+  const prefixAnalysis = useMemo(() => buildPrefixAnalysis(allNodes), [allNodes]);
 
-  // Pubkey conflict check
-  const pubkeyConflict = useMemo(() => {
-    if (!nodesLoaded || pubkey.length < 2) return null;
-    const prefix = pubkey.slice(0, 2).toUpperCase();
-    const conflicting = allNodes.filter(
-      (n) => n.publicKey?.slice(0, 2).toUpperCase() === prefix
-    );
-    return conflicting.length > 0
-      ? { count: conflicting.length, prefix }
-      : null;
-  }, [pubkey, allNodes, nodesLoaded]);
+  const pubkeyState = useMemo(() => {
+    const fullPrefix = normalizePublicKeyPrefix(pubkey, 4);
+    if (!fullPrefix) {
+      // Partial input — fall back to first-byte rollup once we have 2 chars
+      const partial = normalizePublicKeyPrefix(pubkey, 2);
+      if (!partial) return null;
+      const primary = prefixAnalysis.primaryCells.get(partial);
+      if (!primary || primary.count === 0) return null;
+      return {
+        kind: "partial" as const,
+        prefix: partial,
+        count: primary.count,
+      };
+    }
+
+    const cell = prefixAnalysis.secondaryCells.get(fullPrefix);
+    if (!cell) return null;
+
+    if (cell.severity === "repeater-collision") {
+      return { kind: "repeater-collision" as const, prefix: fullPrefix, count: cell.count };
+    }
+    if (cell.severity === "duplicate") {
+      return { kind: "duplicate" as const, prefix: fullPrefix, count: cell.count };
+    }
+    if (cell.reserved) {
+      return { kind: "reserved" as const, prefix: fullPrefix, count: cell.count };
+    }
+    if (cell.count > 0) {
+      return { kind: "used" as const, prefix: fullPrefix, count: cell.count };
+    }
+
+    const primary = prefixAnalysis.primaryCells.get(fullPrefix.slice(0, 2));
+    if (primary && primary.count > 0) {
+      return {
+        kind: "crowded" as const,
+        prefix: fullPrefix,
+        count: primary.count,
+        first: fullPrefix.slice(0, 2),
+      };
+    }
+
+    return { kind: "free" as const, prefix: fullPrefix, count: 0 };
+  }, [pubkey, prefixAnalysis]);
 
   const city = cityMode === "known" ? cityCode : customCity.toUpperCase();
 
@@ -466,24 +482,14 @@ export default function NamingWizard() {
           className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
         />
 
-        {/* Conflict indicator */}
+        {/* Conflict indicator — driven by shared 4-character analysis */}
         {pubkey.length >= 2 && nodesLoaded && (
           <div className="mt-2">
-            {pubkeyConflict ? (
-              <p className="text-xs text-amber-500 flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-                Prefix byte 0x{pubkeyConflict.prefix} is used by {pubkeyConflict.count} node(s). Consider a different prefix for uniqueness.
-              </p>
-            ) : (
-              <p className="text-xs text-forest-500 flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-                Prefix is unique on the {COMMUNITY_NAME} network!
-              </p>
-            )}
+            <PubkeyConflictMessage
+              state={pubkeyState}
+              pubkeyLength={pubkey.length}
+              communityName={COMMUNITY_NAME}
+            />
           </div>
         )}
 
@@ -582,5 +588,109 @@ export default function NamingWizard() {
         <CompanionNamer />
       </div>
     </div>
+  );
+}
+
+type PubkeyState =
+  | { kind: "partial"; prefix: string; count: number }
+  | { kind: "free"; prefix: string; count: number }
+  | { kind: "used"; prefix: string; count: number }
+  | { kind: "duplicate"; prefix: string; count: number }
+  | { kind: "repeater-collision"; prefix: string; count: number }
+  | { kind: "reserved"; prefix: string; count: number }
+  | { kind: "crowded"; prefix: string; count: number; first: string };
+
+function PubkeyConflictMessage({
+  state,
+  pubkeyLength,
+  communityName,
+}: {
+  state: PubkeyState | null;
+  pubkeyLength: number;
+  communityName: string;
+}) {
+  if (state === null) {
+    if (pubkeyLength < 4) {
+      return (
+        <p className="text-xs text-foreground-muted flex items-center gap-1.5">
+          <WarningIcon />
+          Enter all 4 hex characters to check for prefix conflicts.
+        </p>
+      );
+    }
+    return null;
+  }
+
+  switch (state.kind) {
+    case "free":
+      return (
+        <p className="text-xs text-forest-500 flex items-center gap-1.5">
+          <CheckIcon />
+          Prefix 0x{state.prefix} is unique on the {communityName} network!
+        </p>
+      );
+    case "partial":
+      return (
+        <p className="text-xs text-foreground-muted flex items-center gap-1.5">
+          <WarningIcon />
+          Enter all 4 hex characters to check for prefix conflicts. {state.count} node(s) currently start with 0x{state.prefix}.
+        </p>
+      );
+    case "used":
+      return (
+        <p className="text-xs text-amber-500 flex items-center gap-1.5">
+          <WarningIcon />
+          Prefix 0x{state.prefix} is already used by another node. Pick a different 4-character prefix.
+        </p>
+      );
+    case "duplicate":
+      return (
+        <p className="text-xs text-amber-500 flex items-center gap-1.5">
+          <WarningIcon />
+          Prefix 0x{state.prefix} is shared by {state.count} nodes. Pick a different 4-character prefix to avoid routing ambiguity.
+        </p>
+      );
+    case "repeater-collision":
+      return (
+        <p className="text-xs text-red-500 flex items-center gap-1.5">
+          <WarningIcon />
+          Repeater/room-server collision on 0x{state.prefix} ({state.count} infrastructure nodes). Pick a different prefix.
+        </p>
+      );
+    case "reserved":
+      return (
+        <p className="text-xs text-red-500 flex items-center gap-1.5">
+          <WarningIcon />
+          Prefix 0x{state.prefix} is reserved — do not use for new MeshCore identities.
+        </p>
+      );
+    case "crowded":
+      return (
+        <p className="text-xs text-amber-500 flex items-center gap-1.5">
+          <WarningIcon />
+          Prefix 0x{state.prefix} is unused, but {state.count} other node(s) share its first byte 0x{state.first}. Consider a less crowded first byte.
+        </p>
+      );
+  }
+}
+
+function WarningIcon() {
+  return (
+    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+      />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    </svg>
   );
 }

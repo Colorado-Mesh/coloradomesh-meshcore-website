@@ -1,4 +1,17 @@
 /** @type {import('next').NextConfig} */
+const isDevelopment = process.env.NODE_ENV === 'development';
+const scriptSrc = ["'self'", "'unsafe-inline'", ...(isDevelopment ? ["'unsafe-eval'"] : [])].join(' ');
+const connectSrc = [
+  "'self'",
+  'https://*.letsmesh.net',
+  'https://*.mapbox.com',
+  'https://*.supabase.co',
+  'wss://*.supabase.co',
+  'https://*.basemaps.cartocdn.com',
+  'https://*.carto.com',
+  ...(isDevelopment ? ['ws://localhost:*', 'ws://127.0.0.1:*'] : []),
+].join(' ');
+
 const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
@@ -15,7 +28,7 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value:
-              "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src 'self' https://*.letsmesh.net https://*.mapbox.com https://*.supabase.co wss://*.supabase.co https://*.basemaps.cartocdn.com https://*.carto.com; frame-ancestors 'none';",
+              `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https: blob:; font-src 'self' data:; connect-src ${connectSrc}; frame-ancestors 'none';`,
           },
         ],
       },

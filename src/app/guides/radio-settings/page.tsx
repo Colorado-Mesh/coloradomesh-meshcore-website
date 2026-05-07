@@ -4,6 +4,12 @@ import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { BASE_URL } from "@/lib/constants";
+import {
+  COLORADO_MESH_RADIO_COMMANDS,
+  COLORADO_MESH_RADIO_SETTINGS,
+  formatRadioBandwidthHz,
+  formatRadioFrequencyKHz,
+} from "@/lib/meshcore-data/settings";
 
 export const metadata: Metadata = {
   title: "Radio Settings & Channels | Colorado MeshCore",
@@ -20,16 +26,29 @@ export const metadata: Metadata = {
 };
 
 const radioSettings = [
-  { setting: "Frequency", value: "910.525 MHz" },
-  { setting: "Bandwidth", value: "62.5 kHz" },
-  { setting: "Spreading Factor", value: "7" },
-  { setting: "Coding Rate", value: "8" },
-  { setting: "TX Power", value: "22 dBm" },
+  {
+    setting: "Frequency",
+    value: formatRadioFrequencyKHz(COLORADO_MESH_RADIO_SETTINGS.frequency),
+  },
+  {
+    setting: "Bandwidth",
+    value: formatRadioBandwidthHz(COLORADO_MESH_RADIO_SETTINGS.bandwidth),
+  },
+  {
+    setting: "Spreading Factor",
+    value: String(COLORADO_MESH_RADIO_SETTINGS.spreadingFactor),
+  },
+  {
+    setting: "Coding Rate",
+    value: String(COLORADO_MESH_RADIO_SETTINGS.codingRate),
+  },
+  {
+    setting: "TX Power",
+    value: `${COLORADO_MESH_RADIO_SETTINGS.txPower} dBm`,
+  },
 ];
 
-const radioCommands = `set freq 910525
-set radio bw 62500 sf 7 cr 8
-set tx 22`;
+const radioCommands = COLORADO_MESH_RADIO_COMMANDS.join("\n");
 
 const channels = [
   { topic: "#denver", key: "b24355a0d22ed2bf393ec530d75810b4" },

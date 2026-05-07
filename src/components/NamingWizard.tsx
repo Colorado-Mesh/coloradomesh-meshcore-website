@@ -7,19 +7,10 @@ import { landmarks } from "@/lib/data/landmarks";
 import { haversineDistance } from "@/lib/utils/haversine";
 import type { ApiResponse, MapNode } from "@/lib/types";
 import { API_ROUTES, COMMUNITY_NAME, SITE_NAME } from "@/lib/constants";
+import { MESHCORE_NODE_TYPES } from "@/lib/meshcore-data/node-types";
+import { createRepeaterConfigExport, stringifySettingsJson } from "@/lib/meshcore-tools/config-export";
+import { buildRepeaterName } from "@/lib/meshcore-tools/naming";
 import CompanionNamer from "./CompanionNamer";
-
-// --- Static Data ---
-
-const nodeTypes = [
-  { code: "RC", label: "Core Repeater", description: "Backbone. Mountain/tower. Battery backup." },
-  { code: "RD", label: "Distribution Repeater", description: "Bridges core to edge. Suburban elevated." },
-  { code: "RE", label: "Edge Repeater", description: "Rooftop/residential. Mains power OK." },
-  { code: "RM", label: "Mobile Repeater", description: "Vehicle or temporary." },
-  { code: "TS", label: "Room Server", description: "Fixed location." },
-  { code: "TM", label: "Mobile Room", description: "Location changes." },
-  { code: "TR", label: "Room + Repeat", description: "Room server w/ repeat on." },
-];
 
 // --- Component ---
 
@@ -102,15 +93,10 @@ export default function NamingWizard() {
   }, [landmarkSearch]);
   const landmark = landmarkMode === "known" ? landmarkCode : customLandmark;
 
-  const generatedName = useMemo(() => {
-    const parts: string[] = [];
-    if (region) parts.push(region);
-    if (!skipCity && city) parts.push(city);
-    if (landmark) parts.push(landmark);
-    if (nodeType) parts.push(nodeType);
-    if (pubkey) parts.push(pubkey);
-    return parts.join("-");
-  }, [region, city, skipCity, landmark, nodeType, pubkey]);
+  const generatedName = useMemo(
+    () => buildRepeaterName({ region, city, skipCity, landmark, nodeType, pubkey }),
+    [region, city, skipCity, landmark, nodeType, pubkey]
+  );
 
   const charCount = generatedName.length;
   const isOverLimit = charCount > 23;
@@ -128,10 +114,31 @@ export default function NamingWizard() {
   if (pubkey && !pubkeyValid) errors.push("Pub key must be exactly 4 hex chars (0-9, A-F)");
   if (isOverLimit) errors.push("Name exceeds 23-character limit");
 
+  const configExport = useMemo(
+    () => createRepeaterConfigExport({ region, city, skipCity, landmark, nodeType, pubkey }),
+    [region, city, skipCity, landmark, nodeType, pubkey]
+  );
+  const configPreview = configExport.ok
+    ? stringifySettingsJson(configExport.settingsJson)
+    : "";
+
   const handleCopy = () => {
     navigator.clipboard.writeText(generatedName);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadConfig = () => {
+    if (!configExport.ok) return;
+    const blob = new Blob([stringifySettingsJson(configExport.settingsJson)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = configExport.fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleAirportLookup = async () => {
@@ -424,7 +431,7 @@ export default function NamingWizard() {
         </label>
         <p className="text-xs text-foreground-muted mb-3">What kind of infrastructure node is this?</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {nodeTypes.map((t) => (
+          {MESHCORE_NODE_TYPES.map((t) => (
             <button
               key={t.code}
               onClick={() => setNodeType(t.code)}
@@ -515,12 +522,45 @@ export default function NamingWizard() {
         </div>
       </div>
 
-      {/* Tips */}
+      {/* Settings JSON */}
       <div className="card-mesh p-6 bg-mountain-500/5 border-mountain-500/20">
         <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-          <span>&#9881;&#65039;</span> Other Settings
+          <span>&#9881;&#65039;</span> Settings JSON
         </h4>
-        <div className="space-y-2 text-sm text-foreground-muted">
+        <div className="space-y-3 text-sm text-foreground-muted">
+          <p>
+            Generate a MeshCore settings JSON file with the Colorado Mesh radio defaults, region list, selected node type, and generated name. Private keys are not included.
+          </p>
+          {configExport.ok ? (
+            <>
+              <div className="rounded-lg border border-card-border bg-night-900/80 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
+                  {configExport.fileName}
+                </p>
+                <pre className="max-h-72 overflow-auto whitespace-pre-wrap text-xs text-forest-400">
+                  {configPreview}
+                </pre>
+              </div>
+              {configExport.warnings.length > 0 && (
+                <ul className="list-disc space-y-1 pl-5 text-xs text-amber-400">
+                  {configExport.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={handleDownloadConfig}
+                className="btn-accent text-sm px-4 py-2"
+              >
+                Download settings JSON
+              </button>
+            </>
+          ) : (
+            <div className="rounded-lg border border-card-border bg-night-800/30 p-3 text-xs text-foreground-muted">
+              Complete a valid repeater name to enable settings JSON export.
+            </div>
+          )}
           <p>
             <strong className="text-foreground">Ownership:</strong> Set the ownership field to <span className="font-mono text-mesh">@yourdiscordname</span> (firmware 1.12.0+). Do not put emojis in repeater names.
           </p>

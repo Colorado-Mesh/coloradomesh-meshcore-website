@@ -2,53 +2,70 @@
 
 import { useState, useMemo } from "react";
 import { CopyButton } from "./CopyButton";
-
-type SuffixStrategy = "pubkey" | "role" | "number";
-
-const companionRoles = [
-  { code: "PRIM", label: "Primary", description: "Default method to contact you" },
-  { code: "SCND", label: "Secondary", description: "Less critical, still used regularly" },
-  { code: "TERT", label: "Tertiary", description: "Used occasionally or for a specific purpose" },
-  { code: "BKUP", label: "Backup", description: "Fallback if other devices are unavailable" },
-  { code: "EMRG", label: "Emergency", description: "Reserved for critical situations" },
-  { code: "MOBL", label: "Mobile", description: "Portable, used on the go (hiking, etc.)" },
-  { code: "VHCL", label: "Vehicle", description: "Installed in a car or other vehicle" },
-  { code: "HOME", label: "Home", description: "Stationary household node" },
-];
+import {
+  COMPANION_ROLES,
+  buildCompanionName,
+  buildCompanionSuffix,
+  MESHCORE_NAME_LIMIT,
+  type CompanionSuffixStrategy,
+} from "@/lib/meshcore-tools/naming";
+import {
+  createCompanionConfigExport,
+  stringifySettingsJson,
+} from "@/lib/meshcore-tools/config-export";
 
 export default function CompanionNamer() {
   const [emoji, setEmoji] = useState("");
   const [handle, setHandle] = useState("");
-  const [strategy, setStrategy] = useState<SuffixStrategy>("pubkey");
+  const [strategy, setStrategy] = useState<CompanionSuffixStrategy>("pubkey");
   const [pubkeyPrefix, setPubkeyPrefix] = useState("");
   const [role, setRole] = useState("");
   const [customRole, setCustomRole] = useState("");
   const [number, setNumber] = useState("");
 
-  const suffix = useMemo(() => {
-    switch (strategy) {
-      case "pubkey":
-        return pubkeyPrefix.toUpperCase();
-      case "role":
-        return (role === "__custom" ? customRole : role).toUpperCase();
-      case "number":
-        return number ? `MY${number.padStart(2, "0")}` : "";
-    }
-  }, [strategy, pubkeyPrefix, role, customRole, number]);
+  const suffix = useMemo(
+    () =>
+      buildCompanionSuffix({
+        strategy,
+        pubkeyPrefix,
+        role,
+        customRole,
+        number,
+      }),
+    [strategy, pubkeyPrefix, role, customRole, number],
+  );
 
-  const generatedName = useMemo(() => {
-    const parts: string[] = [];
-    if (emoji) parts.push(emoji);
-    if (handle) parts.push(handle.toUpperCase());
-    if (suffix) parts.push(suffix);
-    return parts.join(" ");
-  }, [emoji, handle, suffix]);
+  const generatedName = useMemo(
+    () => buildCompanionName({ emoji, handle, suffix, suffixStrategy: strategy }),
+    [emoji, handle, suffix, strategy],
+  );
 
   // Count visible characters (emoji = ~2 display chars, but counts as 1 in MeshCore)
   const charCount = generatedName.length;
-  const isOverLimit = charCount > 23;
+  const isOverLimit = charCount > MESHCORE_NAME_LIMIT;
 
-  const strategies: { value: SuffixStrategy; label: string; desc: string }[] = [
+  const configExport = useMemo(
+    () => createCompanionConfigExport({ emoji, handle, suffix, suffixStrategy: strategy }),
+    [emoji, handle, suffix, strategy],
+  );
+  const configPreview = configExport.ok
+    ? stringifySettingsJson(configExport.settingsJson)
+    : "";
+
+  const handleDownloadConfig = () => {
+    if (!configExport.ok) return;
+    const blob = new Blob([stringifySettingsJson(configExport.settingsJson)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = configExport.fileName;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const strategies: { value: CompanionSuffixStrategy; label: string; desc: string }[] = [
     { value: "pubkey", label: "Public key prefix", desc: "4 hex chars from your public key (default)" },
     { value: "role", label: "Role", desc: "2-4 chars: PRIM, SCND, HOME, etc." },
     { value: "number", label: "Number", desc: "01-99 (auto-prefixed with MY)" },
@@ -184,7 +201,7 @@ export default function CompanionNamer() {
                 className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none"
               >
                 <option value="">Select role...</option>
-                {companionRoles.map((r) => (
+                {COMPANION_ROLES.map((r) => (
                   <option key={r.code} value={r.code}>
                     {r.code} — {r.label}
                   </option>
@@ -205,7 +222,7 @@ export default function CompanionNamer() {
               )}
               {role && role !== "__custom" && (
                 <p className="text-xs text-foreground-muted">
-                  {companionRoles.find((r) => r.code === role)?.description}
+                  {COMPANION_ROLES.find((r) => r.code === role)?.description}
                 </p>
               )}
             </div>
@@ -223,6 +240,51 @@ export default function CompanionNamer() {
               maxLength={2}
               className="w-full bg-night-800/50 border border-card-border rounded-lg px-4 py-2.5 text-foreground font-mono uppercase focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/50"
             />
+          )}
+        </div>
+      </div>
+
+      {/* Settings JSON */}
+      <div className="card-mesh p-6 bg-mountain-500/5 border-mountain-500/20">
+        <h4 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <span aria-hidden="true">&#9881;&#65039;</span> Settings JSON
+        </h4>
+        <div className="space-y-3 text-sm text-foreground-muted">
+          <p>
+            Generate a MeshCore settings JSON file with the Colorado Mesh radio defaults and your companion name. Private keys are not included.
+          </p>
+          {configExport.ok ? (
+            <>
+              <div className="rounded-lg border border-card-border bg-night-900/80 p-3">
+                <p className="mb-2 text-xs uppercase tracking-wider text-foreground-muted">
+                  {configExport.fileName}
+                </p>
+                <pre
+                  aria-label="Companion settings JSON preview"
+                  className="max-h-72 overflow-auto whitespace-pre-wrap text-xs text-forest-400"
+                >
+                  {configPreview}
+                </pre>
+              </div>
+              {configExport.warnings.length > 0 && (
+                <ul className="list-disc space-y-1 pl-5 text-xs text-amber-400">
+                  {configExport.warnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                onClick={handleDownloadConfig}
+                className="btn-accent text-sm px-4 py-2"
+              >
+                Download settings JSON
+              </button>
+            </>
+          ) : (
+            <div className="rounded-lg border border-card-border bg-night-800/30 p-3 text-xs text-foreground-muted">
+              Complete a valid companion name to enable settings JSON export.
+            </div>
           )}
         </div>
       </div>

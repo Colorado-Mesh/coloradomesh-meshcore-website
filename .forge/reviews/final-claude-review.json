@@ -1,0 +1,89 @@
+{
+  "verdict": "APPROVED",
+  "blocking_issues": 0,
+  "nonblocking_issues": [
+    {
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/.forge.bak.1778125252/",
+      "line": 1,
+      "note": "Untracked archived Forge backup remains present and unstaged; keep it uncommitted."
+    }
+  ],
+  "required_changes": [],
+  "reviewed_files": [
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/.base-ref",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/PROJECT.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/PLAN.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-9-plan.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/reviews/claude-step-8.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/reviews/claude-step-4.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.dockerignore",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.env.example",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/security.yml",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/package.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/docker-smoke.mjs",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/__tests__/store.test.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/map/runtime/route.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/map/snapshot/route.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/geocode/route.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/live-map/nodes/route.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/live-map/status/route.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/live-map/client.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/live-map/__tests__/client.test.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/hooks/useMapSnapshot.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/CompanionNamer.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/PrefixMatrix.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/config-export.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/prefixes.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts"
+  ],
+  "diff_basis": "Forge base ref /Users/cjvana/Documents/GitHub/denvermc-org/.forge/.base-ref at 40c52bc2632358243eb93ff191e547f4bf122858 to current HEAD plus staged changes",
+  "plan_section": "Final Forge review / Step 9: Final parity audit, browser/UI validation, and maintainer report",
+  "previous_blockers": [
+    {
+      "id": "credential-query-handling",
+      "status": "resolved",
+      "evidence": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts lines 202-211 strips username, password, and the full configured query string before adding mode=full; lines 217-220 add Authorization: Bearer from MESHCORE_LIVE_MAP_API_TOKEN. /Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/__tests__/store.test.ts lines 46-60 directly verify query-token removal and bearer auth."
+    }
+  ],
+  "dimensions": {
+    "plan_alignment": {
+      "score": "PASS",
+      "notes": "The complete implementation aligns with the master plan and Step 9 final audit scope: map runtime/snapshot contracts, server-side live-map consumption, utility parity, repeater/companion JSON exports, PrefixMatrix, guarded serial apply, Nominatim proxy, CI hardening, and Docker smoke are represented. Contacts export remains out of scope."
+    },
+    "correctness_safety": {
+      "score": "PASS",
+      "notes": "The prior live-map credential blocker is fixed. Server-side live-map fetches use bearer auth and scrub credentials/query strings from upstream URLs; browser-facing APIs expose public config/snapshots only. Grep guards show no direct browser Nominatim calls or staged backup inclusion."
+    },
+    "code_quality": {
+      "score": "PASS",
+      "notes": "The staged final fixes are minimal, factual, and scoped. The implementation uses typed contracts, pure utility modules, route wrappers, and focused tests without unnecessary release-time scope creep."
+    },
+    "completeness": {
+      "score": "PASS",
+      "notes": "Step 9 acceptance criteria are satisfied by the reported verification set, final manifest correction, Docker smoke coverage, CI workflow hardening, and explicit deferred/out-of-scope statuses."
+    },
+    "patterns": {
+      "score": "PASS",
+      "notes": "Changes are consistent with the planned Next.js server API boundary, Opus-delegated UI integration, same-origin client fetch pattern, and internal maintainer parity manifest approach."
+    },
+    "integration": {
+      "score": "PASS",
+      "notes": "Map store, public runtime/snapshot routes, live-map proxy routes, UI hooks, CI jobs, Docker compose, and smoke scripts integrate cleanly. Staged Step 9 manifest correction is factual and scoped to marking the Opus-implemented map UI as implemented with existing e2e/review coverage."
+    }
+  },
+  "verification_notes": [
+    "Reviewed the complete Forge diff basis from /Users/cjvana/Documents/GitHub/denvermc-org/.forge/.base-ref plus the staged Step 9 fixes.",
+    "Reviewed implementer-reported verification: lint, typecheck, targeted and full unit tests, build, docker compose config, Docker build, Docker smoke, and manual browser validation all passed after the credential-handling fix.",
+    "Ran status/diff checks, staged diff review, grep guards, backup staging check, and whitespace diff checks during review.",
+    "The existing Next warnings about custom static Cache-Control headers and deprecated middleware convention are acknowledged as non-blocking existing warnings."
+  ]
+}

@@ -207,6 +207,7 @@ function buildLiveMapApiUrl(config: MapRuntimeConfig): string | null {
     const endpoint = new URL(config.liveMapApiUrl);
     endpoint.username = '';
     endpoint.password = '';
+    endpoint.search = '';
     endpoint.searchParams.set('mode', 'full');
     return endpoint.toString();
   } catch {

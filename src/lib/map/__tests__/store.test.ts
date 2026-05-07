@@ -44,6 +44,23 @@ describe('map snapshot store', () => {
     expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer secret-token' }));
   });
 
+  it('drops configured live-map API query parameters before fetching', async () => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'https://live-map.example.test/api/nodes?token=query-secret&debug=true';
+    process.env.MESHCORE_LIVE_MAP_API_TOKEN = 'secret-token';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getMapSnapshot } = await loadStoreModule();
+    await getMapSnapshot();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('https://live-map.example.test/api/nodes?mode=full');
+    expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer secret-token' }));
+  });
+
   it('derives compatibility node and stat helpers from the canonical snapshot', async () => {
     process.env.MESHCORE_MAP_SAMPLE_DATA = 'true';
 

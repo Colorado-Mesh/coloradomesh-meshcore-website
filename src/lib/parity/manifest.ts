@@ -174,9 +174,12 @@ export const PARITY_MANIFEST: ParityItem[] = [
       },
     ],
     local: ['src/app/map/page.tsx', 'src/components/NetworkMap.tsx', 'src/components/map/*'],
-    status: 'planned',
-    coverage: [],
-    notes: 'Visual/frontend parity must be delegated to Opus UI and backed by server-side contracts.',
+    status: 'implemented',
+    coverage: [
+      { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/map)' },
+      { type: 'review', ref: '.forge/reviews/claude-step-4.json' },
+    ],
+    notes: 'Opus-delegated map UI consumes snapshot/runtime and live-map proxy contracts, surfaces diagnostics, sample warnings, preferences, filters, popups, and advanced operator panels while keeping deferred upstream features marked unavailable.',
   },
   {
     id: 'docker-live-map-sidecar-topology',

@@ -39,8 +39,8 @@ export const ROLE_PALETTE: Record<MapNodeRole, RolePalette> = {
   },
   unknown: {
     label: 'Unknown',
-    color: '#6b7d97', // ops-text-dim
-    glow: 'rgba(107, 125, 151, 0.4)',
+    color: '#9eb2cb', // ops-text-dim
+    glow: 'rgba(158, 178, 203, 0.45)',
   },
 };
 

@@ -12,7 +12,8 @@
     "test:unit": "vitest run",
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep @a11y",
-    "test:lighthouse": "lhci autorun"
+    "test:lighthouse": "lhci autorun",
+    "docker:smoke": "node scripts/docker-smoke.mjs"
   },
   "engines": {
     "node": ">=24 <26"

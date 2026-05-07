@@ -119,7 +119,7 @@ function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>
       status: config.liveMapApiConfigured ? 'available' : 'unavailable',
       message: config.liveMapApiConfigured
         ? 'Live map API snapshot data is configured.'
-        : 'Configure MESHCORE_LIVE_MAP_API_URL to enable live map snapshot data.',
+        : 'Configure the live-map upstream on the server to enable live map snapshot data.',
     },
     {
       id: 'advanced-live-map-proxy',
@@ -127,7 +127,7 @@ function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>
       status: config.liveMapApiConfigured ? 'available' : 'unavailable',
       message: config.liveMapApiConfigured
         ? 'Advanced live-map proxy endpoints are configured.'
-        : 'Configure MESHCORE_LIVE_MAP_API_URL to enable advanced live-map proxy endpoints.',
+        : 'Configure the live-map upstream on the server to enable advanced live-map proxy endpoints.',
     },
   ];
 }

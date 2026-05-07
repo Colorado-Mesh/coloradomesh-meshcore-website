@@ -75,9 +75,9 @@ export default function ToolCard({
           </span>
         )}
       </div>
-      <h3 className="mt-4 text-lg font-semibold text-foreground tracking-tight">
+      <h2 className="mt-4 text-lg font-semibold text-foreground tracking-tight">
         {title}
-      </h3>
+      </h2>
       <p className="mt-2 text-sm text-foreground-muted leading-relaxed">
         {description}
       </p>

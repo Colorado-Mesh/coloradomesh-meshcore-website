@@ -270,7 +270,7 @@ export function getLiveMapEndpointDefinitions(configured = Boolean(getLiveMapBas
       availability: configured ? 'available' : 'unavailable',
       message: configured
         ? endpoint.message
-        : 'Configure MESHCORE_LIVE_MAP_API_URL to enable this live-map proxy endpoint.',
+        : 'Configure the live-map upstream on the server to enable this proxy endpoint.',
     };
   });
 }

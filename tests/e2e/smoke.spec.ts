@@ -11,6 +11,14 @@ test.describe('critical page smoke', () => {
       await expect(page).toHaveTitle(/Colorado MeshCore/);
     });
   }
+
+  test('map page renders diagnostics and operator copy', async ({ page }) => {
+    await page.goto('/map');
+    await expect(page.getByText(/\/api\/map\/snapshot/)).toBeVisible();
+    await expect(page.getByText(/\/api\/live-map\/\*/)).toBeVisible();
+    const diagnostics = page.getByTestId('map-diagnostics');
+    await expect(diagnostics).toBeVisible({ timeout: 15_000 });
+  });
 });
 
 test.describe('critical page accessibility @a11y', () => {

@@ -122,7 +122,10 @@ export default function Home() {
                 </h2>
                 <p className="mt-3 text-foreground-muted max-w-2xl">
                   Naming, prefix planning, and field utilities live under{' '}
-                  <Link href="/tools" className="text-mesh hover:text-mesh-light">
+                  <Link
+                    href="/tools"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                  >
                     /tools
                   </Link>
                   . Each one consumes the same live map data so identifiers stay coordinated.

@@ -118,7 +118,7 @@ export default function MapPage() {
                   items={[{ label: 'Home', href: '/' }, { label: PAGE_TITLE }]}
                 />
                 <span className="text-foreground-dim mono uppercase tracking-[0.18em]">
-                  /api/map/nodes · /api/map/stats
+                  /api/map/snapshot · /api/map/runtime · /api/live-map/*
                 </span>
               </div>
             </div>
@@ -149,7 +149,7 @@ export default function MapPage() {
                     href={LIVE_MAP_UPSTREAM_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-mesh hover:text-mesh-light underline-offset-2 hover:underline"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
                   >
                     yellowcooln/meshcore-mqtt-live-map
                   </a>
@@ -158,7 +158,7 @@ export default function MapPage() {
                     href={GPL_LICENSE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-mesh hover:text-mesh-light underline-offset-2 hover:underline"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
                   >
                     GNU GPL v3.0
                   </a>
@@ -167,7 +167,7 @@ export default function MapPage() {
                     href={COLORADO_MESH_SOURCE_URL}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-mesh hover:text-mesh-light underline-offset-2 hover:underline"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
                   >
                     Colorado-Mesh/coloradomesh-meshcore
                   </a>{' '}
@@ -216,14 +216,20 @@ export default function MapPage() {
                 <ul className="list-disc pl-5 space-y-1 marker:text-mesh">
                   <li>
                     Walk through the{' '}
-                    <Link href="/guides/getting-started" className="text-mesh hover:text-mesh-light">
+                    <Link
+                      href="/guides/getting-started"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                    >
                       Getting Started guide
                     </Link>{' '}
                     for first-radio setup.
                   </li>
                   <li>
                     Use{' '}
-                    <Link href="/start" className="text-mesh hover:text-mesh-light">
+                    <Link
+                      href="/start"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                    >
                       Quick Start
                     </Link>{' '}
                     if you already own MeshCore-capable hardware.
@@ -234,7 +240,7 @@ export default function MapPage() {
                       href={DISCORD_INVITE_URL}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-mesh hover:text-mesh-light"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
                     >
                       Discord
                     </a>

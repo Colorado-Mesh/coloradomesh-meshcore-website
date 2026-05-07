@@ -58,9 +58,45 @@ export const STATUS_TONE: Record<MapNodeStatus, { ring: string; opacity: number;
   unknown: { ring: '#94a3b8', opacity: 0.7, pulse: false },
 };
 
-export function buildMarkerHtml(role: MapNodeRole, status: MapNodeStatus): string {
+export type MarkerSize = 'sm' | 'md' | 'lg';
+
+export interface MarkerSizing {
+  container: number;
+  dot: number;
+  pulseInset: number;
+  iconAnchor: [number, number];
+  popupAnchor: [number, number];
+}
+
+export const MARKER_SIZING: Record<MarkerSize, MarkerSizing> = {
+  sm: { container: 22, dot: 12, pulseInset: 0, iconAnchor: [11, 11], popupAnchor: [0, -11] },
+  md: { container: 28, dot: 16, pulseInset: 0, iconAnchor: [14, 14], popupAnchor: [0, -14] },
+  lg: { container: 36, dot: 22, pulseInset: 0, iconAnchor: [18, 18], popupAnchor: [0, -18] },
+};
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+export interface MarkerHtmlOptions {
+  size?: MarkerSize;
+  label?: string | null;
+}
+
+export function buildMarkerHtml(
+  role: MapNodeRole,
+  status: MapNodeStatus,
+  options: MarkerHtmlOptions = {}
+): string {
   const palette = ROLE_PALETTE[role] ?? ROLE_PALETTE.unknown;
   const tone = STATUS_TONE[status] ?? STATUS_TONE.unknown;
+  const size = options.size ?? 'md';
+  const sizing = MARKER_SIZING[size] ?? MARKER_SIZING.md;
   const pulseRing = tone.pulse
     ? `<span class="cm-marker__pulse" style="background:${palette.glow};"></span>`
     : '';
@@ -68,10 +104,16 @@ export function buildMarkerHtml(role: MapNodeRole, status: MapNodeStatus): strin
     ? `0 0 0 4px ${palette.glow}, 0 6px 14px rgba(0,0,0,0.55)`
     : `0 6px 14px rgba(0,0,0,0.55)`;
 
+  const labelHtml =
+    options.label && options.label.trim().length > 0
+      ? `<span class="cm-marker__label">${escapeHtml(options.label.trim())}</span>`
+      : '';
+
   return `
-    <span class="cm-marker" style="opacity:${tone.opacity};">
+    <span class="cm-marker cm-marker--${size}" style="opacity:${tone.opacity}; width:${sizing.container}px; height:${sizing.container}px;">
       ${pulseRing}
-      <span class="cm-marker__dot" style="background:${palette.color}; border-color:${tone.ring}; box-shadow:${glowShadow};"></span>
+      <span class="cm-marker__dot" style="background:${palette.color}; border-color:${tone.ring}; box-shadow:${glowShadow}; width:${sizing.dot}px; height:${sizing.dot}px;"></span>
+      ${labelHtml}
     </span>
   `;
 }

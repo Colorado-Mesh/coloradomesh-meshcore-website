@@ -138,7 +138,10 @@ export default function ToolsPage() {
               <p>
                 These tools live inside the {SITE_NAME} site so they share the
                 same live data as the{' '}
-                <Link href="/map" className="text-mesh hover:text-mesh-light">
+                <Link
+                  href="/map"
+                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                >
                   network map
                 </Link>
                 . Suggest more utilities or report issues in the{' '}
@@ -146,7 +149,7 @@ export default function ToolsPage() {
                   href={DISCORD_INVITE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-mesh hover:text-mesh-light"
+                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
                 >
                   {COMMUNITY_NAME} Discord
                 </a>

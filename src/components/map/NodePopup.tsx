@@ -13,6 +13,9 @@ import {
 
 interface NodePopupProps {
   node: MapNode;
+  onFocus?: (node: MapNode) => void;
+  isFocused?: boolean;
+  peerHistoryAvailable?: boolean;
 }
 
 interface RowProps {
@@ -30,7 +33,7 @@ function Row({ label, children, mono = false }: RowProps) {
   );
 }
 
-export default function NodePopup({ node }: NodePopupProps) {
+export default function NodePopup({ node, onFocus, isFocused = false, peerHistoryAvailable = false }: NodePopupProps) {
   const palette = ROLE_PALETTE[node.role] ?? ROLE_PALETTE.unknown;
   const lastHeardRelative = formatRelativeTime(node.lastHeardAt);
   const lastHeardAbsolute = formatAbsoluteTime(node.lastHeardAt);
@@ -102,6 +105,25 @@ export default function NodePopup({ node }: NodePopupProps) {
           </Row>
         )}
       </div>
+
+      {onFocus && (
+        <div className="cm-popup__actions">
+          <button
+            type="button"
+            className="cm-popup__action"
+            onClick={() => onFocus(node)}
+            aria-pressed={isFocused}
+            disabled={!peerHistoryAvailable}
+            title={
+              peerHistoryAvailable
+                ? 'Load peer history for this node in the operator panel'
+                : 'Peer history requires the upstream live-map service to be configured'
+            }
+          >
+            {isFocused ? 'Focused' : 'Focus on operator panel'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,7 +5,17 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L, { type LatLngBounds, type LatLngTuple } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import type { MapNode, MapNodeRole, MapNodeStatus, MapRuntimePublicConfig, MapStats } from '@/lib/types';
+import type {
+  MapAdvancedFeature,
+  MapConnectionStatus,
+  MapNode,
+  MapNodeRole,
+  MapNodeStatus,
+  MapRuntimePublicConfig,
+  MapSnapshotSource,
+  MapSnapshotWarning,
+  MapStats,
+} from '@/lib/types';
 import { useMapSnapshot } from '@/hooks/useMapSnapshot';
 import { DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
 
@@ -13,7 +23,15 @@ import MapControls from './map/MapControls';
 import MapLegend from './map/MapLegend';
 import MapStatsOverlay from './map/MapStatsOverlay';
 import NodePopup from './map/NodePopup';
-import { buildMarkerHtml } from './map/markers';
+import MapDiagnosticsPanel from './map/MapDiagnosticsPanel';
+import MapPreferencesPanel from './map/MapPreferencesPanel';
+import LiveMapStatsPanel from './map/LiveMapStatsPanel';
+import CoveragePanel from './map/CoveragePanel';
+import LosPanel from './map/LosPanel';
+import WeatherRadarPanel from './map/WeatherRadarPanel';
+import PeerHistoryPanel from './map/PeerHistoryPanel';
+import { buildMarkerHtml, MARKER_SIZING } from './map/markers';
+import { useMapPreferences } from './map/preferences';
 
 interface NetworkMapProps {
   nodes?: MapNode[];
@@ -22,6 +40,10 @@ interface NetworkMapProps {
   error?: string | null;
   lastUpdated?: Date | null;
   runtimeConfig?: MapRuntimePublicConfig | null;
+  connection?: MapConnectionStatus | null;
+  source?: MapSnapshotSource | null;
+  warnings?: MapSnapshotWarning[];
+  features?: MapAdvancedFeature[];
   refreshInterval?: number;
   className?: string;
   height?: number | string;
@@ -84,6 +106,14 @@ function matchesQuery(node: LocatedMapNode, query: string): boolean {
   return false;
 }
 
+function shortNodeLabel(node: MapNode): string {
+  const raw = node.name?.trim();
+  if (raw) return raw.length > 18 ? `${raw.slice(0, 17)}…` : raw;
+  const key = node.publicKey || node.id;
+  if (!key) return 'Node';
+  return key.length > 8 ? `${key.slice(0, 8)}…` : key;
+}
+
 export function NetworkMap({
   nodes: providedNodes,
   stats: providedStats,
@@ -91,6 +121,10 @@ export function NetworkMap({
   error: errorProp,
   lastUpdated: lastUpdatedProp,
   runtimeConfig: runtimeConfigProp,
+  connection: connectionProp,
+  source: sourceProp,
+  warnings: warningsProp,
+  features: featuresProp,
   refreshInterval = DEFAULT_REFRESH_INTERVAL,
   className = '',
   height = 560,
@@ -107,9 +141,23 @@ export function NetworkMap({
   );
   const stats = externallyControlled ? providedStats ?? null : snapshot.stats;
   const runtimeConfig = runtimeConfigProp ?? snapshot.runtimeConfig;
+  const connection = connectionProp ?? snapshot.connection;
+  const source = sourceProp ?? snapshot.source;
+  const warnings = warningsProp ?? snapshot.warnings;
+  const features = featuresProp ?? snapshot.features;
   const loading = loadingProp ?? snapshot.loading;
   const error = errorProp ?? snapshot.error;
   const lastUpdated = lastUpdatedProp ?? snapshot.lastUpdated;
+
+  const { preferences, hydrated, update, reset } = useMapPreferences();
+
+  const peerHistoryAvailable = useMemo(
+    () =>
+      features.some(
+        (feature) => feature.id === 'advanced-live-map-proxy' && feature.status === 'available'
+      ),
+    [features]
+  );
 
   // Strip the default Leaflet marker icon URL resolver so divIcon styling is consistent.
   useEffect(() => {
@@ -126,6 +174,7 @@ export function NetworkMap({
   const [selectedStatuses, setSelectedStatuses] = useState<Set<MapNodeStatus>>(
     () => new Set()
   );
+  const [focusedNode, setFocusedNode] = useState<MapNode | null>(null);
 
   const toggleRole = useCallback((role: MapNodeRole) => {
     setSelectedRoles((prev) => {
@@ -221,34 +270,108 @@ export function NetworkMap({
     return set;
   }, [markerNodes]);
 
+  const buildIcon = useCallback(
+    (node: MapNode, cache: Map<string, L.DivIcon>): L.DivIcon => {
+      const sizing = MARKER_SIZING[preferences.markerSize];
+      if (preferences.showLabels) {
+        return L.divIcon({
+          className: 'cm-marker-icon cm-marker-icon--with-label',
+          html: buildMarkerHtml(node.role, node.status, {
+            size: preferences.markerSize,
+            label: shortNodeLabel(node),
+          }),
+          iconSize: [sizing.container, sizing.container],
+          iconAnchor: sizing.iconAnchor,
+          popupAnchor: sizing.popupAnchor,
+        });
+      }
+      const key = `${node.role}:${node.status}:${preferences.markerSize}`;
+      const cached = cache.get(key);
+      if (cached) return cached;
+      const icon = L.divIcon({
+        className: 'cm-marker-icon',
+        html: buildMarkerHtml(node.role, node.status, { size: preferences.markerSize }),
+        iconSize: [sizing.container, sizing.container],
+        iconAnchor: sizing.iconAnchor,
+        popupAnchor: sizing.popupAnchor,
+      });
+      cache.set(key, icon);
+      return icon;
+    },
+    [preferences.markerSize, preferences.showLabels]
+  );
+
   const iconCache = useMemo(() => {
     const cache = new Map<string, L.DivIcon>();
-    const buildKey = (role: MapNodeRole, status: MapNodeStatus) => `${role}:${status}`;
     return {
       get(node: MapNode): L.DivIcon {
-        const key = buildKey(node.role, node.status);
-        const cached = cache.get(key);
-        if (cached) return cached;
-        const icon = L.divIcon({
-          className: 'cm-marker-icon',
-          html: buildMarkerHtml(node.role, node.status),
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
-          popupAnchor: [0, -14],
-        });
-        cache.set(key, icon);
-        return icon;
+        return buildIcon(node, cache);
       },
     };
-  }, []);
+  }, [buildIcon]);
 
   const containerStyle = { height: typeof height === 'number' ? `${height}px` : height };
   const containerClass = `cm-map ${className}`.trim();
   const showControls = !loading && !error && locatedNodes.length > 0;
+  const showAdvancedPanels = preferences.showAdvancedPanels;
+  const generatedAt = lastUpdated ?? null;
+
+  const handleFocusNode = useCallback((node: MapNode) => {
+    setFocusedNode(node);
+    if (typeof document !== 'undefined') {
+      const target = document.getElementById('cm-operator-panels');
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  const clearFocus = useCallback(() => setFocusedNode(null), []);
+
+  const diagnostics = (
+    <MapDiagnosticsPanel
+      source={source ?? null}
+      connection={connection ?? null}
+      runtimeConfig={runtimeConfig ?? null}
+      warnings={warnings ?? []}
+      features={features ?? []}
+      generatedAt={generatedAt}
+    />
+  );
+
+  const preferencesPanel = (
+    <MapPreferencesPanel
+      preferences={preferences}
+      onUpdate={update}
+      onReset={reset}
+      hydrated={hydrated}
+    />
+  );
+
+  const operatorPanels = showAdvancedPanels ? (
+    <section
+      id="cm-operator-panels"
+      className="cm-operator-panels"
+      aria-label="Live map operator panels"
+      data-testid="map-operator-panels"
+    >
+      <LiveMapStatsPanel features={features ?? []} enabled />
+      <CoveragePanel features={features ?? []} />
+      <LosPanel features={features ?? []} defaultCenter={runtimeConfig?.defaultCenter ?? null} />
+      <WeatherRadarPanel
+        features={features ?? []}
+        defaultCenter={runtimeConfig?.defaultCenter ?? null}
+      />
+      <PeerHistoryPanel
+        features={features ?? []}
+        selectedNode={focusedNode}
+        onClear={focusedNode ? clearFocus : undefined}
+      />
+    </section>
+  ) : null;
 
   if (loading) {
     return (
       <div className="cm-map-shell">
+        {diagnostics}
         <div className={containerClass} style={containerStyle}>
           <MapStateLayer>
             <div className="cm-map__state-inner">
@@ -266,6 +389,7 @@ export function NetworkMap({
   if (error) {
     return (
       <div className="cm-map-shell">
+        {diagnostics}
         <div className={containerClass} style={containerStyle}>
           <MapStateLayer>
             <div className="cm-map__state-inner">
@@ -277,6 +401,7 @@ export function NetworkMap({
             </div>
           </MapStateLayer>
         </div>
+        {operatorPanels}
       </div>
     );
   }
@@ -284,6 +409,8 @@ export function NetworkMap({
   if (locatedNodes.length === 0) {
     return (
       <div className="cm-map-shell">
+        {diagnostics}
+        {preferencesPanel}
         <div className={containerClass} style={containerStyle}>
           <MapStateLayer>
             <div className="cm-map__state-inner cm-map__state-inner--empty">
@@ -291,14 +418,17 @@ export function NetworkMap({
               <div>
                 <div className="text-foreground font-medium">No located nodes yet</div>
                 <div className="text-sm text-foreground-muted mt-1 max-w-sm">
-                  Once Colorado MeshCore receives node positions, they will appear here. Until then,
-                  check the source overlay below for sample data status.
+                  Once Colorado MeshCore receives node positions, they will appear here. Diagnostics
+                  above explain whether the source is sample, configured, or live.
                 </div>
               </div>
             </div>
           </MapStateLayer>
-          <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
+          {preferences.showStatsOverlay && (
+            <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
+          )}
         </div>
+        {operatorPanels}
       </div>
     );
   }
@@ -315,6 +445,8 @@ export function NetworkMap({
 
   return (
     <div className="cm-map-shell">
+      {diagnostics}
+      {preferencesPanel}
       {showControls && (
         <MapControls
           query={query}
@@ -349,8 +481,10 @@ export function NetworkMap({
                 </div>
               </div>
             </MapStateLayer>
-            <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
-            <MapLegend activeRoles={new Set(availableRoles)} />
+            {preferences.showStatsOverlay && (
+              <MapStatsOverlay stats={stats} visibleMarkers={0} lastUpdated={lastUpdated} />
+            )}
+            {preferences.showLegend && <MapLegend activeRoles={new Set(availableRoles)} />}
           </>
         ) : (
           <>
@@ -371,21 +505,33 @@ export function NetworkMap({
                   icon={iconCache.get(node)}
                 >
                   <Popup className="cm-popup-wrapper">
-                    <NodePopup node={node} />
+                    <NodePopup
+                      node={node}
+                      onFocus={handleFocusNode}
+                      isFocused={
+                        focusedNode?.publicKey === node.publicKey ||
+                        focusedNode?.id === node.id
+                      }
+                      peerHistoryAvailable={peerHistoryAvailable}
+                    />
                   </Popup>
                 </Marker>
               ))}
             </MapContainer>
 
-            <MapStatsOverlay
-              stats={stats}
-              visibleMarkers={markerNodes.length}
-              lastUpdated={lastUpdated}
-            />
-            <MapLegend activeRoles={activeRoles} />
+            {preferences.showStatsOverlay && (
+              <MapStatsOverlay
+                stats={stats}
+                visibleMarkers={markerNodes.length}
+                lastUpdated={lastUpdated}
+              />
+            )}
+            {preferences.showLegend && <MapLegend activeRoles={activeRoles} />}
           </>
         )}
       </div>
+
+      {operatorPanels}
     </div>
   );
 }

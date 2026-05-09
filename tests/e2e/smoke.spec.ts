@@ -3,6 +3,73 @@ import AxeBuilder from '@axe-core/playwright';
 
 const criticalPages = ['/', '/start', '/map', '/tools', '/guides'];
 
+function mockPrefixMatrixSnapshot(page: import('@playwright/test').Page) {
+  return page.route('/api/map/snapshot', async (route) => {
+    const generatedAt = '2026-05-09T12:00:00.000Z';
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          generatedAt,
+          nodes: [
+            {
+              id: 'node-a10f-1',
+              publicKey: 'A10F000000000000000000000000000000000000000000000000000000000000000',
+              name: 'DEN-TEST-A',
+              role: 'companion',
+              coordinates: null,
+              lastHeardAt: generatedAt,
+              status: 'online',
+              isOnline: true,
+            },
+            {
+              id: 'node-a10f-2',
+              publicKey: 'A10F111111111111111111111111111111111111111111111111111111111111111',
+              name: 'DEN-TEST-B',
+              role: 'node',
+              coordinates: null,
+              lastHeardAt: generatedAt,
+              status: 'online',
+              isOnline: true,
+            },
+          ],
+          links: [],
+          routes: [],
+          stats: {
+            totalNodes: 2,
+            onlineNodes: 2,
+            visibleNodes: 0,
+            locatedNodes: 0,
+            repeaterNodes: 0,
+            staleNodes: 0,
+            offlineNodes: 0,
+            linkCount: 0,
+            routeCount: 0,
+            averageBatteryPercent: null,
+            lastUpdated: generatedAt,
+            source: { type: 'live_map_api', label: 'Test map data', lastUpdated: generatedAt },
+            connectionState: 'connected',
+          },
+          connection: {
+            state: 'connected',
+            configured: true,
+            sampleData: false,
+            historyEnabled: false,
+            topic: null,
+            lastConnectedAt: generatedAt,
+            lastMessageAt: generatedAt,
+            message: 'Test map data is active.',
+          },
+          source: { type: 'live_map_api', label: 'Test map data', lastUpdated: generatedAt },
+          warnings: [],
+          features: [],
+        },
+      }),
+    });
+  });
+}
+
 test.describe('critical page smoke', () => {
   for (const pagePath of criticalPages) {
     test(`loads ${pagePath}`, async ({ page }) => {
@@ -122,6 +189,7 @@ test.describe('critical page smoke', () => {
   });
 
   test('prefix-matrix page exposes search, suggestion, and 4-char grid', async ({ page }) => {
+    await mockPrefixMatrixSnapshot(page);
     await page.goto('/tools/prefix-matrix');
     await expect(page.getByRole('heading', { name: /prefix matrix/i })).toBeVisible();
 

@@ -74,6 +74,8 @@ try {
     '-p',
     `${port}:3000`,
     '-e',
+    'MESHCORE_LIVE_MAP_API_URL=',
+    '-e',
     'MESHCORE_MAP_SAMPLE_DATA=true',
     '-e',
     'MESHCORE_MAP_DEMO_MODE=true',

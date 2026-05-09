@@ -1,28 +1,65 @@
 {
   "verdict": "APPROVED",
-  "summary": "Prior blocker is resolved. Live-map fetch errors are now redacted before being surfaced through snapshot connection messages, credentialed upstream URL userinfo is stripped before fetch, bearer tokens are no longer appended to query strings, and tests cover credentialed error-message leakage. No new blocking issue was identified in the staged Step 2 changes.",
-  "required_fixes": [],
-  "recommended_followups": [
+  "blocking_issues": 0,
+  "reviewed_files": [
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-2-plan.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/site.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/Navigation.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/MobileMenu.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/Footer.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/layout.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/MapDiagnosticsPanel.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/LiveMapStatsPanel.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/CoveragePanel.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/LosPanel.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/PeerHistoryPanel.tsx",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/WeatherRadarPanel.tsx"
+  ],
+  "diff_basis": "provided_list",
+  "plan_section": "Step 2: Global navigation, footer, active state, and accessibility orientation",
+  "dimensions": {
+    "plan_alignment": {
+      "score": "FLAG",
+      "notes": "Primary nav, active state, mobile state, skip link, and smoke coverage align with Step 2. Footer uses metadata and keeps destinations reachable, but its internal labels are Explore/Tools/Learn rather than the master plan's Get Started/Operate/Learn phrasing."
+    },
+    "correctness_safety": {
+      "score": "PASS",
+      "notes": "Active route matching handles nested tools/guides and learning routes without marking home for all paths. External links preserve safe target/rel attributes."
+    },
+    "code_quality": {
+      "score": "PASS",
+      "notes": "Implementation is readable, localized, and reuses site metadata helpers. Map accessibility tweaks are small and safe."
+    },
+    "completeness": {
+      "score": "FLAG",
+      "notes": "Core acceptance criteria are satisfied and verification is strong. The planned npm run test:a11y command initially could not start because an existing next dev server was running on this repo; it then passed against an explicit next start server on port 4573."
+    },
+    "patterns": {
+      "score": "PASS",
+      "notes": "Navigation and footer now follow the metadata-source pattern introduced in Step 1."
+    },
+    "integration": {
+      "score": "PASS",
+      "notes": "Imports, client/server component boundaries, and Playwright coverage integrate cleanly with existing code."
+    }
+  },
+  "flags": [
     {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts",
-      "line": 57,
-      "note": "Consider documenting that MESHCORE_MAP_TILE_URL must be browser-safe/public, since /api/map/runtime intentionally exposes the configured tile URL."
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/site.ts",
+      "line": 199,
+      "note": "Footer metadata groups render as Explore/Tools/Learn; consider aligning group labels to Get Started/Operate/Learn in a follow-up if the master IA wording is intended to be exact."
     },
     {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts",
-      "line": 386,
-      "note": "Future hardening could redact MQTT error messages as well, especially if operators place credentials in MQTT URLs instead of username/password env vars."
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-2-plan.md",
+      "line": 45,
+      "note": "Step verification lists npm run test:a11y. The command passed against next start after the default dev-server path was blocked by an existing repo dev server."
     }
   ],
-  "verification_notes": {
-    "diff_basis": "provided_list",
-    "implementer_verification_reviewed": [
-      "npm run lint: passed",
-      "npm run typecheck: passed",
-      "npm run test:unit: passed",
-      "npm run build: passed with existing warnings",
-      "Production API smoke for /api/map/snapshot, /api/map/runtime, /api/map/nodes, and /api/map/stats: successful and no live-map token exposure reported"
-    ],
-    "prior_blocker_status": "resolved"
-  }
+  "additional_verification": [
+    "PLAYWRIGHT_PORT=4573 npm run test:a11y initially failed because Playwright could not start next dev while PID 49785 was already running for this repo.",
+    "PLAYWRIGHT_PORT=4573 PLAYWRIGHT_BASE_URL=http://127.0.0.1:4573 npm run test:a11y against npm start passed: 3 tests."
+  ]
 }

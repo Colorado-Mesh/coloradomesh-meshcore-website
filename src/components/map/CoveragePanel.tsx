@@ -42,7 +42,7 @@ export default function CoveragePanel({ features }: CoveragePanelProps) {
     return (
       <section className="cm-panel" aria-label="Coverage overlay">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Coverage overlay</h3>
+          <h2 className="cm-panel__title">Coverage overlay</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -58,7 +58,7 @@ export default function CoveragePanel({ features }: CoveragePanelProps) {
   return (
     <section className="cm-panel" aria-label="Coverage overlay">
       <header className="cm-panel__head">
-        <h3 className="cm-panel__title">Coverage overlay</h3>
+        <h2 className="cm-panel__title">Coverage overlay</h2>
         {armed ? (
           <button
             type="button"

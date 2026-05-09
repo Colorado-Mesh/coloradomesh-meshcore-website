@@ -90,3 +90,82 @@ test.describe('critical page accessibility @a11y', () => {
     });
   }
 });
+
+const PRIMARY_NAV_LABELS = [
+  'Get Started',
+  'Live Map',
+  'Tools',
+  'Guides',
+  'Learn',
+  'About',
+] as const;
+
+const ACTIVE_NAV_CASES: ReadonlyArray<{ route: string; label: string }> = [
+  { route: '/map', label: 'Live Map' },
+  { route: '/tools/repeater-name', label: 'Tools' },
+  { route: '/guides/getting-started', label: 'Guides' },
+  { route: '/blog', label: 'Learn' },
+];
+
+test.describe('global navigation', () => {
+  test('header exposes the approved primary nav labels', async ({ page }) => {
+    await page.goto('/');
+    const mainNav = page.getByRole('navigation', { name: 'Main navigation' });
+    for (const label of PRIMARY_NAV_LABELS) {
+      await expect(mainNav.getByRole('link', { name: label, exact: true })).toBeVisible();
+    }
+  });
+
+  for (const { route, label } of ACTIVE_NAV_CASES) {
+    test(`marks "${label}" as current on ${route}`, async ({ page }) => {
+      await page.goto(route);
+      const mainNav = page.getByRole('navigation', { name: 'Main navigation' });
+      const currentLinks = mainNav.locator('a[aria-current="page"]');
+      await expect(currentLinks).toHaveCount(1);
+      await expect(currentLinks.first()).toHaveText(label);
+    });
+  }
+
+  test('does not mark any header link active on an unmatched route', async ({ page }) => {
+    await page.goto('/');
+    const mainNav = page.getByRole('navigation', { name: 'Main navigation' });
+    await expect(mainNav.locator('a[aria-current="page"]')).toHaveCount(0);
+  });
+
+  test('mobile menu opens, lists primary nav, and closes on Escape', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/', { waitUntil: 'networkidle' });
+
+    const openButton = page.getByRole('button', { name: /Open main menu/i });
+    await expect(openButton).toBeVisible();
+    await expect(openButton).toHaveAttribute('aria-expanded', 'false');
+
+    const dialog = page.locator('#mobile-menu');
+    await expect(dialog).toHaveAttribute('aria-hidden', 'true');
+
+    await openButton.click();
+    await expect(openButton).toHaveAttribute('aria-expanded', 'true');
+    await expect(dialog).toHaveAttribute('aria-hidden', 'false');
+    await expect(page.getByRole('button', { name: /Close menu/i })).toBeFocused();
+    for (const label of PRIMARY_NAV_LABELS) {
+      await expect(dialog.getByRole('link', { name: label, exact: true })).toBeVisible();
+    }
+
+    await page.keyboard.press('Escape');
+    await expect(openButton).toHaveAttribute('aria-expanded', 'false');
+    await expect(dialog).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  test('skip link focuses first and points to main content', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('#main-content')).toBeAttached();
+
+    await page.keyboard.press('Tab');
+    const skipLink = page.getByTestId('skip-to-main');
+    await expect(skipLink).toBeFocused();
+    await expect(skipLink).toHaveAttribute('href', '#main-content');
+
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#main-content$/);
+  });
+});

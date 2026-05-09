@@ -108,15 +108,24 @@ export default function MapDiagnosticsPanel({
       )}
 
       {warnings.length > 0 && (
-        <ul className="cm-diag__warnings" aria-label="Live map warnings">
+        <ul
+          className="cm-diag__warnings"
+          aria-label="Live map warnings"
+          aria-live="polite"
+          aria-atomic="false"
+        >
           {warnings.map((warning) => (
             <li
               key={warning.id}
               className={`cm-diag-warning ${SEVERITY_TONE[warning.severity] ?? SEVERITY_TONE.info}`}
-              role={warning.severity === 'critical' ? 'alert' : 'status'}
             >
               <span className="cm-diag-warning__severity">{warning.severity}</span>
-              <span className="cm-diag-warning__text">{warning.message}</span>
+              <span
+                className="cm-diag-warning__text"
+                role={warning.severity === 'critical' ? 'alert' : undefined}
+              >
+                {warning.message}
+              </span>
             </li>
           ))}
         </ul>

@@ -114,6 +114,13 @@ function shortNodeLabel(node: MapNode): string {
   return key.length > 8 ? `${key.slice(0, 8)}…` : key;
 }
 
+function buildMarkerAccessibleName(node: MapNode): string {
+  const name = node.name?.trim() || node.publicKey || node.id || 'Node';
+  const role = node.role ? node.role.replace(/_/g, ' ') : 'node';
+  const status = node.status ?? 'unknown';
+  return `${name} — ${role}, ${status}`;
+}
+
 export function NetworkMap({
   nodes: providedNodes,
   stats: providedStats,
@@ -498,11 +505,15 @@ export function NetworkMap({
               <TileLayer attribution={tileAttribution} url={tileUrl} />
               <FitBounds bounds={bounds} />
 
-              {markerNodes.map((node) => (
+              {markerNodes.map((node) => {
+                const accessibleName = buildMarkerAccessibleName(node);
+                return (
                 <Marker
                   key={node.publicKey || node.id}
                   position={[node.coordinates.latitude, node.coordinates.longitude]}
                   icon={iconCache.get(node)}
+                  title={accessibleName}
+                  alt={accessibleName}
                 >
                   <Popup className="cm-popup-wrapper">
                     <NodePopup
@@ -516,7 +527,8 @@ export function NetworkMap({
                     />
                   </Popup>
                 </Marker>
-              ))}
+                );
+              })}
             </MapContainer>
 
             {preferences.showStatsOverlay && (

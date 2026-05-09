@@ -15,6 +15,7 @@ interface MobileMenuProps {
   isOpen: boolean;
   onClose: () => void;
   navLinks: MobileNavLink[];
+  activeHref?: string | null;
 }
 
 function DiscordIcon({ className = 'h-5 w-5' }: { className?: string }) {
@@ -30,7 +31,7 @@ function DiscordIcon({ className = 'h-5 w-5' }: { className?: string }) {
   );
 }
 
-export default function MobileMenu({ isOpen, onClose, navLinks }: MobileMenuProps) {
+export default function MobileMenu({ isOpen, onClose, navLinks, activeHref = null }: MobileMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
@@ -117,37 +118,46 @@ export default function MobileMenu({ isOpen, onClose, navLinks }: MobileMenuProp
 
           <nav className="flex-1 overflow-y-auto px-4 py-6" aria-label="Mobile navigation">
             <ul className="space-y-1">
-              {navLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="flex items-center justify-between px-4 py-3 text-base font-medium text-foreground hover:text-mesh hover:bg-card/60 rounded-lg transition-colors duration-200 focus-ring"
-                    onClick={onClose}
-                    {...(link.external && {
-                      target: '_blank',
-                      rel: 'noopener noreferrer',
-                    })}
-                  >
-                    <span>{link.label}</span>
-                    {link.external && (
-                      <svg
-                        className="h-4 w-4 text-foreground-dim"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        />
-                      </svg>
-                    )}
-                  </Link>
-                </li>
-              ))}
+              {navLinks.map((link) => {
+                const isActive = activeHref === link.href;
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      aria-current={isActive ? 'page' : undefined}
+                      data-active={isActive ? 'true' : undefined}
+                      className={`flex items-center justify-between px-4 py-3 text-base font-medium rounded-lg transition-colors duration-200 focus-ring ${
+                        isActive
+                          ? 'bg-card/70 text-mesh'
+                          : 'text-foreground hover:text-mesh hover:bg-card/60'
+                      }`}
+                      onClick={onClose}
+                      {...(link.external && {
+                        target: '_blank',
+                        rel: 'noopener noreferrer',
+                      })}
+                    >
+                      <span>{link.label}</span>
+                      {link.external && (
+                        <svg
+                          className="h-4 w-4 text-foreground-dim"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          aria-hidden="true"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                          />
+                        </svg>
+                      )}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 

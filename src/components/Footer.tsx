@@ -8,32 +8,22 @@ import {
   MESHCORE_DOCS_URL,
   SITE_NAME,
 } from '@/lib/constants';
+import { getFooterRouteGroups } from '@/lib/site';
 
-interface FooterLink {
+interface ExternalFooterLink {
   href: string;
   label: string;
-  external?: boolean;
   icon?: 'discord' | 'github';
 }
 
-const quickLinks: FooterLink[] = [
-  { href: '/', label: 'Home' },
-  { href: '/map', label: 'Live Map' },
-  { href: '/tools', label: 'Tools' },
-  { href: '/guides', label: 'Guides' },
-  { href: '/guides/getting-started', label: 'Getting Started' },
-  { href: '/blog', label: 'Blog' },
-  { href: '/about', label: 'About' },
+const communityLinks: ExternalFooterLink[] = [
+  { href: DISCORD_INVITE_URL, label: 'Discord', icon: 'discord' },
+  { href: GITHUB_ORG_URL, label: 'Colorado-Mesh on GitHub', icon: 'github' },
 ];
 
-const communityLinks: FooterLink[] = [
-  { href: DISCORD_INVITE_URL, label: 'Discord', icon: 'discord', external: true },
-  { href: GITHUB_ORG_URL, label: 'Colorado-Mesh on GitHub', icon: 'github', external: true },
-];
-
-const resourceLinks: FooterLink[] = [
-  { href: MESHCORE_DOCS_URL, label: 'MeshCore docs', external: true },
-  { href: LETSMESH_URL, label: 'LetsMesh', external: true },
+const resourceLinks: ExternalFooterLink[] = [
+  { href: MESHCORE_DOCS_URL, label: 'MeshCore docs' },
+  { href: LETSMESH_URL, label: 'LetsMesh' },
 ];
 
 function ExternalGlyph() {
@@ -81,7 +71,7 @@ function GithubGlyph({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
-function FooterIcon({ icon }: { icon?: FooterLink['icon'] }) {
+function FooterIcon({ icon }: { icon?: ExternalFooterLink['icon'] }) {
   if (icon === 'discord') return <DiscordGlyph />;
   if (icon === 'github') return <GithubGlyph />;
   return null;
@@ -89,6 +79,7 @@ function FooterIcon({ icon }: { icon?: FooterLink['icon'] }) {
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();
+  const internalGroups = getFooterRouteGroups();
 
   return (
     <footer className="relative bg-night-950 text-snow-100 border-t border-card-border" role="contentinfo">
@@ -118,8 +109,8 @@ export default function Footer() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
-          <div className="lg:col-span-1">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-10">
+          <div className="md:col-span-2 lg:col-span-2">
             <BrandMark size="lg" href="/" tone="inverse" />
             <p className="mt-5 text-snow-300 text-sm leading-relaxed max-w-sm">
               A volunteer-run LoRa mesh stretching across Colorado&apos;s Front Range.
@@ -139,23 +130,25 @@ export default function Footer() {
             </a>
           </div>
 
-          <div>
-            <h3 className="metric-label text-snow-300">Quick Links</h3>
-            <ul className="mt-4 space-y-3">
-              {quickLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {internalGroups.map((group) => (
+            <div key={group.key} data-footer-group={group.key}>
+              <h3 className="metric-label text-snow-300">{group.label}</h3>
+              <ul className="mt-4 space-y-3">
+                {group.links.map((link) => (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      className="text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
 
-          <div>
+          <div className="md:col-span-2 lg:col-span-1">
             <h3 className="metric-label text-snow-300">Community</h3>
             <ul className="mt-4 space-y-3">
               {communityLinks.map((link) => (
@@ -163,22 +156,18 @@ export default function Footer() {
                   <a
                     href={link.href}
                     className="inline-flex items-center gap-2 text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
-                    {...(link.external && {
-                      target: '_blank',
-                      rel: 'noopener noreferrer',
-                    })}
+                    target="_blank"
+                    rel="noopener noreferrer"
                   >
                     <FooterIcon icon={link.icon} />
                     <span>{link.label}</span>
-                    {link.external && <ExternalGlyph />}
+                    <ExternalGlyph />
                   </a>
                 </li>
               ))}
             </ul>
-          </div>
 
-          <div>
-            <h3 className="metric-label text-snow-300">Resources</h3>
+            <h3 className="metric-label text-snow-300 mt-8">Resources</h3>
             <ul className="mt-4 space-y-3">
               {resourceLinks.map((link) => (
                 <li key={link.href}>

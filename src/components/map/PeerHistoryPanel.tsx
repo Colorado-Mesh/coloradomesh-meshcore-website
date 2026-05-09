@@ -50,7 +50,7 @@ export default function PeerHistoryPanel({ features, selectedNode, onClear }: Pe
     return (
       <section className="cm-panel" aria-label="Peer history">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Peer history</h3>
+          <h2 className="cm-panel__title">Peer history</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -64,7 +64,7 @@ export default function PeerHistoryPanel({ features, selectedNode, onClear }: Pe
     return (
       <section className="cm-panel" aria-label="Peer history">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Peer history</h3>
+          <h2 className="cm-panel__title">Peer history</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Idle</span>
         </header>
         <p className="cm-panel__hint">
@@ -80,7 +80,7 @@ export default function PeerHistoryPanel({ features, selectedNode, onClear }: Pe
   return (
     <section className="cm-panel" aria-label="Peer history">
       <header className="cm-panel__head">
-        <h3 className="cm-panel__title">Peer history</h3>
+        <h2 className="cm-panel__title">Peer history</h2>
         <div className="cm-panel__head-actions">
           {armed && (
             <button

@@ -1,61 +1,55 @@
-# Step 2 Execution Plan: Canonical map snapshot and runtime map config
+# Step 2 Execution Plan: Global navigation, footer, active state, and accessibility orientation
 
 ## Goal
-Add a single canonical map snapshot API, a public runtime map configuration API, bearer-token live-map API auth, sample-data warnings, and mechanical client wiring away from split nodes/stats fetches.
+Make the global header, mobile menu, footer, and skip-link orientation reflect the approved IA using the Step 1 metadata foundation.
 
 ## Current Code Observations
-- `src/lib/map/store.ts` already builds full `MapSnapshot` objects internally, but only exposes `/api/map/nodes` and `/api/map/stats` routes.
-- `src/hooks/useMapSnapshot.ts` fetches nodes and stats independently, which can produce inconsistent client state across refresh cycles.
-- `src/lib/map/store.ts` currently sends the live-map API token as a `token` query parameter and also includes `mode=full` in the URL.
-- `src/lib/map/types.ts` has no warning, runtime config, or advanced-feature fields on `MapSnapshot`.
-- `src/lib/map/config.ts` reads `NEXT_PUBLIC_MAP_TILE_URL` into server runtime config; the browser map uses a hard-coded CARTO tile URL instead of the runtime value.
-- `src/components/NetworkMap.tsx` has hard-coded tile URL/attribution constants; Step 2 should only do mechanical runtime-config wiring, not visual redesign.
-- `.env.example` and `compose.yaml` still expose `NEXT_PUBLIC_MAP_TILE_URL`; Step 2 should introduce a server runtime map tile variable while preserving fallback behavior.
-- Existing map routes return `ApiResponse<T>` and set short public cache headers.
+- `src/components/Navigation.tsx` is a client component with a local `PRIMARY_NAV_LINKS` array: Home, Map, Tools, Guides, Blog, About.
+- `src/components/Navigation.tsx` does not use `usePathname`, so desktop links do not expose active/current route state.
+- `src/components/MobileMenu.tsx` receives `navLinks` from `Navigation` and preserves focus trap, close button focus, Escape close behavior, and body scroll locking through the parent.
+- `src/components/MobileMenu.tsx` does not expose active/current state for mobile links.
+- `src/components/Footer.tsx` has separate hardcoded quick/community/resource arrays; quick links partially overlap the approved IA and do not include all first-class tool pages.
+- `src/app/layout.tsx` renders `Navigation`, then `<main className="flex-1 pt-16">`, then `Footer`; there is no global skip link or `main` id target.
+- `tests/e2e/smoke.spec.ts` currently covers only `/`, `/map`, and `/tools` as critical pages and does not assert nav labels, active states, mobile menu behavior, or skip-link behavior.
+- This Codex-backed session must not directly implement visual/frontend aesthetic work; header/footer component implementation should be delegated to Opus UI via `co-ui`.
 
 ## Files to Change
-- `src/lib/constants.ts` — add canonical snapshot/runtime API route constants and runtime env key for server-side map tile URL.
-- `src/lib/map/types.ts` — add public runtime config/warning/advanced-feature types and extend `MapSnapshot`.
-- `src/lib/map/config.ts` — parse runtime public map config, whitelist browser-safe fields, and support sample-data warning semantics.
-- `src/lib/map/store.ts` — add warnings/features to snapshots, use bearer auth for live-map API fetches, keep compatibility node/stat helpers wrapping `getMapSnapshot()`.
-- `src/lib/map/index.ts` and `src/lib/types.ts` — export new types/helpers.
-- `src/app/api/map/snapshot/route.ts` — add canonical snapshot route.
-- `src/app/api/map/runtime/route.ts` — add public runtime map config route.
-- `src/app/api/map/nodes/route.ts` and `src/app/api/map/stats/route.ts` — keep wrappers over the canonical snapshot helpers.
-- `src/hooks/useMapSnapshot.ts` — fetch `/api/map/snapshot` once and expose warning/runtime-compatible snapshot state.
-- `src/components/NetworkMap.tsx` — mechanically consume runtime tile URL/attribution from the hook; no visual redesign.
-- `.env.example` and `compose.yaml` — document/use runtime server map tile configuration and sample/demo behavior.
-- `src/lib/map/__tests__/config.test.ts` and `src/lib/map/__tests__/store.test.ts` — add contract tests.
-- `src/lib/parity/manifest.ts` — update live-map API coverage refs/local refs for the new snapshot/runtime contract.
+- `src/components/Navigation.tsx` — consume metadata-derived primary nav, add active route semantics, pass active state to mobile menu.
+- `src/components/MobileMenu.tsx` — expose active route semantics while preserving existing focus trap and Escape close behavior.
+- `src/components/Footer.tsx` — derive internal route groups from site metadata while preserving external community/resource links.
+- `src/app/layout.tsx` — add a global skip link and `main` target.
+- `tests/e2e/smoke.spec.ts` — add smoke coverage for approved nav labels, active state, mobile menu behavior, and skip-link behavior.
+- `.forge/steps/step-2-plan.md` — this execution plan.
 
 ## Ordered Implementation Checklist
-1. Extend map types with `MapRuntimePublicConfig`, `MapSnapshotWarning`, `MapAdvancedFeature`, and `MapSnapshot.features/warnings`.
-2. Add config helpers that return whitelisted public runtime map settings: tile URL, attribution, default center/zoom, source labels, sample/demo warning, and feature availability defaults.
-3. Change live-map API fetching to send `Authorization: Bearer <token>` when configured and never append the token to URL query parameters.
-4. Build sample/live/MQTT/empty snapshots with warnings and feature availability, including a production sample-data warning unless explicit demo/sample mode is set.
-5. Add `/api/map/snapshot` and `/api/map/runtime` routes with safe `ApiResponse` payloads and short cache headers.
-6. Update existing nodes/stats routes and the `useMapSnapshot` hook so clients use one snapshot fetch while compatibility routes remain available.
-7. Wire `NetworkMap` to use runtime tile URL/attribution from the hook in a mechanical way only.
-8. Update env/Compose docs from browser-frozen map tile config toward server runtime config, keeping backwards-compatible fallback for existing `NEXT_PUBLIC_MAP_TILE_URL` deployments.
-9. Add Vitest tests for config parsing, bearer auth, token non-leakage in URL, sample warning semantics, runtime public config redaction, and nodes/stats wrapper consistency.
-10. Run lint, typecheck, unit tests, and build; fix Step 2 issues before staging.
+1. Delegate component implementation to Opus UI with a prompt scoped to metadata-driven navigation/footer, active state semantics, skip link, and tests.
+2. Replace the hardcoded primary nav array with `getPrimaryNavLinks()` from `src/lib/site.ts` so labels become `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
+3. Add active-route matching for exact routes and section routes: nested `/tools/*` activates Tools, nested `/guides/*` activates Guides, and learning routes such as `/why-meshcore`, `/use-cases`, and `/blog/*` activate Learn.
+4. Add `aria-current` and non-disruptive current-state classes to desktop and mobile nav links without introducing a broad visual redesign.
+5. Update `MobileMenu` to use the same metadata-derived links and active-state logic while preserving close-on-click, Escape close, and focus wrapping.
+6. Update the footer to render internal route groups from `getFooterRouteGroups()` and keep Discord/GitHub/MeshCore docs/LetsMesh external links safe with `target="_blank"` and `rel="noopener noreferrer"`.
+7. Add a keyboard-focusable skip link before the fixed header and set the main landmark id to the skip target.
+8. Expand Playwright smoke tests for desktop nav labels, active state on `/map`, `/tools/repeater-name`, `/guides/getting-started`, and `/blog`, mobile open/close behavior, and skip link focus/target behavior.
+9. Run Step 2 verification and inspect the actual diff for scope drift before staging.
 
 ## Interfaces and Data Contracts
-- `GET /api/map/snapshot` returns `ApiResponse<MapSnapshot>` with `nodes`, `links`, `routes`, `stats`, `connection`, `source`, `warnings`, and `features`.
-- `GET /api/map/runtime` returns `ApiResponse<MapRuntimePublicConfig>` and must only include browser-safe public fields.
-- `MESHCORE_LIVE_MAP_API_TOKEN` stays server-only and is sent as `Authorization: Bearer <token>`.
-- `MESHCORE_MAP_TILE_URL` is the preferred runtime tile URL; `NEXT_PUBLIC_MAP_TILE_URL` remains a fallback for existing installs.
-- `/api/map/nodes` and `/api/map/stats` remain compatibility routes derived from `getMapSnapshot()`.
+- Desktop and mobile primary nav labels must be exactly: `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
+- `getPrimaryNavLinks()` is the single source for primary nav hrefs and labels.
+- `getFooterRouteGroups()` is the single source for internal footer route groups.
+- Active matching must not mark Home active for every path.
+- Learning-section matching must cover `/why-meshcore`, `/use-cases`, `/use-cases/*`, `/blog`, `/blog/*`, and blog tag routes.
+- Skip link must point to `#main-content`, and `<main>` must expose `id="main-content"`.
+- External links must keep `target="_blank"` and `rel="noopener noreferrer"`.
 
 ## Verification Plan
-- Automated: `npm run lint`
+- Automated: `npm run test:e2e -- tests/e2e/smoke.spec.ts`
+- Automated: `npm run test:a11y`
 - Automated: `npm run typecheck`
-- Automated: `npm run test:unit`
 - Automated: `npm run build`
-- Manual/API: Start the app if needed and query `/api/map/snapshot`, `/api/map/runtime`, `/api/map/nodes`, and `/api/map/stats` to confirm payload shapes and no token exposure.
-- Regression: Confirm no browser code fetches the upstream live-map API directly and no response includes `MESHCORE_LIVE_MAP_API_TOKEN`.
+- Manual: inspect desktop/mobile navigation behavior and footer grouping in a browser if the automated browser run does not cover a visible state.
+- Regression: mobile menu Escape close and focus trap continue to work; existing serial USB, prefix matrix, map diagnostics, and axe smoke tests remain intact.
 
 ## Stop Conditions
-- Stop before visual/aesthetic map UI changes; Step 2 only allows mechanical runtime wiring.
-- Stop if a runtime map setting would require exposing credentials or raw upstream URLs that may be protected.
-- Stop if live-map WebSocket/advanced proxy work becomes necessary; that belongs to Step 3.
+- If Opus UI changes broad page layout, visual branding, route structure, or unrelated content, stop and narrow or revert before review.
+- If active-state tests conflict with current `/start` redirect behavior, defer `/start`-specific active assertions to Step 3 rather than changing `/start` early.
+- If Playwright cannot run because browser dependencies are missing or a server conflict exists, document the blocker and run typecheck/build before asking how to proceed.

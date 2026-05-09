@@ -118,8 +118,15 @@ export default function RootLayout({
       <body
         className={`${inter.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
+        <a
+          href="#main-content"
+          data-testid="skip-to-main"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:rounded-md focus:bg-mesh focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-night-950 focus:shadow-mountain focus-ring"
+        >
+          Skip to main content
+        </a>
         <Navigation />
-        <main className="flex-1 pt-16">{children}</main>
+        <main id="main-content" tabIndex={-1} className="flex-1 pt-16">{children}</main>
         <Footer />
       </body>
     </html>

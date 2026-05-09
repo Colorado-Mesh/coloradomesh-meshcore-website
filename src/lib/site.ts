@@ -253,6 +253,27 @@ export function getCriticalTestRoutes(): SiteRoute['path'][] {
     .map((route) => route.path);
 }
 
+function pathMatchesRoute(pathname: string, routePath: string): boolean {
+  if (routePath === '/') return pathname === '/';
+  if (pathname === routePath) return true;
+  return pathname.startsWith(`${routePath}/`);
+}
+
+export function isPrimaryNavLinkActive(href: string, pathname: string): boolean {
+  const navRoute = getSiteRoute(href);
+  if (!navRoute) {
+    return pathMatchesRoute(pathname, href);
+  }
+
+  if (navRoute.section === 'home') {
+    return pathname === '/';
+  }
+
+  return SITE_ROUTES
+    .filter((route) => route.section === navRoute.section)
+    .some((route) => pathMatchesRoute(pathname, route.path));
+}
+
 export function getBreadcrumbTrail(path: string): SiteLink[] {
   const route = getSiteRoute(path);
 

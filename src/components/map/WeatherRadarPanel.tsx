@@ -55,7 +55,7 @@ export default function WeatherRadarPanel({ features, defaultCenter }: WeatherRa
     return (
       <section className="cm-panel" aria-label="Weather radar bounds">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Weather radar</h3>
+          <h2 className="cm-panel__title">Weather radar</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -69,7 +69,7 @@ export default function WeatherRadarPanel({ features, defaultCenter }: WeatherRa
   return (
     <section className="cm-panel" aria-label="Weather radar bounds">
       <header className="cm-panel__head">
-        <h3 className="cm-panel__title">Weather radar</h3>
+        <h2 className="cm-panel__title">Weather radar</h2>
         {submittedUrl && (
           <span className="cm-panel__tag cm-panel__tag--mesh" aria-hidden>
             Probed

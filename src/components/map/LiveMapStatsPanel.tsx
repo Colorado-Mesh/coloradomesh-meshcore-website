@@ -71,7 +71,7 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
     return (
       <section className="cm-panel" aria-label="Upstream live-map stats">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Upstream stats</h3>
+          <h2 className="cm-panel__title">Upstream stats</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -101,7 +101,7 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
   return (
     <section className="cm-panel" aria-label="Upstream live-map stats">
       <header className="cm-panel__head">
-        <h3 className="cm-panel__title">Upstream stats</h3>
+        <h2 className="cm-panel__title">Upstream stats</h2>
         <button
           type="button"
           className="cm-panel__refresh"

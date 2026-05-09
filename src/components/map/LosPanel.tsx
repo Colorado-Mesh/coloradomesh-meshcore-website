@@ -73,7 +73,7 @@ export default function LosPanel({ features, defaultCenter }: LosPanelProps) {
     return (
       <section className="cm-panel" aria-label="Line-of-sight">
         <header className="cm-panel__head">
-          <h3 className="cm-panel__title">Line of sight</h3>
+          <h2 className="cm-panel__title">Line of sight</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -90,7 +90,7 @@ export default function LosPanel({ features, defaultCenter }: LosPanelProps) {
   return (
     <section className="cm-panel" aria-label="Line-of-sight">
       <header className="cm-panel__head">
-        <h3 className="cm-panel__title">Line of sight</h3>
+        <h2 className="cm-panel__title">Line of sight</h2>
         {url && (
           <span className="cm-panel__tag cm-panel__tag--mesh" aria-hidden>
             Probed

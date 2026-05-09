@@ -1,25 +1,18 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import MobileMenu from './MobileMenu';
 import BrandMark from './brand/BrandMark';
 import { DISCORD_INVITE_URL, SITE_NAME } from '@/lib/constants';
+import { getPrimaryNavLinks, isPrimaryNavLinkActive } from '@/lib/site';
 
 export interface NavLink {
   href: string;
   label: string;
   external?: boolean;
 }
-
-export const PRIMARY_NAV_LINKS: NavLink[] = [
-  { href: '/', label: 'Home' },
-  { href: '/map', label: 'Map' },
-  { href: '/tools', label: 'Tools' },
-  { href: '/guides', label: 'Guides' },
-  { href: '/blog', label: 'Blog' },
-  { href: '/about', label: 'About' },
-];
 
 function DiscordIcon({ className = 'h-5 w-5' }: { className?: string }) {
   return (
@@ -56,6 +49,15 @@ function ExternalGlyph({ className = 'h-3 w-3' }: { className?: string }) {
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const pathname = usePathname() ?? '/';
+  const primaryNavLinks = useMemo<NavLink[]>(
+    () => getPrimaryNavLinks().map((link) => ({ href: link.href, label: link.label })),
+    [],
+  );
+  const activeHref = useMemo(() => {
+    const match = primaryNavLinks.find((link) => isPrimaryNavLinkActive(link.href, pathname));
+    return match?.href ?? null;
+  }, [primaryNavLinks, pathname]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -96,20 +98,29 @@ export default function Navigation() {
             <BrandMark size="md" href="/" ariaLabel={`${SITE_NAME} — Home`} />
 
             <div className="hidden lg:flex lg:items-center lg:gap-1 absolute left-1/2 -translate-x-1/2">
-              {PRIMARY_NAV_LINKS.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className="px-3 py-2 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-card/60 rounded-md transition-colors duration-200 focus-ring"
-                  {...(link.external && {
-                    target: '_blank',
-                    rel: 'noopener noreferrer',
-                  })}
-                >
-                  {link.label}
-                  {link.external && <ExternalGlyph className="inline-block ml-1 h-3 w-3" />}
-                </Link>
-              ))}
+              {primaryNavLinks.map((link) => {
+                const isActive = link.href === activeHref;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    aria-current={isActive ? 'page' : undefined}
+                    data-active={isActive ? 'true' : undefined}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-colors duration-200 focus-ring ${
+                      isActive
+                        ? 'text-foreground bg-card/70 shadow-inner'
+                        : 'text-foreground-muted hover:text-foreground hover:bg-card/60'
+                    }`}
+                    {...(link.external && {
+                      target: '_blank',
+                      rel: 'noopener noreferrer',
+                    })}
+                  >
+                    {link.label}
+                    {link.external && <ExternalGlyph className="inline-block ml-1 h-3 w-3" />}
+                  </Link>
+                );
+              })}
             </div>
 
             <div className="hidden lg:flex lg:items-center lg:gap-3">
@@ -155,7 +166,8 @@ export default function Navigation() {
       <MobileMenu
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
-        navLinks={PRIMARY_NAV_LINKS}
+        navLinks={primaryNavLinks}
+        activeHref={activeHref}
       />
     </>
   );

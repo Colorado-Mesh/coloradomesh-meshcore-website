@@ -1262,17 +1262,20 @@ body {
   border-color: var(--mesh-accent);
 }
 
-.cm-map .leaflet-control-attribution {
-  background: rgba(5, 10, 18, 0.78);
-  color: var(--ops-text-dim);
+.cm-map .cm-map__leaflet .leaflet-control-attribution,
+.cm-map .leaflet-container .leaflet-control-attribution {
+  background: var(--night-sky-900) !important;
+  color: var(--ops-text) !important;
   font-family: var(--font-mono);
-  font-size: 0.625rem;
+  font-size: 0.7rem;
   letter-spacing: 0.04em;
+  padding: 2px 6px;
   border-top-left-radius: var(--radius-sm);
 }
 
-.cm-map .leaflet-control-attribution a {
-  color: var(--mesh-accent);
+.cm-map .cm-map__leaflet .leaflet-control-attribution a,
+.cm-map .leaflet-container .leaflet-control-attribution a {
+  color: var(--mesh-accent-light) !important;
 }
 
 .cm-map__state {

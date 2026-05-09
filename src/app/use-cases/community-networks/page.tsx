@@ -2,8 +2,11 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import JsonLd from '@/components/JsonLd';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import { HeroPanel, NetworkPanel, SectionEyebrow } from '@/components/brand';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
-import { BASE_URL } from '@/lib/constants';
+import { BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL, SITE_NAME } from '@/lib/constants';
+
+const PAGE_TITLE = 'Community networks';
 
 export const metadata: Metadata = {
   title: 'Community Mesh Networks | Build Your Neighborhood Network',
@@ -27,7 +30,7 @@ export const metadata: Metadata = {
     canonical: '/use-cases/community-networks',
   },
   openGraph: {
-    title: 'Community Mesh Networks | Colorado MeshCore',
+    title: `Community networks | ${SITE_NAME}`,
     description:
       'Build a resilient community mesh network for your neighborhood. Connect with neighbors, stay prepared for emergencies, and create lasting local communication infrastructure.',
     url: `${BASE_URL}/use-cases/community-networks`,
@@ -35,7 +38,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Community Mesh Networks | Colorado MeshCore',
+    title: `Community networks | ${SITE_NAME}`,
     description:
       'Build a resilient community mesh network for your neighborhood. Connect with neighbors and create lasting local communication infrastructure.',
   },
@@ -49,77 +52,41 @@ const breadcrumbData = generateBreadcrumbSchema([
 
 const communityBenefits = [
   {
-    title: 'Emergency Resilience',
+    title: 'Emergency resilience',
     description:
-      'When power outages hit or cell towers fail, your community mesh network keeps neighbors connected. Coordinate emergency response, check on vulnerable residents, and share critical information.',
-    icon: (
-      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-        />
-      </svg>
-    ),
-    color: 'sunset-500',
+      'When power outages hit or cell towers fail, your community mesh keeps neighbors connected. Coordinate response, check on vulnerable residents, share critical information.',
+    glyph: '◊',
+    tone: 'sunset' as const,
   },
   {
-    title: 'Zero Monthly Costs',
+    title: 'Zero monthly costs',
     description:
-      'Unlike traditional internet or cellular networks, a community mesh network has no monthly fees. After the initial hardware investment, your neighborhood network runs for free.',
-    icon: (
-      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-        />
-      </svg>
-    ),
-    color: 'forest-500',
+      'No monthly fees. After the initial hardware investment, your neighborhood network runs free — forever.',
+    glyph: '◇',
+    tone: 'sunset' as const,
   },
   {
-    title: 'Community Building',
+    title: 'Community building',
     description:
-      'A neighborhood network brings people together. Share local updates, organize events, coordinate neighborhood watch, and build stronger community bonds through better communication.',
-    icon: (
-      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-        />
-      </svg>
-    ),
-    color: 'mesh',
+      'Share local updates, organize events, coordinate neighborhood watch, and build stronger community bonds through better communication.',
+    glyph: '◈',
+    tone: 'mesh' as const,
   },
   {
-    title: 'Privacy & Independence',
+    title: 'Privacy & independence',
     description:
-      'Your community mesh network operates independently of corporate infrastructure. No data harvesting, no surveillance, no third-party control over your neighborhood communications.',
-    icon: (
-      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
-        />
-      </svg>
-    ),
-    color: 'mountain-500',
+      'Your community mesh operates independently of corporate infrastructure. No data harvesting, no surveillance, no third-party control.',
+    glyph: '◉',
+    tone: 'sky' as const,
   },
-];
+] as const;
 
 const implementationSteps = [
   {
     step: 1,
-    title: 'Survey Your Neighborhood',
+    title: 'Survey your neighborhood',
     description:
-      'Identify interested neighbors and map out your community. Look for high points like rooftops, hills, or tall buildings that could host repeater nodes for maximum coverage.',
+      'Identify interested neighbors and map your community. Look for high points — rooftops, hills, tall buildings — that could host repeater nodes.',
     tips: [
       'Talk to neighbors about the benefits of a community mesh network',
       'Identify homes with good line-of-sight to other areas',
@@ -128,9 +95,9 @@ const implementationSteps = [
   },
   {
     step: 2,
-    title: 'Plan Your Network Architecture',
+    title: 'Plan your network architecture',
     description:
-      'Design your neighborhood network with a mix of repeaters and client devices. Strategic placement of repeaters ensures all homes can connect reliably.',
+      'Design your network with a mix of repeaters and client devices. Strategic placement of repeaters ensures all homes can connect reliably.',
     tips: [
       'Place repeaters on the highest available points',
       'Plan for redundancy with multiple coverage paths',
@@ -139,7 +106,7 @@ const implementationSteps = [
   },
   {
     step: 3,
-    title: 'Deploy Initial Nodes',
+    title: 'Deploy initial nodes',
     description:
       'Start with a core group of enthusiastic neighbors. Install repeaters at key locations and distribute companion devices to early adopters.',
     tips: [
@@ -150,71 +117,78 @@ const implementationSteps = [
   },
   {
     step: 4,
-    title: 'Expand & Onboard Neighbors',
+    title: 'Expand & onboard neighbors',
     description:
-      'Grow your community mesh network organically. Help new neighbors set up their devices and integrate with the existing infrastructure.',
+      'Grow your network organically. Help new neighbors set up their devices and integrate with the existing infrastructure.',
     tips: [
       'Host setup sessions for new members',
       'Create local documentation and guides',
       'Establish communication protocols and etiquette',
     ],
   },
-];
+] as const;
 
 const useCaseScenarios = [
   {
-    title: 'HOA & Gated Communities',
+    title: 'HOA & gated communities',
     description:
-      'Perfect for homeowner associations seeking secure, private community communication. Coordinate maintenance, share announcements, and build community without monthly service fees.',
-    icon: '🏘️',
+      'Perfect for homeowner associations seeking secure, private community communication. Coordinate maintenance, share announcements, no monthly fees.',
+    glyph: '◊',
   },
   {
-    title: 'Rural Neighborhoods',
+    title: 'Rural neighborhoods',
     description:
-      'Ideal for rural and semi-rural areas where cellular coverage is weak or nonexistent. A neighborhood network provides reliable communication across large properties.',
-    icon: '🌄',
+      'Ideal where cellular coverage is weak or nonexistent. A neighborhood network provides reliable communication across large properties.',
+    glyph: '◇',
   },
   {
-    title: 'Mountain Communities',
+    title: 'Mountain communities',
     description:
-      'Colorado mountain towns face unique communication challenges. Community mesh networks provide resilient coverage even when winter storms knock out traditional infrastructure.',
-    icon: '🏔️',
+      'Colorado mountain towns face unique challenges. Community mesh networks stay online when winter storms knock out traditional infrastructure.',
+    glyph: '◉',
   },
   {
-    title: 'Apartment & Condo Buildings',
+    title: 'Apartment & condo buildings',
     description:
-      'Connect residents across multi-unit buildings. Share building updates, coordinate package deliveries, and create a true community network within your complex.',
-    icon: '🏢',
+      'Connect residents across multi-unit buildings. Share updates, coordinate package deliveries, and build a true community within your complex.',
+    glyph: '◈',
   },
-];
+] as const;
+
+const stats = [
+  { value: '10+ mi', label: 'Node range', tone: 'text-mesh' },
+  { value: '$0', label: 'Monthly fees', tone: 'text-forest-300' },
+  { value: '24/7', label: 'Always on', tone: 'text-mountain-300' },
+  { value: '100%', label: 'Community owned', tone: 'text-sunset-500' },
+] as const;
 
 const faqItems = [
   {
     question: 'How far can a community mesh network reach?',
     answer:
-      'Individual nodes can communicate over several miles with good line-of-sight. By strategically placing repeaters, a neighborhood network can cover entire communities, from small subdivisions to multi-mile areas.',
+      'Individual nodes can communicate over several miles with good line-of-sight. By placing repeaters strategically, a neighborhood network can cover entire communities — from small subdivisions to multi-mile areas.',
   },
   {
     question: 'What equipment do neighbors need?',
     answer:
-      'Each participant needs a MeshCore-compatible device (around $30-50 for basic units). Community repeaters require slightly more investment ($50-100) but serve the entire neighborhood.',
+      'Each participant needs a MeshCore-compatible device (around $30–50 for basic units). Community repeaters cost a bit more ($50–100) but serve the entire neighborhood.',
   },
   {
     question: 'Is a community mesh network legal?',
     answer:
-      'Yes! MeshCore uses license-free LoRa frequencies (915 MHz in the US). No radio license is required, making it accessible to everyone in your community.',
+      'Yes. MeshCore uses license-free LoRa frequencies (915 MHz in the US). No radio license is required, making it accessible to everyone.',
   },
   {
     question: 'What happens during a power outage?',
     answer:
-      'Battery-powered and solar-powered nodes continue operating during outages. This is one of the key advantages of a community mesh network for emergency preparedness.',
+      'Battery-powered and solar-powered nodes continue operating. This is one of the key advantages of a community mesh for emergency preparedness.',
   },
   {
     question: 'Can our HOA manage the network?',
     answer:
-      'Absolutely! Many HOAs and community groups successfully operate neighborhood networks. The decentralized nature means shared responsibility, and MeshCore provides tools for network management.',
+      'Absolutely. Many HOAs and community groups successfully operate neighborhood networks. The decentralized nature means shared responsibility, and MeshCore provides tools for management.',
   },
-];
+] as const;
 
 const pageSchema = {
   '@context': 'https://schema.org',
@@ -222,20 +196,9 @@ const pageSchema = {
   headline: 'Community Mesh Networks: Build Your Neighborhood Network',
   description:
     'Learn how to build a community mesh network for your neighborhood using MeshCore technology.',
-  author: {
-    '@type': 'Organization',
-    name: 'Colorado MeshCore',
-    url: BASE_URL,
-  },
-  publisher: {
-    '@type': 'Organization',
-    name: 'Colorado MeshCore',
-    url: BASE_URL,
-  },
-  mainEntityOfPage: {
-    '@type': 'WebPage',
-    '@id': `${BASE_URL}/use-cases/community-networks`,
-  },
+  author: { '@type': 'Organization', name: 'Colorado MeshCore', url: BASE_URL },
+  publisher: { '@type': 'Organization', name: 'Colorado MeshCore', url: BASE_URL },
+  mainEntityOfPage: { '@type': 'WebPage', '@id': `${BASE_URL}/use-cases/community-networks` },
 };
 
 const faqSchema = {
@@ -244,10 +207,7 @@ const faqSchema = {
   mainEntity: faqItems.map((item) => ({
     '@type': 'Question',
     name: item.question,
-    acceptedAnswer: {
-      '@type': 'Answer',
-      text: item.answer,
-    },
+    acceptedAnswer: { '@type': 'Answer', text: item.answer },
   })),
 };
 
@@ -257,272 +217,289 @@ export default function CommunityNetworksPage() {
       <JsonLd data={breadcrumbData} />
       <JsonLd data={pageSchema} />
       <JsonLd data={faqSchema} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Use Cases', href: '/use-cases' }, { label: 'Community Networks' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Community <span className="text-mesh">Mesh Networks</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-4 max-w-3xl mx-auto">
-              Build a resilient neighborhood network that connects your community
-              &mdash; no internet or cell service required.
-            </p>
-            <p className="text-lg text-foreground-muted mb-8 max-w-2xl mx-auto">
-              A community mesh network provides decentralized, free communication infrastructure
-              for neighborhoods, HOAs, and local communities across Colorado.
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains
+          eyebrow="Use case · Community"
+          eyebrowTone="mesh"
+          title={
+            <>
+              Community
+              <span className="block text-mesh">mesh networks</span>
+            </>
+          }
+          description="Build a resilient neighborhood network that connects your community — no internet or cell service required. Decentralized, free, owned by neighbors."
+          actions={
+            <>
               <Link href="/start" className="btn-primary">
-                Start Your Network
+                Start your network
               </Link>
-              <a href="#how-it-works" className="btn-outline">
-                How It Works
+              <a href="#how-it-works" className="btn-secondary">
+                How it works
               </a>
-            </div>
-          </div>
-        </section>
-
-        {/* What is a Community Mesh Network */}
-        <section className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-6xl mx-auto">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div>
-                <h2 className="text-3xl md:text-4xl font-bold mb-6 text-foreground">
-                  What is a Community Mesh Network?
-                </h2>
-                <div className="space-y-4 text-foreground-muted">
-                  <p>
-                    A <strong>community mesh network</strong> is a decentralized communication
-                    infrastructure built and owned by neighborhood residents. Unlike traditional
-                    networks that rely on cell towers and internet providers, a mesh network
-                    operates independently using radio waves.
-                  </p>
-                  <p>
-                    Each node in your <strong>neighborhood network</strong> can communicate directly
-                    with other nodes and relay messages across the community. This creates a resilient
-                    web of connections that works even when power grids and commercial networks fail.
-                  </p>
-                  <p>
-                    Using MeshCore technology and LoRa radios, communities across Denver and Colorado
-                    are building lasting communication infrastructure that serves their neighbors
-                    in everyday life and during emergencies.
-                  </p>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="card-mesh p-6 text-center">
-                  <div className="text-3xl font-bold text-mesh mb-2">10+ mi</div>
-                  <div className="text-sm text-foreground-muted">Node range</div>
-                </div>
-                <div className="card-mesh p-6 text-center">
-                  <div className="text-3xl font-bold text-forest-500 mb-2">$0</div>
-                  <div className="text-sm text-foreground-muted">Monthly fees</div>
-                </div>
-                <div className="card-mesh p-6 text-center">
-                  <div className="text-3xl font-bold text-mountain-500 mb-2">24/7</div>
-                  <div className="text-sm text-foreground-muted">Always on</div>
-                </div>
-                <div className="card-mesh p-6 text-center">
-                  <div className="text-3xl font-bold text-sunset-500 mb-2">100%</div>
-                  <div className="text-sm text-foreground-muted">Community owned</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Benefits Grid */}
-        <section className="px-6 py-16">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Why Build a Neighborhood Network?
-            </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              A community mesh network provides lasting value for your entire neighborhood.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {communityBenefits.map((benefit) => (
-                <div key={benefit.title} className="card-mesh p-6">
-                  <div
-                    className={`w-16 h-16 rounded-xl flex items-center justify-center mb-4`}
-                    style={{
-                      backgroundColor:
-                        benefit.color === 'mesh'
-                          ? 'rgba(14, 165, 233, 0.1)'
-                          : benefit.color === 'forest-500'
-                            ? 'rgba(34, 197, 94, 0.1)'
-                            : benefit.color === 'mountain-500'
-                              ? 'rgba(59, 130, 246, 0.1)'
-                              : 'rgba(249, 115, 22, 0.1)',
-                      color:
-                        benefit.color === 'mesh'
-                          ? '#0ea5e9'
-                          : benefit.color === 'forest-500'
-                            ? '#22c55e'
-                            : benefit.color === 'mountain-500'
-                              ? '#3b82f6'
-                              : '#f97316',
-                    }}
-                  >
-                    {benefit.icon}
-                  </div>
-                  <h3 className="text-xl font-bold mb-2 text-foreground">{benefit.title}</h3>
-                  <p className="text-foreground-muted">{benefit.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Use Case Scenarios */}
-        <section className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Perfect For Your Community
-            </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Community mesh networks adapt to any neighborhood type across Colorado.
-            </p>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {useCaseScenarios.map((scenario) => (
-                <div key={scenario.title} className="card-mesh p-6 text-center">
-                  <div className="text-4xl mb-4">{scenario.icon}</div>
-                  <h3 className="text-lg font-bold mb-2 text-foreground">{scenario.title}</h3>
-                  <p className="text-sm text-foreground-muted">{scenario.description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* How It Works */}
-        <section id="how-it-works" className="px-6 py-16">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Building Your Community Mesh Network
-            </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Four steps to create a resilient neighborhood network for your community.
-            </p>
-
-            <div className="space-y-8">
-              {implementationSteps.map((step) => (
-                <div key={step.step} className="card-mesh p-6 md:p-8">
-                  <div className="flex flex-col md:flex-row gap-6">
-                    <div className="flex-shrink-0">
-                      <div className="w-16 h-16 rounded-full bg-mesh/10 flex items-center justify-center">
-                        <span className="text-2xl font-bold text-mesh">{step.step}</span>
-                      </div>
-                    </div>
-                    <div className="flex-grow">
-                      <h3 className="text-xl font-bold mb-3 text-foreground">{step.title}</h3>
-                      <p className="text-foreground-muted mb-4">{step.description}</p>
-                      <ul className="space-y-2">
-                        {step.tips.map((tip, index) => (
-                          <li
-                            key={index}
-                            className="text-sm text-foreground-muted flex items-start gap-2"
-                          >
-                            <span className="text-mesh mt-0.5">&#10003;</span>
-                            <span>{tip}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Colorado MeshCore Advantage */}
-        <section className="px-6 py-16 bg-mountain-gradient text-white">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-8">
-              Join the Colorado MeshCore Community
-            </h2>
-            <div className="space-y-6 text-mountain-100 text-left max-w-3xl mx-auto">
-              <p className="text-lg">
-                When you build a neighborhood network with MeshCore, you&apos;re not starting from
-                scratch. You&apos;re joining a growing community mesh network that spans Denver and
-                the Colorado Front Range.
-              </p>
-              <p className="text-lg">
-                Your local network can connect to the broader Colorado MeshCore infrastructure,
-                extending your reach and providing access to repeaters across the region. This
-                means your community benefits from the collective effort of mesh enthusiasts
-                throughout Colorado.
-              </p>
-              <p className="text-lg">
-                Our Discord community provides support, guidance, and shared knowledge to help your
-                neighborhood network succeed. From hardware recommendations to installation tips,
-                experienced community members are ready to help.
-              </p>
-            </div>
-            <div className="mt-8">
-              <Link
-                href="/map"
-                className="text-white underline hover:text-mountain-100 transition-colors inline-flex items-center gap-2"
-              >
-                View Our Network Map
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M14 5l7 7m0 0l-7 7m7-7H3"
-                  />
-                </svg>
+              <Link href="/map" className="btn-outline">
+                Live map
               </Link>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs
+                items={[
+                  { label: 'Home', href: '/' },
+                  { label: 'Use Cases', href: '/use-cases' },
+                  { label: PAGE_TITLE },
+                ]}
+              />
             </div>
-          </div>
-        </section>
+          }
+        />
 
-        {/* FAQ Section */}
-        <section className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Community Network FAQ
-            </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Common questions about building a neighborhood mesh network.
-            </p>
+        {/* What is a community mesh network */}
+        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+          <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start">
+            <NetworkPanel
+              eyebrow="What is a community mesh?"
+              eyebrowTone="mesh"
+              title="Decentralized comms, owned by neighbors"
+              tone="elevated"
+              padding="lg"
+            >
+              <div className="space-y-4 text-foreground-muted leading-relaxed">
+                <p>
+                  A community mesh network is decentralized communication infrastructure built and
+                  owned by neighborhood residents. Unlike traditional networks that rely on cell
+                  towers and internet providers, a mesh network operates independently using radio
+                  waves.
+                </p>
+                <p>
+                  Each node can talk directly to others and relay messages across the community,
+                  creating a resilient web of connections that works even when the power grid and
+                  commercial networks fail.
+                </p>
+                <p>
+                  Using MeshCore and LoRa radios, communities across Denver and Colorado are
+                  building lasting infrastructure that serves their neighbors in everyday life and
+                  during emergencies.
+                </p>
+              </div>
+            </NetworkPanel>
 
-            <div className="space-y-6">
-              {faqItems.map((item, index) => (
-                <div key={index} className="card-mesh p-6">
-                  <h3 className="text-lg font-bold mb-3 text-foreground">{item.question}</h3>
-                  <p className="text-foreground-muted">{item.answer}</p>
+            <div className="grid grid-cols-2 gap-4">
+              {stats.map((stat) => (
+                <div key={stat.label} className="panel p-5 text-center">
+                  <div
+                    className={`text-2xl sm:text-3xl mono font-semibold tracking-tight mb-1 ${stat.tone}`}
+                  >
+                    {stat.value}
+                  </div>
+                  <div className="metric-label">{stat.label}</div>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* CTA Section */}
-        <section className="px-6 py-16 bg-night-stars text-white text-center">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-              Ready to Build Your Neighborhood Network?
+        {/* Benefits */}
+        <section className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <SectionEyebrow tone="mesh" className="justify-center">
+                Why build a neighborhood network?
+              </SectionEyebrow>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                Lasting value for your neighborhood.
+              </h2>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2">
+              {communityBenefits.map((benefit) => (
+                <NetworkPanel
+                  key={benefit.title}
+                  eyebrow={benefit.title}
+                  eyebrowTone={benefit.tone}
+                  padding="md"
+                  className="h-full"
+                >
+                  <div className="flex items-start gap-3">
+                    <span aria-hidden className="text-3xl text-mesh leading-none">
+                      {benefit.glyph}
+                    </span>
+                    <p className="text-sm text-foreground-muted leading-relaxed">
+                      {benefit.description}
+                    </p>
+                  </div>
+                </NetworkPanel>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Use cases */}
+        <section className="bg-background py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <SectionEyebrow tone="sky" className="justify-center">
+                Perfect for your community
+              </SectionEyebrow>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                Adapts to any neighborhood type.
+              </h2>
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+              {useCaseScenarios.map((scenario) => (
+                <div key={scenario.title} className="panel p-6 h-full text-center">
+                  <span aria-hidden className="text-4xl text-mesh leading-none mb-3 block">
+                    {scenario.glyph}
+                  </span>
+                  <h3 className="text-lg font-semibold text-foreground tracking-tight">
+                    {scenario.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-foreground-muted leading-relaxed">
+                    {scenario.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* How it works */}
+        <section id="how-it-works" className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <SectionEyebrow tone="sunset" className="justify-center">
+                Build your community mesh
+              </SectionEyebrow>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                Four steps to a resilient neighborhood network.
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {implementationSteps.map((step) => (
+                <div key={step.step} className="panel p-6 sm:p-7 flex flex-col md:flex-row gap-5">
+                  <div
+                    className="flex-shrink-0 w-12 h-12 rounded-full bg-mesh/15 border border-mesh/40 flex items-center justify-center font-mono font-semibold text-mesh"
+                    aria-hidden
+                  >
+                    {step.step.toString().padStart(2, '0')}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-foreground tracking-tight">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm text-foreground-muted leading-relaxed">
+                      {step.description}
+                    </p>
+                    <ul className="mt-4 space-y-2">
+                      {step.tips.map((tip) => (
+                        <li
+                          key={tip}
+                          className="text-sm text-foreground-muted flex items-start gap-2"
+                        >
+                          <span aria-hidden className="text-mesh mt-0.5">
+                            ◊
+                          </span>
+                          <span>{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Join Colorado MeshCore */}
+        <section className="bg-background py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <div className="panel-elevated p-6 sm:p-8 lg:p-10">
+              <SectionEyebrow tone="mesh">Join {COMMUNITY_NAME}</SectionEyebrow>
+              <h2 className="mt-3 text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+                You don&apos;t start from scratch.
+              </h2>
+              <div className="mt-5 space-y-4 text-foreground-muted leading-relaxed">
+                <p>
+                  When you build a neighborhood network with MeshCore, you join a growing mesh that
+                  spans Denver and the Front Range. Your local network can connect to the broader
+                  {' '}{COMMUNITY_NAME} infrastructure for extended reach and access to repeaters
+                  across the region.
+                </p>
+                <p>
+                  Our Discord provides support and shared knowledge — from hardware
+                  recommendations to install tips, experienced operators are ready to help.
+                </p>
+              </div>
+              <div className="mt-6 flex flex-wrap gap-3">
+                <Link href="/map" className="btn-secondary">
+                  View network map
+                </Link>
+                <a
+                  href={DISCORD_INVITE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline"
+                >
+                  Join Discord
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* FAQ */}
+        <section className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-10">
+              <SectionEyebrow tone="sky" className="justify-center">
+                FAQ
+              </SectionEyebrow>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                Community network questions.
+              </h2>
+            </div>
+
+            <div className="space-y-4">
+              {faqItems.map((item) => (
+                <div key={item.question} className="panel p-6">
+                  <h3 className="text-lg font-semibold text-foreground tracking-tight">
+                    {item.question}
+                  </h3>
+                  <p className="mt-2 text-sm text-foreground-muted leading-relaxed">
+                    {item.answer}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="bg-night-stars py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+            <SectionEyebrow tone="mesh" className="justify-center">
+              Ready to build your neighborhood network?
+            </SectionEyebrow>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-snow-100 tracking-tight">
+              Start small, grow organically.
             </h2>
-            <p className="text-mountain-100 mb-8 text-lg">
-              Start small, grow organically, and create lasting communication infrastructure for
-              your community. The Colorado MeshCore community is here to help you succeed.
+            <p className="mt-4 text-lg text-mountain-100 leading-relaxed">
+              Create lasting communication infrastructure for your community. The {COMMUNITY_NAME}
+              {' '}community is here to help.
             </p>
-            <div className="flex flex-wrap gap-4 justify-center">
-              <Link href="/start" className="btn-accent">
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Link href="/start" className="btn-primary">
                 Get Started
               </Link>
               <a
-                href="https://discord.gg/Tuuv9hGPnX"
+                href={DISCORD_INVITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-outline border-white text-white hover:bg-white hover:text-night-950"
+                className="btn-secondary"
               >
                 Join Discord
               </a>

@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { HeroPanel, SectionEyebrow } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { generateFAQSchema, startPageFAQData } from "@/lib/schemas/faq";
-import { BASE_URL, DISCORD_INVITE_URL } from "@/lib/constants";
+import { ANALYZER_URL, BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Troubleshooting & Resources",
@@ -71,39 +72,44 @@ const troubleshootingItems = [
 
 const resources = [
   {
-    name: "MeshCore Official Website",
-    url: "https://meshcore.co.uk/",
-    description: "Official MeshCore project website with downloads and guides",
+    name: `${COMMUNITY_NAME} analyzer`,
+    url: ANALYZER_URL,
+    description: "Per-node telemetry, link quality, and routing for the Colorado Mesh.",
   },
   {
-    name: "MeshCore Web Flasher",
+    name: "MeshCore official website",
+    url: "https://meshcore.co.uk/",
+    description: "Official MeshCore project website with downloads and guides.",
+  },
+  {
+    name: "MeshCore web flasher",
     url: "https://flasher.meshcore.co.uk/",
-    description: "Flash MeshCore firmware directly from your browser",
+    description: "Flash MeshCore firmware directly from your browser.",
   },
   {
     name: "MeshCore GitHub",
     url: "https://github.com/meshcore-dev/MeshCore",
-    description: "Official MeshCore firmware source code and documentation",
+    description: "Official MeshCore firmware source code and documentation.",
   },
   {
-    name: "LetsMesh Analyzer",
+    name: "LetsMesh analyzer",
     url: "https://analyzer.letsmesh.net/",
-    description: "Real-time network visualization and node statistics",
+    description: "Global mesh visualization and per-node statistics.",
   },
   {
-    name: "DEN-DENVR-RUBY-OB-4d0c Analyzer",
+    name: "DEN-DENVR-RUBY-OB-4d0c analyzer",
     url: "https://analyzer.letsmesh.net/node/4D0CC1003DBF678DF420907F9ACD77BD71D9E4C34300F72660F6BA6A2656A868",
-    description: "View the DEN-DENVR-RUBY-OB-4d0c analyzer node on LetsMesh",
+    description: "View the DEN-DENVR-RUBY-OB-4d0c analyzer node on LetsMesh.",
   },
   {
-    name: "Meadowood Analyzer",
+    name: "Meadowood analyzer",
     url: "https://analyzer.letsmesh.net/node/7BC042F4C47C3539BBEF6C2FA520A9553B0C44E8EFEF2A3D90A39BE2FE7C7F4B",
-    description: "View the Meadowood analyzer node on LetsMesh",
+    description: "View the Meadowood analyzer node on LetsMesh.",
   },
   {
-    name: "Colorado MeshCore Discord",
-    url: "https://discord.gg/Tuuv9hGPnX",
-    description: "Community chat, support, and coordination",
+    name: `${COMMUNITY_NAME} Discord`,
+    url: DISCORD_INVITE_URL,
+    description: "Community chat, support, and coordination.",
   },
 ];
 
@@ -120,52 +126,79 @@ export default function TroubleshootingPage() {
     <>
       <JsonLd data={breadcrumbData} />
       <JsonLd data={faqData} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Troubleshooting' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Troubleshooting & <span className="text-mesh">Resources</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Common issues and solutions, plus helpful links
-            </p>
-          </div>
-        </section>
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains={false}
+          eyebrow={`${COMMUNITY_NAME} · Support`}
+          eyebrowTone="sunset"
+          title={
+            <>
+              Troubleshooting &amp;
+              <span className="block text-mesh">resources</span>
+            </>
+          }
+          description="Common issues and solutions, plus links to deeper telemetry and the operator chat."
+          actions={
+            <>
+              <Link href="/tools/serial-usb" className="btn-primary">
+                Open serial console
+              </Link>
+              <a
+                href={ANALYZER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-secondary"
+              >
+                Network analyzer
+              </a>
+              <a
+                href={DISCORD_INVITE_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-outline"
+              >
+                Discord
+              </a>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Troubleshooting' }]} />
+            </div>
+          }
+        />
 
-        {/* Troubleshooting */}
-        <section className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Common Issues
+        {/* Common Issues */}
+        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+          <div className="mx-auto max-w-4xl">
+            <SectionEyebrow tone="sunset" className="mb-3">
+              Common issues
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Quick fixes from the field.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Running into issues? Here are solutions to common problems.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-8">
+              Running into something tricky? Click any item to expand step-by-step solutions.
             </p>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               {troubleshootingItems.map((item, index) => (
-                <details key={index} className="card-mesh overflow-hidden group">
-                  <summary className="p-6 cursor-pointer flex items-center justify-between hover:bg-snow-100 dark:hover:bg-night-800 transition-colors">
-                    <h3 className="text-lg font-semibold text-sunset-700 flex items-center gap-3">
-                      <span className="text-xl">⚠️</span>
+                <details key={index} className="panel overflow-hidden group">
+                  <summary className="p-6 cursor-pointer flex items-center justify-between hover:bg-card-elevated transition-colors">
+                    <h3 className="text-lg font-semibold text-foreground tracking-tight flex items-center gap-3">
+                      <span aria-hidden className="text-2xl text-sunset-500 leading-none">◊</span>
                       {item.issue}
                     </h3>
-                    <svg
-                      className="w-5 h-5 text-foreground-muted transform transition-transform group-open:rotate-180"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    <span aria-hidden className="text-foreground-dim transition-transform group-open:rotate-180">
+                      ▾
+                    </span>
                   </summary>
                   <div className="px-6 pb-6 pt-2 border-t border-card-border">
                     <ul className="space-y-2">
                       {item.solutions.map((solution, sIndex) => (
                         <li key={sIndex} className="text-foreground-muted flex items-start gap-2">
-                          <span className="text-forest-500 mt-1">✓</span>
+                          <span aria-hidden className="text-mesh mt-1">◊</span>
                           <span>{solution}</span>
                         </li>
                       ))}
@@ -175,71 +208,110 @@ export default function TroubleshootingPage() {
               ))}
             </div>
 
-            <div className="mt-8 text-center">
+            <div className="mt-10 panel-elevated p-6 sm:p-7 text-center">
               <p className="text-foreground-muted mb-4">
-                Still having trouble? Our community is here to help!
+                Still stuck? Operators are happy to help in #support.
               </p>
               <a
-                href="https://discord.gg/Tuuv9hGPnX"
+                href={DISCORD_INVITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-primary inline-flex items-center gap-2"
+                className="btn-primary"
               >
-                Get Help on Discord
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>
-                </svg>
+                Get help on Discord
               </a>
             </div>
           </div>
         </section>
 
-        <section className="px-6 py-16">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+        <section className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="mesh" className="mb-3">
               Support tools
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              When the FAQ doesn&apos;t unblock you.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              When the FAQ does not unblock you, these places will. Start with serial diagnostics, watch the live map, then ask in Discord.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-10">
+              Start with serial diagnostics, watch the live map, drill into the analyzer, then
+              ask in Discord.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Link href="/tools/serial-usb" className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring">
-                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">Field Tool</div>
-                <h3 className="font-semibold text-foreground group-hover:text-mesh transition-colors">Serial USB console</h3>
-                <p className="mt-1 text-sm text-foreground-muted">Talk to the node, dump version and stats, and check the radio over USB.</p>
+              <Link
+                href="/tools/serial-usb"
+                className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
+                  Field tool
+                </div>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Serial USB console
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">
+                  Talk to the node, dump version and stats, and check the radio over USB.
+                </p>
               </Link>
-              <Link href="/map" className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring">
-                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">Live Coverage</div>
-                <h3 className="font-semibold text-foreground group-hover:text-mesh transition-colors">Live Map</h3>
-                <p className="mt-1 text-sm text-foreground-muted">Confirm whether your node is broadcasting and being seen by neighbors.</p>
+              <Link
+                href="/map"
+                className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
+                  Live coverage
+                </div>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Live Map
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">
+                  Confirm your node is broadcasting and being seen by neighbors.
+                </p>
               </Link>
-              <Link href="/tools" className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring">
-                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">Operator Tools</div>
-                <h3 className="font-semibold text-foreground group-hover:text-mesh transition-colors">Tools hub</h3>
-                <p className="mt-1 text-sm text-foreground-muted">Naming, prefix planning, and field utilities — all the operator entry points.</p>
-              </Link>
+              <a
+                href={ANALYZER_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
+                  Telemetry
+                </div>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Network analyzer
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">
+                  Per-node link quality, neighbors, and routing on the {COMMUNITY_NAME} analyzer.
+                </p>
+              </a>
               <a
                 href={DISCORD_INVITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
               >
-                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">Community</div>
-                <h3 className="font-semibold text-foreground group-hover:text-mesh transition-colors">Discord chat</h3>
-                <p className="mt-1 text-sm text-foreground-muted">Ask in #support — operators are happy to help diagnose tricky issues.</p>
+                <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
+                  Community
+                </div>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Discord chat
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">
+                  Ask in #support — operators are happy to help diagnose tricky issues.
+                </p>
               </a>
             </div>
           </div>
         </section>
 
         {/* Resources */}
-        <section className="px-6 py-16">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+        <section className="bg-background py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="sky" className="mb-3">
               Resources
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              External documentation &amp; analyzers.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Helpful links and documentation to support your mesh networking journey.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-10">
+              Helpful links to support your mesh networking journey — start with the {COMMUNITY_NAME} analyzer for live telemetry.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -249,16 +321,19 @@ export default function TroubleshootingPage() {
                   href={resource.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="card-mesh p-5 flex items-start gap-4 hover:ring-2 hover:ring-mesh transition-all"
+                  className="panel p-5 flex items-start gap-4 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
                 >
-                  <div className="flex-shrink-0 w-10 h-10 bg-mountain-100 dark:bg-night-700 rounded-lg flex items-center justify-center">
-                    <svg className="w-5 h-5 text-mountain-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground mb-1">{resource.name}</h3>
-                    <p className="text-sm text-foreground-muted">{resource.description}</p>
+                  <span aria-hidden className="text-3xl text-mesh leading-none mt-0.5">
+                    ◊
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                      {resource.name}
+                      <span aria-hidden className="ml-1 text-xs text-foreground-dim">↗</span>
+                    </h3>
+                    <p className="mt-1 text-sm text-foreground-muted leading-relaxed">
+                      {resource.description}
+                    </p>
                   </div>
                 </a>
               ))}

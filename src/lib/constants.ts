@@ -35,6 +35,7 @@ export const BRAND = {
   meshcoreDocsUrl: 'https://meshcore.co',
   letsMeshUrl: 'https://letsmesh.net',
   githubOrgUrl: 'https://github.com/Colorado-Mesh',
+  analyzerUrl: 'https://analyzer.meshcore.coloradomesh.org',
   logoPath: '/brand/linux/256x256.png',
   iconPath: '/brand/win/colorado-mesh.ico',
 } as const;
@@ -59,6 +60,7 @@ export const DISCORD_INVITE_URL = BRAND.discordInviteUrl;
 export const MESHCORE_DOCS_URL = BRAND.meshcoreDocsUrl;
 export const LETSMESH_URL = BRAND.letsMeshUrl;
 export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
+export const ANALYZER_URL = BRAND.analyzerUrl;
 
 // =============================================================================
 // API Configuration

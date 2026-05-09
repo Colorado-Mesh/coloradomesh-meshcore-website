@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { HeroPanel, SectionEyebrow } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, COMMUNITY_NAME } from "@/lib/constants";
 import {
   COLORADO_MESH_RADIO_COMMANDS,
   COLORADO_MESH_RADIO_SETTINGS,
@@ -69,31 +70,53 @@ export default function RadioSettingsPage() {
   return (
     <>
       <JsonLd data={breadcrumbData} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Radio Settings & Channels' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Radio Settings & <span className="text-mesh">Channels</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Frequencies, presets, and channel list for the Denver/Front Range area
-            </p>
-          </div>
-        </section>
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains={false}
+          eyebrow={`${COMMUNITY_NAME} · Reference`}
+          eyebrowTone="sky"
+          title={
+            <>
+              Radio settings &amp;
+              <span className="block text-mesh">channels</span>
+            </>
+          }
+          description={`Frequencies, presets, and the canonical channel list every ${COMMUNITY_NAME} node should match.`}
+          actions={
+            <>
+              <Link href="/tools/serial-usb" className="btn-primary">
+                Open serial console
+              </Link>
+              <Link href="/guides/repeater-setup" className="btn-secondary">
+                Repeater setup
+              </Link>
+              <Link href="/map" className="btn-outline">
+                Live map
+              </Link>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Radio Settings & Channels' }]} />
+            </div>
+          }
+        />
 
         {/* Radio Settings */}
-        <section className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Radio Settings
+        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+          <div className="mx-auto max-w-4xl">
+            <SectionEyebrow tone="sky" className="mb-3">
+              Radio settings
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Front Range preset.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Use these settings to connect to other nodes in our area. These settings can be found in the MeshCore app listed as <span className="text-mesh font-semibold">USA/Canada (Recommended)</span>.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-8">
+              Use these settings to connect to other nodes in our area. They appear in the MeshCore app as <span className="text-mesh font-semibold">USA/Canada (Recommended)</span>.
             </p>
 
-            <div className="card-mesh overflow-hidden mb-8">
+            <div className="panel overflow-hidden mb-6">
               <table className="w-full">
                 <thead className="bg-night-800/50">
                   <tr>
@@ -112,36 +135,51 @@ export default function RadioSettingsPage() {
               </table>
             </div>
 
-            <div className="card-mesh overflow-hidden mb-8">
+            <div className="panel overflow-hidden mb-8">
               <div className="bg-night-900 p-6 font-mono text-sm">
-                <div className="text-foreground-muted text-xs mb-3">Repeater CLI commands</div>
-                <pre className="text-forest-400 whitespace-pre-wrap">{radioCommands}</pre>
+                <div className="text-foreground-dim text-xs mb-3 mono uppercase tracking-[0.18em]">
+                  Repeater CLI commands
+                </div>
+                <pre className="text-forest-300 whitespace-pre-wrap">{radioCommands}</pre>
               </div>
             </div>
 
-            <p className="text-sm text-foreground-muted text-center">
-              These are the canonical Colorado Mesh recommended settings used by the utility-site configuration generator. More information about MeshCore radio configuration can be found in the{" "}
-              <a href="https://meshcore.co.uk/" target="_blank" rel="noopener noreferrer" className="text-mesh hover:text-mesh-light">
+            <p className="text-sm text-foreground-muted">
+              These are the canonical {COMMUNITY_NAME} settings used by the utility-site
+              configuration generator. More information about MeshCore radio configuration is in
+              the{" "}
+              <a
+                href="https://meshcore.co.uk/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-mesh hover:text-mesh-light underline underline-offset-2"
+              >
                 MeshCore documentation
-              </a>.
+              </a>
+              .
             </p>
           </div>
         </section>
 
         {/* Channels */}
-        <section className="px-6 py-16">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
+        <section className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="mesh" className="mb-3">
               Channels
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Front Range channel keys.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Join these channels to communicate with other Colorado MeshCore members.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-8">
+              Join these channels to communicate with other {COMMUNITY_NAME} operators.
             </p>
 
-            <div className="card-mesh overflow-hidden">
+            <div className="panel overflow-hidden">
               <div className="p-6 border-b border-card-border">
                 <p className="text-foreground-muted text-sm">
-                  Hashtag topic keys are automatically calculated by the system. The keys are included to help users on devices that cannot type the # (hash) symbol or lack the key calculation functionality.
+                  Hashtag topic keys are auto-calculated by the system. They&apos;re included here
+                  for devices that can&apos;t type <code className="text-mesh">#</code> or
+                  don&apos;t calculate keys.
                 </p>
               </div>
               <table className="w-full">

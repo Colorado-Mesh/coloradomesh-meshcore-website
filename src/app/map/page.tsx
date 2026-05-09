@@ -6,6 +6,7 @@ import JsonLd from '@/components/JsonLd';
 import { NetworkMapWrapper } from '@/components';
 import { HeroPanel, NetworkPanel, SectionEyebrow, ToolCard } from '@/components';
 import {
+  ANALYZER_URL,
   BASE_URL,
   COMMUNITY_NAME,
   DISCORD_INVITE_URL,
@@ -175,6 +176,29 @@ export default function MapPage() {
                 </p>
               </div>
             </aside>
+
+            <aside
+              className="mt-3 panel-mesh px-5 py-4 text-xs text-foreground-muted"
+              aria-label="Network analyzer"
+            >
+              <div className="flex flex-wrap items-start gap-x-4 gap-y-2">
+                <span className="tag-mono shrink-0">Analyzer</span>
+                <p className="leading-relaxed">
+                  Drill into routing, link quality, and per-node telemetry on
+                  the {COMMUNITY_NAME} analyzer at{' '}
+                  <a
+                    href={ANALYZER_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                  >
+                    analyzer.meshcore.coloradomesh.org
+                  </a>
+                  . The analyzer is a sibling deployment to this map and reads
+                  the same MQTT firehose.
+                </p>
+              </div>
+            </aside>
           </div>
         </section>
 
@@ -267,16 +291,17 @@ export default function MapPage() {
                 href="/guides/getting-started"
               />
               <ToolCard
-                tone="sunset"
-                glyph="◇"
-                tag="GET STARTED"
-                title="Already have hardware?"
-                description="Configure your existing MeshCore device against Colorado MeshCore conventions."
-                href="/start"
+                tone="sky"
+                glyph="◎"
+                tag="ANALYZER"
+                title="Network analyzer"
+                description="Drill into per-node telemetry, link quality, and routing on the Colorado Mesh analyzer."
+                href={ANALYZER_URL}
+                external
               />
               <ToolCard
-                tone="sky"
-                glyph="◉"
+                tone="sunset"
+                glyph="◇"
                 tag="OPERATORS"
                 title="Operator tools"
                 description="Naming wizard, prefix matrix, and other operator utilities for the Colorado mesh."

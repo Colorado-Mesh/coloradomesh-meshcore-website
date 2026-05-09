@@ -61,6 +61,15 @@ describe('map snapshot store', () => {
     expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer secret-token' }));
   });
 
+  it('does not return sample nodes when no real source is configured', async () => {
+    const { getMapSnapshot } = await loadStoreModule();
+    const snapshot = await getMapSnapshot();
+
+    expect(snapshot.source.type).toBe('empty');
+    expect(snapshot.connection.sampleData).toBe(false);
+    expect(snapshot.nodes).toEqual([]);
+  });
+
   it('derives compatibility node and stat helpers from the canonical snapshot', async () => {
     process.env.MESHCORE_MAP_SAMPLE_DATA = 'true';
 

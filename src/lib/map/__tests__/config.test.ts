@@ -77,8 +77,54 @@ describe('map runtime config', () => {
     );
   });
 
-  it('warns when production uses sample data without explicit demo mode', async () => {
+  it('uses the configured analyzer API without sample data in production', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'https://analyzer.meshcore.coloradomesh.org/api/nodes';
+
+    const { getMapRuntimeConfig, getMapPublicRuntimeConfig } = await loadConfigModule();
+    const runtimeConfig = getMapRuntimeConfig();
+    const publicRuntimeConfig = getMapPublicRuntimeConfig(runtimeConfig);
+
+    expect(runtimeConfig.liveMapApiConfigured).toBe(true);
+    expect(publicRuntimeConfig.sampleData).toBe(false);
+    expect(publicRuntimeConfig.sourceLabel).toBe('meshcore-mqtt-live-map API');
+    expect(publicRuntimeConfig.warnings).toEqual([]);
+    expect(publicRuntimeConfig.features).toContainEqual(
+      expect.objectContaining({
+        id: 'advanced-live-map-proxy',
+        status: 'unavailable',
+      })
+    );
+  });
+
+  it('enables advanced live-map proxy features for full live-map upstreams', async () => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'https://live-map.example.test/api/nodes';
+
+    const { getMapPublicRuntimeConfig } = await loadConfigModule();
+    const runtimeConfig = getMapPublicRuntimeConfig();
+
+    expect(runtimeConfig.features).toContainEqual(
+      expect.objectContaining({
+        id: 'advanced-live-map-proxy',
+        status: 'available',
+      })
+    );
+  });
+
+  it('does not enable sample data when no source is configured', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+
+    const { getMapPublicRuntimeConfig } = await loadConfigModule();
+    const runtimeConfig = getMapPublicRuntimeConfig();
+
+    expect(runtimeConfig.sampleData).toBe(false);
+    expect(runtimeConfig.sourceLabel).toBe('No map source configured');
+    expect(runtimeConfig.warnings).toEqual([]);
+  });
+
+  it('warns when sample data is explicitly enabled in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'true';
 
     const { getMapPublicRuntimeConfig } = await loadConfigModule();
     const runtimeConfig = getMapPublicRuntimeConfig();
@@ -94,6 +140,7 @@ describe('map runtime config', () => {
 
   it('uses informational warning for explicit demo mode', async () => {
     vi.stubEnv('NODE_ENV', 'production');
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'true';
     process.env.MESHCORE_MAP_DEMO_MODE = 'true';
 
     const { getMapPublicRuntimeConfig } = await loadConfigModule();

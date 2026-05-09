@@ -1,7 +1,9 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllPosts } from '@/lib/blog';
-import { BASE_URL } from '@/lib/constants';
+import { BASE_URL, COMMUNITY_NAME, SITE_NAME } from '@/lib/constants';
+import Breadcrumbs from '@/components/Breadcrumbs';
+import { HeroPanel, SectionEyebrow } from '@/components/brand';
 
 export const metadata: Metadata = {
   title: 'Blog',
@@ -11,7 +13,7 @@ export const metadata: Metadata = {
     canonical: `${BASE_URL}/blog`,
   },
   openGraph: {
-    title: 'Blog | Colorado MeshCore',
+    title: `Blog | ${SITE_NAME}`,
     description:
       'News, tutorials, and updates from the Colorado MeshCore community.',
     url: `${BASE_URL}/blog`,
@@ -39,98 +41,91 @@ export default function BlogPage() {
   const posts = getAllPosts();
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative py-16 sm:py-24 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-mesh/5 to-transparent" />
-        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-6">
-              Blog
-            </h1>
-            <p className="text-xl text-foreground-muted max-w-2xl mx-auto">
-              News, tutorials, and updates from the Colorado MeshCore community.
-            </p>
+    <div className="min-h-screen">
+      <HeroPanel
+        background="topo-grid"
+        showMountains={false}
+        eyebrow={`${COMMUNITY_NAME} · Blog`}
+        eyebrowTone="sky"
+        title={
+          <>
+            Field notes &amp;
+            <span className="block text-mesh">network updates</span>
+          </>
+        }
+        description="News, tutorials, and updates from the Colorado MeshCore community. Operator field notes, hardware reviews, and announcements."
+        actions={
+          <>
+            <Link href="/start" className="btn-primary">
+              Get Started
+            </Link>
+            <Link href="/map" className="btn-secondary">
+              Live Map
+            </Link>
+            <Link href="/guides" className="btn-outline">
+              Guides
+            </Link>
+          </>
+        }
+        meta={
+          <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Blog' }]} />
           </div>
-        </div>
-      </section>
+        }
+      />
 
-      {/* Blog Posts */}
-      <section className="py-12 sm:py-16">
-        <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+      <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+        <div className="mx-auto max-w-4xl">
           {posts.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-mesh/10 mb-6">
-                <svg
-                  className="w-8 h-8 text-mesh"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
-                  />
-                </svg>
-              </div>
-              <h2 className="text-2xl font-semibold text-foreground mb-4">
-                Coming Soon
+            <div className="panel p-10 sm:p-14 text-center">
+              <SectionEyebrow tone="sky" className="justify-center">
+                Coming soon
+              </SectionEyebrow>
+              <h2 className="mt-4 text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+                Posts inbound.
               </h2>
-              <p className="text-foreground-muted max-w-md mx-auto">
-                We&apos;re working on some great content. Check back soon for
-                news, tutorials, and updates from the Colorado MeshCore community.
+              <p className="mt-3 text-foreground-muted max-w-md mx-auto">
+                We&apos;re working on great content. Check back soon for news, tutorials, and
+                updates from the {COMMUNITY_NAME} community.
               </p>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-4">
               {posts.map((post) => (
                 <article
                   key={post.slug}
-                  className="group bg-card border border-border rounded-xl p-6 hover:border-mesh/50 transition-colors"
+                  className="group panel p-6 sm:p-7 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                 >
-                  <Link href={`/blog/${post.slug}`}>
+                  <Link href={`/blog/${post.slug}`} className="block focus-ring rounded-md">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="flex-1">
-                        <h2 className="text-xl font-semibold text-foreground group-hover:text-mesh transition-colors mb-2">
-                          {post.title}
-                        </h2>
-                        <p className="text-foreground-muted mb-4">
-                          {post.excerpt}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-foreground-muted">
-                          <span>{formatDate(post.date)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-3 mb-3 text-xs mono uppercase tracking-[0.18em] text-foreground-dim">
+                          <time dateTime={post.date}>{formatDate(post.date)}</time>
+                          <span aria-hidden>·</span>
                           <span>{post.readingTime}</span>
                         </div>
+                        <h2 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                          {post.title}
+                        </h2>
+                        <p className="mt-2 text-foreground-muted leading-relaxed">
+                          {post.excerpt}
+                        </p>
                       </div>
-                      <div className="hidden sm:block">
-                        <span className="inline-flex items-center text-mesh group-hover:translate-x-1 transition-transform">
-                          Read more
-                          <svg
-                            className="w-4 h-4 ml-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
+                      <div className="hidden sm:block shrink-0">
+                        <span className="inline-flex items-center gap-1 text-sm text-mesh group-hover:text-mesh-light">
+                          Read
+                          <span aria-hidden className="transition-transform group-hover:translate-x-0.5">→</span>
                         </span>
                       </div>
                     </div>
                   </Link>
                   {post.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-3">
+                    <div className="flex flex-wrap gap-2 mt-4">
                       {post.tags.map((tag) => (
                         <Link
                           key={tag}
                           href={`/blog/tag/${encodeURIComponent(tag.toLowerCase())}`}
-                          className="px-2 py-0.5 bg-mesh/10 text-mesh rounded-full text-xs hover:bg-mesh/20 transition-colors"
+                          className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors"
                         >
                           {tag}
                         </Link>

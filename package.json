@@ -13,7 +13,8 @@
     "test:e2e": "playwright test",
     "test:a11y": "playwright test --grep @a11y",
     "test:lighthouse": "lhci autorun",
-    "docker:smoke": "node scripts/docker-smoke.mjs"
+    "docker:smoke": "node scripts/docker-smoke.mjs",
+    "verify:map:real": "node scripts/verify-real-map-data.mjs"
   },
   "engines": {
     "node": ">=24 <26"

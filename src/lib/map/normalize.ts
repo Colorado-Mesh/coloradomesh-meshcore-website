@@ -160,7 +160,15 @@ export function normalizeLiveMapNode(input: unknown, now = new Date()): MapNode 
     input.role ?? input.device_role ?? input.type ?? input.nodeType ?? input.node_type ?? input.mode
   );
   const lastHeardAt = normalizeTimestamp(
-    input.lastHeardAt ?? input.last_heard_at ?? input.lastSeen ?? input.last_seen ?? input.last_seen_ts ?? input.updatedAt ?? input.timestamp
+    input.lastHeardAt
+      ?? input.last_heard_at
+      ?? input.lastHeard
+      ?? input.last_heard
+      ?? input.lastSeen
+      ?? input.last_seen
+      ?? input.last_seen_ts
+      ?? input.updatedAt
+      ?? input.timestamp
   );
   const status = deriveMapNodeStatus(lastHeardAt, role, now);
   const batteryMv = readNumber(input, [

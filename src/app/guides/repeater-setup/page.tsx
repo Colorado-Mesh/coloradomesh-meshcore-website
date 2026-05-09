@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { HeroPanel } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, COMMUNITY_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Repeater Setup Guide",
@@ -224,45 +225,50 @@ export default function RepeaterSetupPage() {
   return (
     <>
       <JsonLd data={breadcrumbData} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Repeater Setup' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Repeater <span className="text-mesh">Setup Guide</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Set up and tune a repeater node for the Colorado MeshCore network
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains
+          eyebrow={`${COMMUNITY_NAME} · Deep dive`}
+          eyebrowTone="sunset"
+          title={
+            <>
+              Repeater
+              <span className="block text-mesh">setup guide</span>
+            </>
+          }
+          description={`Set up and tune a repeater node for the ${COMMUNITY_NAME} network — TX/RX delay profiles, AGC tuning, and serial preflight.`}
+          actions={
+            <>
               <a href="#getting-running" className="btn-primary">
-                Getting Started
+                Get running
               </a>
-              <a href="#profiles" className="btn-outline">
-                TX/RX Delay Profiles
+              <a href="#profiles" className="btn-secondary">
+                Delay profiles
               </a>
               <a href="#serial-preflight" className="btn-outline">
-                Serial Preflight
+                Serial preflight
               </a>
-              <a href="#understanding" className="btn-outline">
-                Technical Reference
-              </a>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Repeater Setup' }]} />
             </div>
-          </div>
-        </section>
+          }
+        />
 
         {/* Getting Your Repeater Running */}
-        <section id="getting-running" className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Getting Your Repeater Running
+        <section id="getting-running" className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+          <div className="mx-auto max-w-4xl">
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-3">
+              Getting your repeater running.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Follow these steps to get a basic repeater node online.
+            <p className="text-foreground-muted mb-8 max-w-2xl">
+              Five steps to get a basic repeater node online.
             </p>
 
-            <div className="card-mesh p-6 md:p-8">
+            <div className="panel p-6 sm:p-8">
               <ul className="space-y-4">
                 {[
                   "Flash with Repeater firmware from the web flasher",

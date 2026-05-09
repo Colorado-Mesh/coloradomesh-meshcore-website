@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import BrandMark from './brand/BrandMark';
 import {
+  ANALYZER_URL,
   COMMUNITY_NAME,
   DISCORD_INVITE_URL,
   GITHUB_ORG_URL,
@@ -22,6 +23,7 @@ const communityLinks: ExternalFooterLink[] = [
 ];
 
 const resourceLinks: ExternalFooterLink[] = [
+  { href: ANALYZER_URL, label: `${COMMUNITY_NAME} analyzer` },
   { href: MESHCORE_DOCS_URL, label: 'MeshCore docs' },
   { href: LETSMESH_URL, label: 'LetsMesh' },
 ];

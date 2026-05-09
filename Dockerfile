@@ -18,7 +18,11 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=0.0.0.0 \
-    PORT=3000
+    PORT=3000 \
+    MESHCORE_MAP_SAMPLE_DATA=false \
+    MESHCORE_MAP_DEMO_MODE=false \
+    MESHCORE_LIVE_MAP_API_URL=https://analyzer.meshcore.coloradomesh.org/api/nodes \
+    MESHCORE_LIVE_MAP_API_REFRESH_SECONDS=30
 
 RUN addgroup --system --gid 1001 nodejs \
   && adduser --system --uid 1001 nextjs

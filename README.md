@@ -59,7 +59,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-The container listens on port `3000` and defaults to sample map data when no live map source is configured. Set `MESHCORE_LIVE_MAP_API_URL` to a running `meshcore-mqtt-live-map` `/api/nodes` endpoint for the preferred production feed; direct MQTT remains available for JSON-compatible map payloads. Runtime settings are provided through environment variables; secrets should stay in `.env` or the deployment environment, not in the image.
+The container listens on port `3000`, defaults to the public Colorado Mesh analyzer node API, and shows no fake nodes by default. Set `MESHCORE_LIVE_MAP_API_URL` to override the live feed with another compatible `/api/nodes` endpoint. Direct MQTT remains available for JSON-compatible map payloads, and the optional Compose `live-map` profile can run a private sidecar against the Colorado Mesh MQTT broker when subscriber credentials are available. Runtime settings are provided through environment variables; secrets should stay in `.env` or the deployment environment, not in the image.
 
 ## Runtime Environment
 
@@ -67,10 +67,17 @@ The container listens on port `3000` and defaults to sample map data when no liv
 |----------|----------|-------------|
 | `NEXT_PUBLIC_SITE_URL` | No | Public site URL for metadata and canonical links. |
 | `NEXT_PUBLIC_MAP_TILE_URL` | No | Leaflet tile URL template. |
-| `MESHCORE_MAP_SAMPLE_DATA` | No | Use bundled sample data when no live source is configured; set `true` for demo mode. |
-| `MESHCORE_LIVE_MAP_API_URL` | No | Preferred live source: a `meshcore-mqtt-live-map`-compatible `/api/nodes` endpoint. |
+| `MESHCORE_MAP_SAMPLE_DATA` | No | Use bundled sample nodes only for intentional demos; defaults to `false`. |
+| `MESHCORE_LIVE_MAP_API_URL` | No | Preferred live source; defaults to `https://analyzer.meshcore.coloradomesh.org/api/nodes`. |
 | `MESHCORE_LIVE_MAP_API_TOKEN` | No | Optional server-side token for protected live-map API instances. |
 | `MESHCORE_LIVE_MAP_API_REFRESH_SECONDS` | No | Minimum refresh interval for polling the live-map API; defaults to `30`. |
+| `LIVE_MAP_MQTT_HOST` | No | Compose sidecar MQTT host; defaults to `mqtt.meshcore.coloradomesh.org`. |
+| `LIVE_MAP_MQTT_PORT` | No | Compose sidecar MQTT port; defaults to `1883`. |
+| `LIVE_MAP_MQTT_TRANSPORT` | No | Compose sidecar MQTT transport; defaults to `websockets`. |
+| `LIVE_MAP_MQTT_WS_PATH` | No | Compose sidecar MQTT WebSocket path; defaults to `/ws`. |
+| `LIVE_MAP_MQTT_TLS` | No | Compose sidecar MQTT TLS flag; defaults to `true`. |
+| `LIVE_MAP_MQTT_USERNAME` | Yes for sidecar live data | Read-only subscriber username for the Colorado Mesh MQTT broker. |
+| `LIVE_MAP_MQTT_PASSWORD` | Yes for sidecar live data | Read-only subscriber password/token for the Colorado Mesh MQTT broker. |
 | `MESHCORE_MQTT_URL` | No | Optional MQTT broker URL for JSON-compatible map payloads. |
 | `MESHCORE_MQTT_USERNAME` | No | Optional MQTT username. |
 | `MESHCORE_MQTT_PASSWORD` | No | Optional MQTT password. |

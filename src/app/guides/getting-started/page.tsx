@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
+import { HeroPanel, SectionEyebrow } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { generateHowToSchema, meshCoreSetupHowTo } from "@/lib/schemas/howto";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Getting Started with MeshCore",
@@ -151,130 +152,151 @@ export default function GettingStartedPage() {
     <>
       <JsonLd data={breadcrumbData} />
       <JsonLd data={howToData} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Getting Started' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Get Started with <span className="text-mesh">MeshCore</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-8">
-              Join the Colorado MeshCore network and connect with the community
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center">
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains
+          eyebrow={`${COMMUNITY_NAME} · Onboarding`}
+          eyebrowTone="mesh"
+          title={
+            <>
+              Get started with
+              <span className="block text-mesh">MeshCore</span>
+            </>
+          }
+          description={`Join the ${COMMUNITY_NAME} network — pick a radio, flash MeshCore, send your first message, and meet the operators behind the mesh.`}
+          actions={
+            <>
               <a href="#hardware" className="btn-primary">
-                View Hardware
+                View hardware
               </a>
-              <a href="#setup" className="btn-outline">
-                Setup Guide
+              <a href="#setup" className="btn-secondary">
+                Setup guide
               </a>
+              <a href="#config" className="btn-outline">
+                Config tips
+              </a>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Getting Started' }]} />
             </div>
-          </div>
-        </section>
+          }
+        />
 
         {/* Hardware Requirements */}
-        <section id="hardware" className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Hardware Requirements
-            </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              MeshCore runs on LoRa devices with ESP32 or nRF52 chips. Here are our recommended options.
+        <section id="hardware" className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+          <div className="mx-auto max-w-6xl">
+            <SectionEyebrow tone="mesh" className="mb-3">
+              Hardware requirements
+            </SectionEyebrow>
+            <p className="mb-8 text-foreground-muted max-w-2xl">
+              MeshCore runs on LoRa devices with ESP32 or nRF52 chips. Here are our recommended
+              options.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {recommendedDevices.map((device) => (
                 <div
                   key={device.name}
-                  className={`card-mesh p-6 ${device.recommended ? 'ring-2 ring-mesh' : ''}`}
+                  className={`panel p-6 ${device.recommended ? 'ring-1 ring-mesh/60' : ''}`}
                 >
                   {device.recommended && (
-                    <span className="inline-block px-3 py-1 text-xs font-bold bg-mesh text-white rounded-full mb-3">
-                      Recommended
+                    <span className="inline-flex items-center gap-2 mono text-[0.65rem] uppercase tracking-[0.18em] text-mesh mb-3">
+                      ◊ Recommended
                     </span>
                   )}
-                  <h3 className="text-xl font-semibold text-foreground mb-2">{device.name}</h3>
+                  <h3 className="text-xl font-semibold text-foreground tracking-tight mb-2">{device.name}</h3>
                   <p className="text-foreground-muted mb-3">{device.description}</p>
-                  <p className="text-sm text-mountain-500 mb-4 font-mono">{device.specs}</p>
+                  <p className="text-sm text-mountain-300 mb-4 font-mono">{device.specs}</p>
                   <a
                     href={device.link}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-mesh hover:text-mesh-light transition-colors inline-flex items-center gap-1"
                   >
-                    View Product
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
+                    View product
+                    <span aria-hidden>↗</span>
                   </a>
                 </div>
               ))}
             </div>
 
             {/* Store Links */}
-            <div className="mt-12 card-mesh p-6">
-              <h3 className="text-xl font-semibold text-foreground mb-4 text-center">Where to Buy</h3>
-              <div className="flex flex-wrap gap-4 justify-center">
-                <a href="https://www.seeedstudio.com/" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-mountain-500/10 hover:bg-mountain-500/20 text-mountain-500 rounded-lg transition-colors font-medium">
+            <div className="mt-10 panel-elevated p-6 sm:p-7">
+              <h3 className="text-xl font-semibold text-foreground tracking-tight mb-4 text-center">
+                Where to buy
+              </h3>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <a href="https://www.seeedstudio.com/" target="_blank" rel="noopener noreferrer" className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors">
                   Seeed Studio
                 </a>
-                <a href="https://store.rakwireless.com/" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-forest-500/10 hover:bg-forest-500/20 text-forest-500 rounded-lg transition-colors font-medium">
-                  RAK Wireless Store
+                <a href="https://store.rakwireless.com/" target="_blank" rel="noopener noreferrer" className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors">
+                  RAK Wireless
                 </a>
-                <a href="https://store.rokland.com/" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-mountain-500/10 hover:bg-mountain-500/20 text-mountain-500 rounded-lg transition-colors font-medium">
+                <a href="https://store.rokland.com/" target="_blank" rel="noopener noreferrer" className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors">
                   Rokland
                 </a>
-                <a href="https://muzi.works/" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-sunset-500/10 hover:bg-sunset-500/20 text-sunset-500 rounded-lg transition-colors font-medium">
+                <a href="https://muzi.works/" target="_blank" rel="noopener noreferrer" className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors">
                   Muzi Works
                 </a>
-                <a href="https://www.etsy.com/shop/PeakMesh" target="_blank" rel="noopener noreferrer" className="px-4 py-2 bg-mesh/10 hover:bg-mesh/20 text-mesh rounded-lg transition-colors font-medium">
+                <a href="https://www.etsy.com/shop/PeakMesh" target="_blank" rel="noopener noreferrer" className="tag-mono hover:border-mesh/50 hover:text-mesh transition-colors">
                   PeakMesh
                 </a>
               </div>
-              <p className="text-center text-foreground-muted mt-4 text-sm">
-                Need help choosing? Ask in our{" "}
+              <p className="text-center text-foreground-muted mt-5 text-sm">
+                Need help choosing? Ask in the{" "}
                 <a
-                  href="https://discord.gg/Tuuv9hGPnX"
+                  href={DISCORD_INVITE_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-mesh hover:text-mesh-light"
+                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
                 >
-                  Discord community
+                  {COMMUNITY_NAME} Discord
                 </a>
-                !
+                .
               </p>
             </div>
           </div>
         </section>
 
         {/* Step-by-Step Setup Guide */}
-        <section id="setup" className="px-6 py-16">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Step-by-Step Setup Guide
+        <section id="setup" className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="sky" className="mb-3">
+              Setup guide
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Three steps to first message.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Follow these steps to get your node up and running on the Colorado MeshCore network.
+            <p className="mt-3 text-foreground-muted max-w-2xl">
+              Follow these steps to get your node up and running on the {COMMUNITY_NAME} network.
             </p>
 
-            <div className="space-y-8">
+            <div className="mt-10 space-y-4">
               {setupSteps.map((step) => (
-                <div key={step.number} className="card-mesh p-6 md:p-8">
-                  <div className="flex items-start gap-4 md:gap-6">
-                    <div className="flex-shrink-0 w-12 h-12 md:w-14 md:h-14 bg-mountain-500 text-white rounded-full flex items-center justify-center text-xl md:text-2xl font-bold">
-                      {step.number}
+                <div key={step.number} className="panel p-6 sm:p-7">
+                  <div className="flex items-start gap-5">
+                    <div
+                      className="flex-shrink-0 w-12 h-12 rounded-full bg-mesh/15 border border-mesh/40 flex items-center justify-center font-mono font-semibold text-mesh"
+                      aria-hidden
+                    >
+                      {step.number.toString().padStart(2, '0')}
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-xl md:text-2xl font-semibold text-foreground mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-xl font-semibold text-foreground tracking-tight">
                         {step.title}
                       </h3>
-                      <p className="text-foreground-muted mb-4">{step.description}</p>
+                      <p className="mt-2 text-foreground-muted">{step.description}</p>
 
-                      <ul className="space-y-2 mb-4">
-                        {step.tips.map((tip, index) => (
-                          <li key={index} className="flex items-start gap-2 text-foreground-muted">
-                            <span className="text-forest-500 mt-1">✓</span>
+                      <ul className="mt-4 space-y-2">
+                        {step.tips.map((tip) => (
+                          <li
+                            key={tip}
+                            className="flex items-start gap-2 text-sm text-foreground-muted"
+                          >
+                            <span aria-hidden className="text-mesh mt-0.5">◊</span>
                             <span>{tip}</span>
                           </li>
                         ))}
@@ -285,12 +307,10 @@ export default function GettingStartedPage() {
                           href={step.link.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-accent inline-flex items-center gap-2"
+                          className="btn-accent mt-5"
                         >
                           {step.link.text}
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
+                          <span aria-hidden>↗</span>
                         </a>
                       )}
                     </div>
@@ -302,23 +322,31 @@ export default function GettingStartedPage() {
         </section>
 
         {/* Configuration Tips */}
-        <section id="config" className="px-6 py-16 bg-background-secondary">
-          <div className="max-w-6xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Configuration Tips
+        <section id="config" className="bg-background py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="sunset" className="mb-3">
+              Configuration tips
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Front Range defaults that work.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Recommended settings for optimal performance in the Denver/Front Range area.
+            <p className="mt-3 text-foreground-muted max-w-2xl">
+              Recommended settings for optimal performance across Denver and the Front Range.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-5">
               {configTips.map((section) => (
-                <div key={section.title} className="card-mesh p-6">
-                  <h3 className="text-xl font-semibold text-mountain-500 mb-4">{section.title}</h3>
+                <div key={section.title} className="panel p-6 h-full">
+                  <h3 className="text-lg font-semibold text-mesh tracking-tight mb-4">
+                    {section.title}
+                  </h3>
                   <ul className="space-y-3">
-                    {section.items.map((item, index) => (
-                      <li key={index} className="text-foreground-muted text-sm flex items-start gap-2">
-                        <span className="text-mesh mt-0.5">•</span>
+                    {section.items.map((item) => (
+                      <li
+                        key={item}
+                        className="text-foreground-muted text-sm flex items-start gap-2"
+                      >
+                        <span aria-hidden className="text-mesh mt-0.5">◊</span>
                         <span>{item}</span>
                       </li>
                     ))}
@@ -330,44 +358,51 @@ export default function GettingStartedPage() {
         </section>
 
         {/* Next Steps */}
-        <section className="px-6 py-16">
-          <div className="max-w-5xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">
-              Next Steps
+        <section className="bg-background-secondary py-16 sm:py-20">
+          <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+            <SectionEyebrow tone="mesh" className="mb-3">
+              Next steps
+            </SectionEyebrow>
+            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+              Keep learning, then act.
             </h2>
-            <p className="text-foreground-muted text-center mb-12 max-w-2xl mx-auto">
-              Now that your node is running, keep learning with the related guides — then act in the operator tools.
+            <p className="mt-3 text-foreground-muted max-w-2xl mb-10">
+              Now that your node is running, keep learning with the related guides — then jump to
+              the operator tools.
             </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-              <Link href="/guides/radio-settings" className="card-mesh p-6 hover:ring-2 hover:ring-mesh transition-all group text-center">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-mesh/10 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-mesh" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-foreground mb-1 group-hover:text-mesh transition-colors">Radio Settings</h3>
-                <p className="text-sm text-foreground-muted">View frequencies and channels</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-10">
+              <Link
+                href="/guides/radio-settings"
+                className="panel p-6 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <span aria-hidden className="text-3xl text-mesh leading-none mb-3 block">◇</span>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Radio settings
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">View frequencies and channels.</p>
               </Link>
 
-              <Link href="/guides/repeater-setup" className="card-mesh p-6 hover:ring-2 hover:ring-mesh transition-all group text-center">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-forest-500/10 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-forest-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-foreground mb-1 group-hover:text-mesh transition-colors">Repeater Setup</h3>
-                <p className="text-sm text-foreground-muted">Set up a repeater node</p>
+              <Link
+                href="/guides/repeater-setup"
+                className="panel p-6 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <span aria-hidden className="text-3xl text-forest-300 leading-none mb-3 block">◉</span>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Repeater setup
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">Set up a repeater node.</p>
               </Link>
 
-              <Link href="/guides/naming-standard" className="card-mesh p-6 hover:ring-2 hover:ring-mesh transition-all group text-center">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-lg bg-sunset-500/10 flex items-center justify-center">
-                  <svg className="w-6 h-6 text-sunset-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                  </svg>
-                </div>
-                <h3 className="font-semibold text-foreground mb-1 group-hover:text-mesh transition-colors">Naming Standard</h3>
-                <p className="text-sm text-foreground-muted">Name your node properly</p>
+              <Link
+                href="/guides/naming-standard"
+                className="panel p-6 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+              >
+                <span aria-hidden className="text-3xl text-sunset-500 leading-none mb-3 block">◊</span>
+                <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  Naming standard
+                </h3>
+                <p className="mt-2 text-sm text-foreground-muted">Name your node properly.</p>
               </Link>
             </div>
 
@@ -403,23 +438,29 @@ export default function GettingStartedPage() {
         </section>
 
         {/* Call to Action */}
-        <section className="px-6 py-16 bg-mountain-gradient text-white text-center">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Join the Network?</h2>
-            <p className="text-mountain-100 mb-8 text-lg">
-              Get your hardware, flash the firmware, and become part of Colorado&apos;s growing mesh network community.
+        <section className="bg-night-stars py-16 sm:py-20">
+          <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center">
+            <SectionEyebrow tone="mesh" className="justify-center">
+              Ready to join the network?
+            </SectionEyebrow>
+            <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-snow-100 tracking-tight">
+              Flash, name, deploy.
+            </h2>
+            <p className="mt-4 text-lg text-mountain-100 leading-relaxed">
+              Get your hardware, flash the firmware, and become part of Colorado&apos;s growing mesh
+              community.
             </p>
-            <div className="flex flex-wrap gap-4 justify-center">
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
               <a
-                href="https://discord.gg/Tuuv9hGPnX"
+                href={DISCORD_INVITE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="btn-accent"
+                className="btn-primary"
               >
-                Join Our Discord
+                Join Discord
               </a>
-              <Link href="/map" className="btn-outline border-white text-white hover:bg-white hover:text-mountain-700">
-                View Live Map
+              <Link href="/map" className="btn-secondary">
+                Live map
               </Link>
             </div>
           </div>

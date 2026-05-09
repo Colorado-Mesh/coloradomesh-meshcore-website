@@ -4,8 +4,9 @@ import JsonLd from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import NamingWizard from "@/components/NamingWizard";
 import PrefixMatrix from "@/components/PrefixMatrix";
+import { HeroPanel } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
-import { BASE_URL } from "@/lib/constants";
+import { BASE_URL, COMMUNITY_NAME } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Node Naming Standard v2.1",
@@ -31,22 +32,45 @@ export default function NamingStandardPage() {
   return (
     <>
       <JsonLd data={breadcrumbData} />
-      <div className="min-h-screen bg-mesh">
-        {/* Hero Section */}
-        <section className="px-6 py-16 md:py-24 text-center">
-          <div className="max-w-4xl mx-auto">
-            <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Naming Standard' }]} />
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-              Node Name Generator <span className="text-base font-normal text-foreground-muted">v2.1</span>
-            </h1>
-            <p className="text-xl md:text-2xl text-foreground-muted mb-8 max-w-2xl mx-auto">
-              Build a valid name for your <span className="text-mesh font-semibold">repeater or room server</span> following our naming standard. All names are limited to 23 characters. Companion naming instructions are included below.
-            </p>
-          </div>
-        </section>
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains={false}
+          eyebrow={`${COMMUNITY_NAME} · Standard v2.1`}
+          eyebrowTone="sunset"
+          title={
+            <>
+              Node name
+              <span className="block text-mesh">generator</span>
+            </>
+          }
+          description={
+            <>
+              Build a valid name for your <span className="text-mesh font-semibold">repeater or room server</span> following the {COMMUNITY_NAME} naming standard. All names stay under the 23-character MeshCore limit. Companion naming instructions live below.
+            </>
+          }
+          actions={
+            <>
+              <Link href="/tools/repeater-name" className="btn-primary">
+                Open repeater wizard
+              </Link>
+              <Link href="/tools/companion-name" className="btn-secondary">
+                Companion builder
+              </Link>
+              <Link href="#prefix-matrix" className="btn-outline">
+                Prefix matrix
+              </Link>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={[{ label: 'Home', href: '/' }, { label: 'Guides', href: '/guides' }, { label: 'Naming Standard' }]} />
+            </div>
+          }
+        />
 
         {/* Naming Wizard */}
-        <section className="px-6 pb-16 md:pb-24">
+        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="max-w-4xl mx-auto">
             <NamingWizard />
           </div>

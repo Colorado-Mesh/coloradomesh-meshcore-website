@@ -59,7 +59,7 @@ const mqttState: MqttSnapshotState = {
 function buildEmptyMapSnapshot(now = new Date()): MapSnapshot {
   const source: MapSnapshotSource = {
     type: 'empty',
-    label: 'MQTT map data is not configured',
+    label: 'Live map data is not configured',
     lastUpdated: null,
   };
 
@@ -71,7 +71,7 @@ function buildEmptyMapSnapshot(now = new Date()): MapSnapshot {
     topic: null,
     lastConnectedAt: null,
     lastMessageAt: null,
-    message: 'Set MQTT runtime environment variables to enable live map data.',
+    message: 'Set MESHCORE_LIVE_MAP_API_URL or MESHCORE_MQTT_URL to enable live map data.',
   };
 
   const stats = buildMapStats([], [], [], source, connection.state);
@@ -85,7 +85,7 @@ function buildEmptyMapSnapshot(now = new Date()): MapSnapshot {
     connection,
     source,
     warnings: getMapWarnings({ sampleData: false, demoMode: false }),
-    features: getMapFeatures({ liveMapApiConfigured: false }),
+    features: getMapFeatures({ liveMapApiConfigured: false, liveMapApiUrl: null }),
   };
 }
 

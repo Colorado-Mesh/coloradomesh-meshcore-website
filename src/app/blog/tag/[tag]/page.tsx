@@ -3,9 +3,10 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPostsByTag, getAllTags } from '@/lib/blog';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
-import { BASE_URL } from '@/lib/constants';
+import { BASE_URL, COMMUNITY_NAME, SITE_NAME } from '@/lib/constants';
 import JsonLd from '@/components/JsonLd';
 import Breadcrumbs from '@/components/Breadcrumbs';
+import { HeroPanel } from '@/components/brand';
 
 interface PageProps {
   params: Promise<{ tag: string }>;
@@ -25,18 +26,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: 'Tag Not Found' };
   }
 
-  // Find the display-cased version of the tag from the first post
   const displayTag =
     posts[0].tags.find((t) => t.toLowerCase() === decodedTag.toLowerCase()) || decodedTag;
 
   return {
     title: `Posts tagged "${displayTag}"`,
-    description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag} from the Colorado MeshCore community.`,
+    description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag} from the ${SITE_NAME} community.`,
     alternates: {
       canonical: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}`,
     },
     openGraph: {
-      title: `Posts tagged "${displayTag}" | Colorado MeshCore`,
+      title: `Posts tagged "${displayTag}" | ${SITE_NAME}`,
       description: `Browse ${posts.length} blog post${posts.length === 1 ? '' : 's'} about ${displayTag}.`,
       url: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}`,
       type: 'website',
@@ -73,7 +73,10 @@ export default async function TagPage({ params }: PageProps) {
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: BASE_URL },
     { name: 'Blog', url: `${BASE_URL}/blog` },
-    { name: displayTag, url: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}` },
+    {
+      name: displayTag,
+      url: `${BASE_URL}/blog/tag/${encodeURIComponent(decodedTag.toLowerCase())}`,
+    },
   ]);
 
   const breadcrumbItems = [
@@ -86,65 +89,68 @@ export default async function TagPage({ params }: PageProps) {
     <>
       <JsonLd data={breadcrumbSchema} />
 
-      <div className="min-h-screen bg-background">
-        {/* Hero Section */}
-        <section className="relative py-16 sm:py-24 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-mesh/5 to-transparent" />
-          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <Breadcrumbs items={breadcrumbItems} />
-            <div className="text-center">
-              <div className="inline-flex items-center px-4 py-1.5 bg-mesh/10 text-mesh rounded-full text-sm font-medium mb-6">
-                {displayTag}
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4">
-                Posts tagged &ldquo;{displayTag}&rdquo;
-              </h1>
-              <p className="text-xl text-foreground-muted max-w-2xl mx-auto">
-                {posts.length} post{posts.length === 1 ? '' : 's'} from the Colorado MeshCore community
-              </p>
+      <div className="min-h-screen">
+        <HeroPanel
+          background="topo-grid"
+          showMountains={false}
+          eyebrow={`${COMMUNITY_NAME} · Tag`}
+          eyebrowTone="sky"
+          title={
+            <>
+              Posts tagged
+              <span className="block text-mesh">&ldquo;{displayTag}&rdquo;</span>
+            </>
+          }
+          description={`${posts.length} post${posts.length === 1 ? '' : 's'} from the ${SITE_NAME} community filed under ${displayTag}.`}
+          actions={
+            <>
+              <Link href="/blog" className="btn-primary">
+                All blog posts
+              </Link>
+              <Link href="/start" className="btn-secondary">
+                Get Started
+              </Link>
+            </>
+          }
+          meta={
+            <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
+              <Breadcrumbs items={breadcrumbItems} />
             </div>
-          </div>
-        </section>
+          }
+        />
 
-        {/* Posts */}
-        <section className="py-12 sm:py-16">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <div className="space-y-8">
+        <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+          <div className="mx-auto max-w-4xl">
+            <div className="space-y-4">
               {posts.map((post) => (
                 <article
                   key={post.slug}
-                  className="group bg-card border border-border rounded-xl p-6 hover:border-mesh/50 transition-colors"
+                  className="group panel p-6 sm:p-7 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
                 >
-                  <Link href={`/blog/${post.slug}`}>
+                  <Link href={`/blog/${post.slug}`} className="block focus-ring rounded-md">
                     <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                      <div className="flex-1">
-                        <h2 className="text-xl font-semibold text-foreground group-hover:text-mesh transition-colors mb-2">
-                          {post.title}
-                        </h2>
-                        <p className="text-foreground-muted mb-4">
-                          {post.excerpt}
-                        </p>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-foreground-muted">
-                          <span>{formatDate(post.date)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-3 mb-3 text-xs mono uppercase tracking-[0.18em] text-foreground-dim">
+                          <time dateTime={post.date}>{formatDate(post.date)}</time>
+                          <span aria-hidden>·</span>
                           <span>{post.readingTime}</span>
                         </div>
+                        <h2 className="text-xl sm:text-2xl font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                          {post.title}
+                        </h2>
+                        <p className="mt-2 text-foreground-muted leading-relaxed">
+                          {post.excerpt}
+                        </p>
                       </div>
-                      <div className="hidden sm:block">
-                        <span className="inline-flex items-center text-mesh group-hover:translate-x-1 transition-transform">
-                          Read more
-                          <svg
-                            className="w-4 h-4 ml-1"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
+                      <div className="hidden sm:block shrink-0">
+                        <span className="inline-flex items-center gap-1 text-sm text-mesh group-hover:text-mesh-light">
+                          Read
+                          <span
+                            aria-hidden
+                            className="transition-transform group-hover:translate-x-0.5"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 5l7 7-7 7"
-                            />
-                          </svg>
+                            →
+                          </span>
                         </span>
                       </div>
                     </div>
@@ -153,26 +159,13 @@ export default async function TagPage({ params }: PageProps) {
               ))}
             </div>
 
-            {/* Back to blog */}
             <div className="mt-12 text-center">
               <Link
                 href="/blog"
-                className="inline-flex items-center text-mesh hover:text-mesh/80 transition-colors"
+                className="inline-flex items-center gap-2 text-mesh hover:text-mesh-light transition-colors"
               >
-                <svg
-                  className="w-4 h-4 mr-2"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M15 19l-7-7 7-7"
-                  />
-                </svg>
-                All Blog Posts
+                <span aria-hidden>←</span>
+                All blog posts
               </Link>
             </div>
           </div>

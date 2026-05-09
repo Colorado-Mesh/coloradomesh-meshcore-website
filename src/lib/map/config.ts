@@ -111,7 +111,20 @@ function buildMapWarnings(config: Pick<MapRuntimeConfig, 'demoMode' | 'sampleDat
   ];
 }
 
-function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>): MapAdvancedFeature[] {
+function hasAdvancedLiveMapProxy(config: Pick<MapRuntimeConfig, 'liveMapApiUrl'>): boolean {
+  if (!config.liveMapApiUrl) return false;
+
+  try {
+    const url = new URL(config.liveMapApiUrl);
+    return !url.hostname.endsWith('analyzer.meshcore.coloradomesh.org');
+  } catch {
+    return false;
+  }
+}
+
+function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured' | 'liveMapApiUrl'>): MapAdvancedFeature[] {
+  const advancedProxyAvailable = hasAdvancedLiveMapProxy(config);
+
   return [
     {
       id: 'live-map-snapshot',
@@ -124,10 +137,10 @@ function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>
     {
       id: 'advanced-live-map-proxy',
       label: 'Advanced live-map operator endpoints',
-      status: config.liveMapApiConfigured ? 'available' : 'unavailable',
-      message: config.liveMapApiConfigured
+      status: advancedProxyAvailable ? 'available' : 'unavailable',
+      message: advancedProxyAvailable
         ? 'Advanced live-map proxy endpoints are configured.'
-        : 'Configure the live-map upstream on the server to enable advanced live-map proxy endpoints.',
+        : 'Advanced live-map tools require a full meshcore-mqtt-live-map upstream; the default analyzer feed provides node data only.',
     },
   ];
 }
@@ -136,7 +149,7 @@ export function getMapWarnings(config: Pick<MapRuntimeConfig, 'demoMode' | 'samp
   return buildMapWarnings(config);
 }
 
-export function getMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>): MapAdvancedFeature[] {
+export function getMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured' | 'liveMapApiUrl'>): MapAdvancedFeature[] {
   return buildMapFeatures(config);
 }
 
@@ -192,7 +205,7 @@ export function getMapRuntimeConfig(): MapRuntimeConfig {
   const historyEnabled = readBooleanEnv(RUNTIME_ENV.MAP_HISTORY_ENABLED, false);
   const liveMapApiConfigured = Boolean(liveMapApiUrl);
   const mqttConfigured = Boolean(mqttUrl);
-  const sampleData = readBooleanEnv(RUNTIME_ENV.MAP_SAMPLE_DATA, !liveMapApiConfigured && !mqttConfigured);
+  const sampleData = !liveMapApiConfigured && !mqttConfigured && readBooleanEnv(RUNTIME_ENV.MAP_SAMPLE_DATA, false);
   const demoMode = readBooleanEnv(RUNTIME_ENV.MAP_DEMO_MODE, false);
 
   return {

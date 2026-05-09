@@ -1,48 +1,55 @@
-# Step 6 Execution Plan: Full 4-character PrefixMatrix parity and reserved/collision logic
+# Step 6 Execution Plan: Final route, accessibility, Lighthouse, and browser validation
 
 ## Goal
-Replace first-byte-only prefix occupancy with shared 4-character prefix analysis that supports reserved IDs, collision severity, deterministic free suggestions, PrefixMatrix drilldown behavior, and NamingWizard conflict checks.
+Validate the completed UI/UX pass across route coverage, accessibility, Lighthouse, browser journeys, and final Forge review readiness, fixing only validation-scope defects.
 
 ## Current Code Observations
-- `src/components/PrefixMatrix.tsx` fetches `API_ROUTES.MAP_NODES` directly and builds a 256-cell first-byte grid from `publicKey.slice(0, 2)`.
-- `src/components/PrefixMatrix.tsx` currently suggests a random second byte for a free first-byte prefix, which is not deterministic and only indirectly produces a 4-character prefix.
-- `src/components/NamingWizard.tsx` also fetches `API_ROUTES.MAP_NODES` directly and warns on first-byte usage only.
-- `src/hooks/useMapSnapshot.ts` already provides the canonical `/api/map/snapshot` client data source with nodes, connection/source metadata, loading, and error state.
-- Upstream `prefix_matrix` builds a primary 2-character grid plus a secondary 16×16 grid for the third/fourth characters, marks reserved IDs, distinguishes repeater/room-server duplicate conflicts, and searches across node metadata.
-- `src/lib/parity/manifest.ts` has `prefix-matrix-4-character-planning` as planned with only `src/components/PrefixMatrix.tsx` listed.
-- Existing tests use Vitest for pure helpers and Playwright for critical route smoke; no prefix-specific tests exist yet.
+- `tests/e2e/smoke.spec.ts` covers the primary route smoke set, `/start` journeys, map diagnostics, all four tool links, `/guides` guide/tool handoffs, serial settings preview behavior, prefix matrix behavior, global nav labels/current states, mobile menu Escape behavior, and skip link behavior.
+- The Playwright `criticalPages` array currently includes `/`, `/start`, `/map`, and `/tools`, while `src/lib/__tests__/site.test.ts` expects metadata-derived critical routes to include `/guides` and `/about` as well.
+- `.lighthouserc.json` previously audited `/`, `/map`, and `/tools` only, so Step 6 adds `/start` and `/guides` and moves Lighthouse to a dedicated local port to avoid stale process reuse on port 3000.
+- `package.json` exposes the required Step 6 gates: `lint`, `typecheck`, `test:unit`, `build`, `test:e2e`, `test:a11y`, and `test:lighthouse`.
+- Step 1 through Step 5 review artifacts exist for completed steps; Step 5 is committed as `dbcab44` with no reviewer findings.
+- The working tree still has pre-existing `.forge` artifact churn and `.forge.bak.*` archived directories, so staging must remain specific to Step 6 files and the final review artifact.
 
 ## Files to Change
-- `src/lib/meshcore-tools/prefixes.ts` — add pure prefix normalization, analysis, reserved/collision logic, search, and deterministic suggestion helpers.
-- `src/lib/meshcore-tools/__tests__/prefixes.test.ts` — cover reserved IDs, collisions, rollups, search, malformed keys, and deterministic suggestions.
-- `src/components/PrefixMatrix.tsx` — consume `useMapSnapshot`, display primary 2-character rollups and selected 4-character subgrid from shared analysis, use deterministic suggestions, and keep existing visual styling patterns.
-- `src/components/NamingWizard.tsx` — consume `useMapSnapshot` and shared 4-character analysis for public-key conflict/reserved warnings instead of first-byte checks.
-- `src/app/tools/prefix-matrix/page.tsx` — update copy/API tag to describe 4-character planning from `/api/map/snapshot`.
-- `src/lib/parity/manifest.ts` — mark PrefixMatrix parity implemented and include helper/test/component refs.
-- `tests/e2e/smoke.spec.ts` — add prefix page smoke coverage for loading, searching, and deterministic suggestion/select behavior.
+- `tests/e2e/smoke.spec.ts` — include `/guides` in the axe-critical page set to match final high-value template coverage.
+- `.lighthouserc.json` — include `/start` and `/guides` in Lighthouse collection URLs.
+- `.forge/steps/step-6-plan.md` — record this execution plan.
+- `.forge/reviews/final-claude-review.json` — save the final Forge review result.
+- `src/components/Navigation.tsx` — restore focus to the mobile menu trigger before closing the drawer so the hidden/inert panel never retains focused descendants.
+- Source files only if validation reveals another real defect; otherwise no UI/source edits.
 
 ## Ordered Implementation Checklist
-1. Add `prefixes.ts` with `normalizePublicKeyPrefix`, `buildPrefixAnalysis`, `searchPrefixAnalysis`, `suggestFreePrefix`, stable reserved-prefix data, role/status helpers, and typed analysis results.
-2. Add Vitest coverage for exact 4-character collisions, repeater/room-server collision severity, reserved two-character and four-character IDs, malformed public keys, primary rollups, search matches, and deterministic suggestions.
-3. Refactor `PrefixMatrix` to call `useMapSnapshot`, derive prefix analysis with `useMemo`, render the existing primary 16×16 grid plus a selected secondary 16×16 grid, and call `onSelectPrefix` only with available 4-character prefixes.
-4. Refactor `NamingWizard` to use `useMapSnapshot` and `buildPrefixAnalysis`, then show full 4-character uniqueness, collision, crowding, reserved, and incomplete states from the shared helper.
-5. Update the prefix matrix page copy and parity manifest refs/status.
-6. Extend Playwright smoke tests for `/tools/prefix-matrix` without relying on external services.
-7. Run lint, typecheck, unit tests, e2e smoke, and build; fix scoped issues before staging/review.
+1. Make the small validation-coverage updates to Playwright axe coverage and Lighthouse URLs.
+2. Run `npm run lint` and fix only direct validation-scope failures.
+3. Run `npm run typecheck` and fix only direct validation-scope failures.
+4. Run `npm run test:unit` to confirm metadata, sitemap, and route invariants still pass.
+5. Run `npm run build` to validate production compilation and generated routes.
+6. Run `npm run test:e2e` and `npm run test:a11y` against the built app defaults or configured test server behavior.
+7. Run `npm run test:lighthouse` after the build to audit `/`, `/start`, `/map`, `/tools`, and `/guides`.
+8. Start a known-current production server on `127.0.0.1:4574` and browser-check `/`, `/start`, `/map`, `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, `/tools/serial-usb`, `/guides`, `/guides/repeater-setup`, `/why-meshcore`, `/use-cases`, `/blog`, and `/about` at representative desktop/mobile widths.
+9. Check header active state, skip link, mobile menu open/close/Escape, footer groups, journey cards, tool visibility, guide handoffs, sitemap/robots responses, and console/network cleanliness.
+10. Stage only Step 6 validation files and final review artifact, request final Forge review over the complete UI/UX pass, fix blockers if any, then commit the approved Step 6 validation changes.
 
 ## Interfaces and Data Contracts
-- `normalizePublicKeyPrefix(value, length = 4): string | null` returns uppercase hex prefixes only when enough hex characters exist.
-- `buildPrefixAnalysis(nodes, options?)` returns primary cells keyed by first two chars, secondary cells keyed by full four chars, counts, collision severity, reserved status, active/inactive state, and searchable node metadata.
-- `suggestFreePrefix(analysis, options?)` returns a deterministic available 4-character prefix, never a reserved or occupied prefix.
-- Prefix UI consumes `useMapSnapshot()` instead of `API_ROUTES.MAP_NODES`.
-- NamingWizard public-key warnings are derived from the same `buildPrefixAnalysis` output used by PrefixMatrix.
+- Public routes remain unchanged, including `/`, `/start`, `/map`, `/tools`, all four tool routes, `/guides`, five guide routes, `/why-meshcore`, `/use-cases`, `/blog`, and `/about`.
+- Primary nav labels remain `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
+- External links keep `target="_blank"` and `rel="noopener noreferrer"` where they open third-party destinations.
+- Lighthouse config remains local-only and does not upload reports outside `.lighthouseci`.
+- No new dependencies, shared service changes, pushes, releases, workflows, forms, disclaimers, or feature scope.
 
 ## Verification Plan
-- Automated: `npm run lint`, `npm run typecheck`, `npm run test:unit`, `npm run test:e2e`, `npm run build`.
-- Manual: open `/tools/prefix-matrix`, verify primary grid, select a prefix byte, inspect 4-character cells, search for a sample node/prefix, suggest a free prefix, and verify the repeater naming tool warns on occupied/reserved/crowded prefixes.
-- Regression: existing repeater/companion JSON tests, map page smoke tests, and critical page accessibility smoke should continue to pass.
+- Automated: `npm run lint`
+- Automated: `npm run typecheck`
+- Automated: `npm run test:unit`
+- Automated: `npm run build`
+- Automated: `npm run test:e2e`
+- Automated: `npm run test:a11y`
+- Automated: `npm run test:lighthouse`
+- Manual: production browser validation on `127.0.0.1:4574` for the routes and interactions listed in the checklist.
+- Regression: confirm archived `.forge.bak.*` directories and unrelated stale Forge artifacts are not staged or committed.
 
 ## Stop Conditions
-- If upstream reserved ID source cannot be represented locally without importing unavailable runtime data, use a small typed static reserved list and record the limitation in manifest notes rather than guessing a large hidden registry.
-- If functional changes require substantial visual redesign of the PrefixMatrix layout, pause and delegate that UI work to Opus UI.
-- If Playwright e2e cannot reliably exercise dynamic grid interactions due to dev-server timing, keep deterministic unit coverage and add only stable page smoke assertions.
+- Pause if validation failures imply new product behavior, new dependencies, CI workflow changes, or source changes beyond validation fixes.
+- Pause if Lighthouse instability is environmental rather than a real page regression and document the exact failure instead of masking thresholds.
+- Pause if any browser route cannot be loaded locally, if console/network errors indicate runtime breakage, or if final Forge review returns blocking findings that require scope changes.

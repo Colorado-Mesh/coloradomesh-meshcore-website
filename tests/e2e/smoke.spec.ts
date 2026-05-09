@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const criticalPages = ['/', '/start', '/map', '/tools'];
+const criticalPages = ['/', '/start', '/map', '/tools', '/guides'];
 
 test.describe('critical page smoke', () => {
   for (const pagePath of criticalPages) {

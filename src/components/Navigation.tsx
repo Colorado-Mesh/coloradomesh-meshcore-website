@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import MobileMenu from './MobileMenu';
@@ -49,6 +49,7 @@ function ExternalGlyph({ className = 'h-3 w-3' }: { className?: string }) {
 export default function Navigation() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null);
   const pathname = usePathname() ?? '/';
   const primaryNavLinks = useMemo<NavLink[]>(
     () => getPrimaryNavLinks().map((link) => ({ href: link.href, label: link.label })),
@@ -78,6 +79,11 @@ export default function Navigation() {
       document.body.style.overflow = '';
     };
   }, [isMobileMenuOpen]);
+
+  const closeMobileMenu = useCallback(() => {
+    mobileMenuButtonRef.current?.focus();
+    setIsMobileMenuOpen(false);
+  }, []);
 
   return (
     <>
@@ -137,6 +143,7 @@ export default function Navigation() {
             </div>
 
             <button
+              ref={mobileMenuButtonRef}
               type="button"
               className="lg:hidden inline-flex items-center justify-center p-2 rounded-md text-foreground hover:text-mesh hover:bg-card/60 transition-colors duration-200 focus-ring"
               onClick={() => setIsMobileMenuOpen(true)}
@@ -165,7 +172,7 @@ export default function Navigation() {
 
       <MobileMenu
         isOpen={isMobileMenuOpen}
-        onClose={() => setIsMobileMenuOpen(false)}
+        onClose={closeMobileMenu}
         navLinks={primaryNavLinks}
         activeHref={activeHref}
       />

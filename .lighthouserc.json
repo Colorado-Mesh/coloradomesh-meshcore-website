@@ -1,12 +1,14 @@
 {
   "ci": {
     "collect": {
-      "startServerCommand": "npm run start -- --hostname 127.0.0.1 --port 3000",
+      "startServerCommand": "npm run start -- --hostname 127.0.0.1 --port 4575",
       "startServerReadyPattern": "Ready|Local:",
       "url": [
-        "http://127.0.0.1:3000/",
-        "http://127.0.0.1:3000/map",
-        "http://127.0.0.1:3000/tools"
+        "http://127.0.0.1:4575/",
+        "http://127.0.0.1:4575/start",
+        "http://127.0.0.1:4575/map",
+        "http://127.0.0.1:4575/tools",
+        "http://127.0.0.1:4575/guides"
       ],
       "numberOfRuns": 1,
       "settings": {

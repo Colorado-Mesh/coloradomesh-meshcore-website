@@ -39,17 +39,23 @@ export const PARITY_MANIFEST: ParityItem[] = [
     title: 'Repeater settings JSON download parity',
     upstream: [
       {
-        label: 'meshcore-utilities-site repeater route',
+        label: 'meshcore-utilities-site repeater template',
         url: 'https://github.com/Colorado-Mesh/meshcore-utilities-site',
-        path: 'backend/api/routes/repeater_name_tool/index.py',
+        path: 'vendor/meshcore-utilities-site/templates/repeater-name-tool.html',
       },
       {
-        label: 'recommended settings fixture',
-        path: 'src/lib/parity/fixtures/utilities/recommended_settings.json',
+        label: 'meshcore-utilities-site recommended settings data',
+        path: 'vendor/meshcore-utilities-site/static/data/recommended_settings.json',
+      },
+      {
+        label: 'meshcore-utilities-site regions data',
+        path: 'vendor/meshcore-utilities-site/static/data/regions.json',
       },
     ],
     local: [
       'src/components/NamingWizard.tsx',
+      'src/lib/upstream-utilities/generated/recommended-settings.json',
+      'src/lib/upstream-utilities/generated/regions.json',
       'src/lib/meshcore-data/settings.ts',
       'src/lib/meshcore-data/regions.ts',
       'src/lib/meshcore-data/node-types.ts',
@@ -68,13 +74,14 @@ export const PARITY_MANIFEST: ParityItem[] = [
     title: 'Companion settings JSON download parity',
     upstream: [
       {
-        label: 'meshcore-utilities-site companion route',
+        label: 'meshcore-utilities-site companion template',
         url: 'https://github.com/Colorado-Mesh/meshcore-utilities-site',
-        path: 'backend/api/routes/companion_name_tool/index.py',
+        path: 'vendor/meshcore-utilities-site/templates/companion-name-tool.html',
       },
     ],
     local: [
       'src/components/CompanionNamer.tsx',
+      'src/lib/upstream-utilities/generated/recommended-settings.json',
       'src/lib/meshcore-data/settings.ts',
       'src/lib/meshcore-tools/naming.ts',
       'src/lib/meshcore-tools/config-export.ts',
@@ -93,7 +100,7 @@ export const PARITY_MANIFEST: ParityItem[] = [
       {
         label: 'meshcore-utilities-site prefix matrix',
         url: 'https://github.com/Colorado-Mesh/meshcore-utilities-site',
-        path: 'static/js/prefix_matrix.js',
+        path: 'vendor/meshcore-utilities-site/static/js/prefix_matrix.js',
       },
     ],
     local: [
@@ -115,16 +122,18 @@ export const PARITY_MANIFEST: ParityItem[] = [
     title: 'Guarded serial application of generated settings JSON',
     upstream: [
       {
-        label: 'default serial command profile',
-        path: 'src/lib/parity/fixtures/utilities/default_serial_commands.json',
+        label: 'meshcore-utilities-site serial command profile',
+        path: 'vendor/meshcore-utilities-site/static/data/default_serial_commands.json',
       },
       {
-        label: 'serial command schema',
-        path: 'src/lib/parity/fixtures/utilities/serial_commands.schema.json',
+        label: 'meshcore-utilities-site serial command schema',
+        path: 'vendor/meshcore-utilities-site/serial_commands.schema.json',
       },
     ],
     local: [
       'src/components/tools/SerialUsbTool.tsx',
+      'src/lib/upstream-utilities/generated/serial-command-profile.json',
+      'src/lib/upstream-utilities/generated/serial-command-schema.json',
       'src/lib/tools/serial-commands.ts',
       'src/lib/meshcore-tools/serial-settings.ts',
     ],
@@ -215,7 +224,7 @@ export const PARITY_MANIFEST: ParityItem[] = [
       { type: 'ci', ref: '.github/workflows/ci.yml docker-smoke' },
       { type: 'ci', ref: '.github/workflows/security.yml dependency-review' },
     ],
-    notes: 'PR CI now blocks on lint, typecheck, unit tests, production build, Chromium critical smoke, axe accessibility, Lighthouse budgets, dependency review, Docker image build, and Docker runtime smoke without publishing images.',
+    notes: 'PR CI now blocks on lint, typecheck, unit tests, production build, Chromium critical smoke, axe accessibility, Lighthouse budgets, dependency review, Docker image build, and Docker runtime smoke without publishing images. Utilities stale-artifact checks are planned after generated artifacts land in CI.',
   },
   {
     id: 'contacts-export',

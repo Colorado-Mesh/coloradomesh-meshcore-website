@@ -15,7 +15,9 @@
     "test:lighthouse": "lhci autorun",
     "docker:smoke": "node scripts/docker-smoke.mjs",
     "verify:map:real": "node scripts/verify-real-map-data.mjs",
-    "utilities:check-submodule": "node scripts/check-utilities-submodule.mjs"
+    "utilities:check-submodule": "node scripts/check-utilities-submodule.mjs",
+    "utilities:generate": "node scripts/generate-utilities-artifacts.mjs",
+    "utilities:check": "node scripts/generate-utilities-artifacts.mjs --check"
   },
   "engines": {
     "node": ">=24 <26"

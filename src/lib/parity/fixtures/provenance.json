@@ -1,17 +1,18 @@
 {
-  "checkedAt": "2026-05-07",
+  "checkedAt": "2026-05-09",
   "sources": [
     {
       "name": "Colorado-Mesh/meshcore-utilities-site",
       "url": "https://github.com/Colorado-Mesh/meshcore-utilities-site",
-      "localPath": "/tmp/meshcore-utilities-site",
+      "localPath": "vendor/meshcore-utilities-site",
       "files": [
         "static/data/recommended_settings.json",
         "static/data/default_serial_commands.json",
         "static/data/regions.json",
         "serial_commands.schema.json"
       ],
-      "usage": "Adapted as minimal local fixtures for parity tests and generated settings work. User approved direct copying/adaptation for this Forge pass."
+      "generatedPath": "src/lib/upstream-utilities/generated/provenance.json",
+      "usage": "Submodule-backed source data for generated local utility artifacts and parity checks."
     },
     {
       "name": "yellowcooln/meshcore-mqtt-live-map",

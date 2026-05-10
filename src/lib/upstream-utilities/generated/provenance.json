@@ -1,0 +1,28 @@
+{
+  "upstreamRepository": "Colorado-Mesh/meshcore-utilities-site",
+  "upstreamUrl": "https://github.com/Colorado-Mesh/meshcore-utilities-site",
+  "submodulePath": "vendor/meshcore-utilities-site",
+  "upstreamCommit": "3b8c5d93b8bfac048deee1f214feee32e0a0e053",
+  "sources": [
+    {
+      "kind": "recommended-settings",
+      "upstreamPath": "static/data/recommended_settings.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/recommended-settings.json"
+    },
+    {
+      "kind": "regions",
+      "upstreamPath": "static/data/regions.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/regions.json"
+    },
+    {
+      "kind": "serial-command-profile",
+      "upstreamPath": "static/data/default_serial_commands.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/serial-command-profile.json"
+    },
+    {
+      "kind": "serial-command-schema",
+      "upstreamPath": "serial_commands.schema.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/serial-command-schema.json"
+    }
+  ]
+}

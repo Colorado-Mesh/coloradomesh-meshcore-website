@@ -3,12 +3,15 @@ import Ajv from 'ajv';
 
 import { PARITY_MANIFEST } from '../manifest';
 import { buildParityReport } from '../report';
-import recommendedSettings from '../fixtures/utilities/recommended_settings.json';
-import serialCommands from '../fixtures/utilities/default_serial_commands.json';
-import serialCommandSchema from '../fixtures/utilities/serial_commands.schema.json';
-import regions from '../fixtures/utilities/regions.json';
 import liveMapNodes from '../fixtures/live-map/nodes-full.json';
 import provenance from '../fixtures/provenance.json';
+import {
+  UPSTREAM_UTILITIES_PROVENANCE,
+  UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS,
+  UPSTREAM_UTILITIES_REGIONS,
+  UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE,
+  UPSTREAM_UTILITIES_SERIAL_COMMAND_SCHEMA,
+} from '@/lib/upstream-utilities';
 
 describe('PARITY_MANIFEST', () => {
   it('uses unique item ids and covers required domains', () => {
@@ -46,18 +49,33 @@ describe('PARITY_MANIFEST', () => {
 });
 
 describe('upstream parity fixtures', () => {
-  it('loads utility and live-map fixtures', () => {
-    expect(recommendedSettings).toBeTypeOf('object');
-    expect(serialCommands).toBeTypeOf('object');
-    expect(regions).toBeTypeOf('object');
+  it('loads generated utility artifacts and live-map fixtures', () => {
+    expect(UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings.frequency).toBe(910525);
+    expect(UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.actions.length).toBeGreaterThan(0);
+    expect(UPSTREAM_UTILITIES_REGIONS.airports.length).toBeGreaterThan(0);
     expect(liveMapNodes).toHaveProperty('nodes');
     expect(provenance.sources).toHaveLength(2);
   });
 
-  it('validates the vendored serial command fixture against the upstream schema', () => {
+  it('records submodule provenance for generated utility artifacts', () => {
+    expect(UPSTREAM_UTILITIES_PROVENANCE).toMatchObject({
+      upstreamRepository: 'Colorado-Mesh/meshcore-utilities-site',
+      upstreamUrl: 'https://github.com/Colorado-Mesh/meshcore-utilities-site',
+      submodulePath: 'vendor/meshcore-utilities-site',
+    });
+    expect(UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit).toMatch(/^[0-9a-f]{40}$/);
+    expect(UPSTREAM_UTILITIES_PROVENANCE.sources.map((source) => source.upstreamPath)).toEqual([
+      'static/data/recommended_settings.json',
+      'static/data/regions.json',
+      'static/data/default_serial_commands.json',
+      'serial_commands.schema.json',
+    ]);
+  });
+
+  it('validates the generated serial command profile against the generated upstream schema', () => {
     const ajv = new Ajv({ allErrors: true, strict: false });
-    const validate = ajv.compile(serialCommandSchema);
-    const valid = validate(serialCommands);
+    const validate = ajv.compile(UPSTREAM_UTILITIES_SERIAL_COMMAND_SCHEMA);
+    const valid = validate(UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE);
     expect(validate.errors ?? []).toEqual([]);
     expect(valid).toBe(true);
   });

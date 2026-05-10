@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
-import recommendedSettings from '@/lib/parity/fixtures/utilities/recommended_settings.json';
 import { COLORADO_MESH_REGION_CODES } from '@/lib/meshcore-data/regions';
+import { UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS } from '@/lib/upstream-utilities';
 import {
   COLORADO_MESH_RADIO_COMMANDS,
   COLORADO_MESH_RADIO_SETTINGS,
@@ -26,7 +26,7 @@ import {
 
 describe('MeshCore settings export', () => {
   it('keeps canonical radio settings aligned with the upstream fixture', () => {
-    expect(buildRadioSettingsJson()).toEqual(recommendedSettings.radio_settings);
+    expect(buildRadioSettingsJson()).toEqual(UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings);
   });
 
   it('formats guide-facing radio settings and commands from canonical data', () => {

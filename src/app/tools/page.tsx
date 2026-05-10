@@ -12,6 +12,7 @@ import {
   SITE_NAME,
 } from '@/lib/constants';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
+import { UPSTREAM_UTILITIES_PROVENANCE } from '@/lib/upstream-utilities';
 
 const PAGE_TITLE = 'Operator Tools';
 const PAGE_DESCRIPTION = `Naming, prefix planning, and field utilities for ${SITE_NAME} operators. Plan names, find a free public-key prefix, and talk to a node over USB serial directly from the browser.`;
@@ -38,6 +39,7 @@ const breadcrumbData = generateBreadcrumbSchema([
   { name: 'Home', url: BASE_URL },
   { name: PAGE_TITLE, url: `${BASE_URL}/tools` },
 ]);
+const upstreamUtilitiesCommit = UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit.slice(0, 7);
 
 const guideHandoffs = [
   {
@@ -277,7 +279,17 @@ export default function ToolsPage() {
                 >
                   network map
                 </Link>
-                . Suggest more utilities or report issues in the{' '}
+                . Utility defaults are generated from{' '}
+                <a
+                  href={UPSTREAM_UTILITIES_PROVENANCE.upstreamUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                >
+                  {UPSTREAM_UTILITIES_PROVENANCE.upstreamRepository}
+                </a>{' '}
+                at commit <code className="text-mesh">{upstreamUtilitiesCommit}</code>.
+                Suggest more utilities or report issues in the{' '}
                 <a
                   href={DISCORD_INVITE_URL}
                   target="_blank"

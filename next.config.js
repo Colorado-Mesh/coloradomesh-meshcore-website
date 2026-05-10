@@ -12,9 +12,23 @@ const connectSrc = [
   ...(isDevelopment ? ['ws://localhost:*', 'ws://127.0.0.1:*'] : []),
 ].join(' ');
 
+const utilityCompatibilityRedirects = [
+  { source: '/repeater_name_tool', destination: '/tools/repeater-name', permanent: true },
+  { source: '/repeater_name_tool/', destination: '/tools/repeater-name', permanent: true },
+  { source: '/companion_name_tool', destination: '/tools/companion-name', permanent: true },
+  { source: '/companion_name_tool/', destination: '/tools/companion-name', permanent: true },
+  { source: '/prefix_matrix', destination: '/tools/prefix-matrix', permanent: true },
+  { source: '/prefix_matrix/', destination: '/tools/prefix-matrix', permanent: true },
+  { source: '/serial_usb_tool', destination: '/tools/serial-usb', permanent: true },
+  { source: '/serial_usb_tool/', destination: '/tools/serial-usb', permanent: true },
+];
+
 const nextConfig = {
   output: 'standalone',
   poweredByHeader: false,
+  async redirects() {
+    return utilityCompatibilityRedirects;
+  },
   async headers() {
     return [
       {

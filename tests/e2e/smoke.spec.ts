@@ -2,6 +2,12 @@ import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const criticalPages = ['/', '/start', '/map', '/tools', '/guides'];
+const upstreamUtilityRedirects = [
+  { source: '/repeater_name_tool', destination: '/tools/repeater-name' },
+  { source: '/companion_name_tool', destination: '/tools/companion-name' },
+  { source: '/prefix_matrix', destination: '/tools/prefix-matrix' },
+  { source: '/serial_usb_tool', destination: '/tools/serial-usb' },
+] as const;
 
 function mockPrefixMatrixSnapshot(page: import('@playwright/test').Page) {
   return page.route('/api/map/snapshot', async (route) => {
@@ -130,7 +136,21 @@ test.describe('critical page smoke', () => {
 
     await expect(main.locator('a[href="/map"]').first()).toBeVisible();
     await expect(main.locator('a[href="/guides/repeater-setup"]').first()).toBeVisible();
+    await expect(main.getByText(/Utility defaults are generated from/i)).toBeVisible();
+
+    const upstreamLink = main.getByRole('link', { name: 'Colorado-Mesh/meshcore-utilities-site' });
+    await expect(upstreamLink).toBeVisible();
+    await expect(upstreamLink).toHaveAttribute('target', '_blank');
+    await expect(upstreamLink).toHaveAttribute('rel', /noopener/);
   });
+
+  for (const { source, destination } of upstreamUtilityRedirects) {
+    test(`redirects upstream utility path ${source} to ${destination}`, async ({ page }) => {
+      await page.goto(source);
+      await expect(page).toHaveURL(new RegExp(`${destination.replaceAll('/', '\\/')}$`));
+      await expect(page.locator('#main-content')).toBeVisible();
+    });
+  }
 
   test('guides hub exposes all guide pages and a tools handoff', async ({ page }) => {
     await page.goto('/guides');

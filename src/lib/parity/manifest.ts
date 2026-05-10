@@ -227,6 +227,40 @@ export const PARITY_MANIFEST: ParityItem[] = [
     notes: 'PR CI now blocks on lint, typecheck, unit tests, production build, Chromium critical smoke, axe accessibility, Lighthouse budgets, dependency review, Docker image build, and Docker runtime smoke without publishing images. Utilities stale-artifact checks are planned after generated artifacts land in CI.',
   },
   {
+    id: 'utilities-route-compatibility',
+    domain: 'utilities',
+    title: 'Upstream utility route compatibility redirects',
+    upstream: [
+      {
+        label: 'meshcore-utilities-site app and blueprints',
+        url: 'https://github.com/Colorado-Mesh/meshcore-utilities-site',
+        path: 'vendor/meshcore-utilities-site/app.py',
+      },
+      {
+        label: 'meshcore-utilities-site repeater route',
+        path: 'vendor/meshcore-utilities-site/backend/api/routes/repeater_name_tool/index.py',
+      },
+      {
+        label: 'meshcore-utilities-site companion route',
+        path: 'vendor/meshcore-utilities-site/backend/api/routes/companion_name_tool/index.py',
+      },
+      {
+        label: 'meshcore-utilities-site prefix matrix route',
+        path: 'vendor/meshcore-utilities-site/backend/api/routes/prefix_matrix/index.py',
+      },
+      {
+        label: 'meshcore-utilities-site serial USB route',
+        path: 'vendor/meshcore-utilities-site/backend/api/routes/serial_usb_tool/index.py',
+      },
+    ],
+    local: ['next.config.js', 'src/app/tools/page.tsx', 'tests/e2e/smoke.spec.ts'],
+    status: 'implemented',
+    coverage: [
+      { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (upstream utility route compatibility)' },
+    ],
+    notes: 'Known upstream public GET utility page paths permanently redirect to canonical local `/tools/*` routes while POST submit endpoints, contacts export, static files, and upstream internals remain out of scope.',
+  },
+  {
     id: 'contacts-export',
     domain: 'utilities',
     title: 'Contacts export endpoint',

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { createCompanionConfigExport, createRepeaterConfigExport, stringifySettingsJson } from '@/lib/meshcore-tools/config-export';
 import { buildSerialSettingsPlan } from '@/lib/meshcore-tools/serial-settings';
+import { adaptUpstreamSerialProfile, DEFAULT_SERIAL_COMMAND_PROFILE } from '@/lib/tools/serial-commands';
+import { UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE, type UpstreamSerialCommandProfile } from '@/lib/upstream-utilities';
 
 function commandsFrom(input: string | unknown): string[] {
   const result = buildSerialSettingsPlan(input);
@@ -10,7 +12,92 @@ function commandsFrom(input: string | unknown): string[] {
   return result.action.steps.map((step) => step.type === 'send' ? step.command : `wait:${step.durationMs}`);
 }
 
+function profileWithAction(action: UpstreamSerialCommandProfile['actions'][number]): UpstreamSerialCommandProfile {
+  return {
+    ...UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE,
+    actions: [action],
+  };
+}
+
 describe('MeshCore serial settings conversion', () => {
+  it('adapts the generated upstream serial command profile into the local safe profile', () => {
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.name).toBe(UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.name);
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.serial.defaultLineEnding).toBe('\r\n');
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.map((action) => action.id)).toEqual(
+      UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.actions.map((action) => action.id),
+    );
+
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'factory-reset')).toMatchObject({
+      confirm: true,
+      confirmMessage: 'Reset all settings to factory defaults?',
+    });
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'regions')).toMatchObject({
+      confirm: true,
+      confirmMessage: 'Inspect regions and save region home configuration?',
+    });
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'summary')?.steps).toContainEqual({
+      type: 'send',
+      command: 'get guest.password',
+    });
+  });
+
+  it('forces confirmation for generated mutating actions and blocks secret writes', () => {
+    const mutating = adaptUpstreamSerialProfile(profileWithAction({
+      id: 'future-region-save',
+      label: 'Future Region Save',
+      description: 'Future upstream mutating action.',
+      confirm: false,
+      confirmMessage: '',
+      steps: [{ type: 'send', command: 'region home', order: 1 }],
+    }));
+    expect(mutating.actions[0]).toMatchObject({
+      confirm: true,
+      confirmMessage: 'Run Future Region Save?',
+    });
+
+    expect(() => adaptUpstreamSerialProfile(profileWithAction({
+      id: 'write-secret',
+      label: 'Write Secret',
+      description: 'Invalid secret-writing action.',
+      confirm: true,
+      confirmMessage: 'Write secret?',
+      steps: [{ type: 'send', command: 'set guest.password hunter2', order: 1 }],
+    }))).toThrow('writes a private/secret/password field');
+
+    expect(() => adaptUpstreamSerialProfile(profileWithAction({
+      id: 'invalid-send',
+      label: 'Invalid Send',
+      description: 'Invalid empty send action.',
+      confirm: false,
+      confirmMessage: '',
+      steps: [{ type: 'send', order: 1 }],
+    }))).toThrow('has a send step without a command');
+  });
+
+  it('maps generated action and step line endings into local serial steps', () => {
+    const profile = adaptUpstreamSerialProfile(profileWithAction({
+      id: 'line-ending-overrides',
+      label: 'Line Ending Overrides',
+      description: 'Exercises action and step line endings.',
+      confirm: false,
+      confirmMessage: '',
+      lineEnding: 'CR',
+      steps: [
+        { type: 'send', command: 'ver', order: 1 },
+        { type: 'send', command: 'board', lineEnding: 'LF', order: 2 },
+        { type: 'send', command: 'clock', lineEnding: 'CRLF', order: 3 },
+        { type: 'send', command: 'region', lineEnding: 'NONE', order: 4 },
+      ],
+    }));
+
+    expect(profile.actions[0].steps).toEqual([
+      { type: 'send', command: 'ver', lineEnding: '\r' },
+      { type: 'send', command: 'board', lineEnding: '\n' },
+      { type: 'send', command: 'clock', lineEnding: '\r\n' },
+      { type: 'send', command: 'region', lineEnding: '' },
+    ]);
+  });
+
   it('converts generated repeater settings into a confirmed command plan', () => {
     const exported = createRepeaterConfigExport({
       region: 'DEN',

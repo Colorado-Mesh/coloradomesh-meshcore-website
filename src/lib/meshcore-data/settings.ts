@@ -1,3 +1,8 @@
+import {
+  UPSTREAM_UTILITIES_PROVENANCE,
+  UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS,
+} from '@/lib/upstream-utilities';
+
 export interface MeshCoreRadioSettings {
   frequency: number;
   bandwidth: number;
@@ -9,21 +14,25 @@ export interface MeshCoreRadioSettings {
 export interface MeshCoreSettingsProvenance {
   source: string;
   sourcePath: string;
-  adaptedAt: string;
+  submodulePath: string;
+  upstreamCommit: string;
 }
 
+const upstreamRadioSettings = UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings;
+
 export const MESHCORE_SETTINGS_PROVENANCE: MeshCoreSettingsProvenance = {
-  source: 'Colorado-Mesh/meshcore-utilities-site',
+  source: UPSTREAM_UTILITIES_PROVENANCE.upstreamRepository,
   sourcePath: 'static/data/recommended_settings.json',
-  adaptedAt: '2026-05-07',
+  submodulePath: UPSTREAM_UTILITIES_PROVENANCE.submodulePath,
+  upstreamCommit: UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit,
 };
 
 export const COLORADO_MESH_RADIO_SETTINGS: MeshCoreRadioSettings = {
-  frequency: 910525,
-  bandwidth: 62500,
-  spreadingFactor: 7,
-  codingRate: 8,
-  txPower: 22,
+  frequency: upstreamRadioSettings.frequency,
+  bandwidth: upstreamRadioSettings.bandwidth,
+  spreadingFactor: upstreamRadioSettings.spreading_factor,
+  codingRate: upstreamRadioSettings.coding_rate,
+  txPower: upstreamRadioSettings.tx_power,
 };
 
 export function buildRadioSettingsJson(settings = COLORADO_MESH_RADIO_SETTINGS) {

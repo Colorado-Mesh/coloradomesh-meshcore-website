@@ -1,3 +1,6 @@
+import { UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE } from '@/lib/upstream-utilities';
+import type { UpstreamSerialAction, UpstreamSerialCommandProfile } from '@/lib/upstream-utilities';
+
 export type SerialParity = 'none' | 'even' | 'odd' | 'mark' | 'space';
 export type SerialFlowControl = 'none' | 'hardware';
 export type SerialLineEnding = '\n' | '\r' | '\r\n' | '';
@@ -40,202 +43,40 @@ export interface SerialCommandProfile {
   actions: SerialAction[];
 }
 
-const send = (command: string): SerialSendStep => ({ type: 'send', command });
-const wait = (durationMs: number): SerialWaitStep => ({ type: 'wait', durationMs });
-
-export const DEFAULT_SERIAL_COMMAND_PROFILE: SerialCommandProfile = {
-  name: 'Colorado Mesh Default MeshCore USB Command Profile',
-  description:
-    'Default canned serial commands for MeshCore repeater firmware over raw UART.',
-  serial: {
-    baudRate: 115200,
-    dataBits: 8,
-    stopBits: 1,
-    parity: 'none',
-    flowControl: 'none',
-    defaultLineEnding: '\r\n',
-  },
-  actions: [
-    {
-      id: 'information',
-      label: 'Information',
-      description: 'Read firmware version, board name, and clock.',
-      steps: [send('ver'), wait(150), send('board'), wait(150), send('clock')],
-    },
-    {
-      id: 'sync-clock',
-      label: 'Sync Clock',
-      description: 'Sync the device clock to the current system time.',
-      steps: [send('clock sync')],
-      confirm: true,
-      confirmMessage: 'Sync the device clock to the current system time?',
-    },
-    {
-      id: 'statistics',
-      label: 'Statistics',
-      description: 'Read various statistics counters.',
-      steps: [send('stats-core'), wait(150), send('stats-radio'), wait(150), send('stats-packets')],
-    },
-    {
-      id: 'clear-stats',
-      label: 'Clear Statistics',
-      description: 'Reset all statistics counters.',
-      steps: [send('clear stats')],
-      confirm: true,
-      confirmMessage: 'Reset all statistics counters?',
-    },
-    {
-      id: 'start-packet-logging',
-      label: 'Start Packet Logging',
-      description: 'Start logging packets.',
-      steps: [send('log start')],
-      confirm: true,
-      confirmMessage: 'Start logging packets?',
-    },
-    {
-      id: 'stop-packet-logging',
-      label: 'Stop Packet Logging',
-      description: 'Stop logging packets.',
-      steps: [send('log stop')],
-      confirm: true,
-      confirmMessage: 'Stop logging packets?',
-    },
-    {
-      id: 'summary',
-      label: 'Summary',
-      description: 'Run a series of commands to get a summary of the repeater.',
-      steps: [
-        send('ver'),
-        wait(150),
-        send('board'),
-        wait(150),
-        send('clock'),
-        wait(150),
-        send('get name'),
-        wait(150),
-        send('get role'),
-        wait(150),
-        send('get radio'),
-        wait(150),
-        send('get freq'),
-        wait(150),
-        send('get tx'),
-        wait(150),
-        send('get af'),
-        wait(150),
-        send('get repeat'),
-        wait(150),
-        send('get public.key'),
-        wait(150),
-        send('get lat'),
-        wait(150),
-        send('get lon'),
-        wait(150),
-        send('get advert.interval'),
-        wait(150),
-        send('get flood.advert.interval'),
-        wait(150),
-        send('get flood.max'),
-        wait(150),
-        send('get guest.password'),
-        wait(150),
-        send('get allow.read.only'),
-        wait(150),
-        send('get owner.info'),
-        wait(150),
-        send('get acl'),
-        wait(150),
-        send('get rxdelay'),
-        wait(150),
-        send('get txdelay'),
-        wait(150),
-        send('get direct.txdelay'),
-      ],
-    },
-    {
-      id: 'reboot',
-      label: 'Reboot',
-      description: 'Reboot the device.',
-      steps: [send('reboot')],
-      confirm: true,
-      confirmMessage: 'Reboot the device?',
-    },
-    {
-      id: 'factory-reset',
-      label: 'Factory Reset',
-      description: 'Reset all settings to factory defaults.',
-      steps: [send('erase')],
-      confirm: true,
-      confirmMessage: 'Reset all settings to factory defaults?',
-    },
-    {
-      id: 'neighbors',
-      label: 'Neighbors',
-      description: 'List neighbors and demonstrate neighbor-related commands.',
-      steps: [send('discover.neighbors'), wait(500), send('neighbor')],
-    },
-    {
-      id: 'bridge-config',
-      label: 'Bridge Configuration',
-      description: 'Inspect bridge parameters.',
-      steps: [
-        send('get bridge.enabled'),
-        wait(100),
-        send('get bridge.delay'),
-        wait(100),
-        send('get bridge.source'),
-        wait(100),
-        send('get bridge.baud'),
-        wait(100),
-        send('get bridge.secret'),
-      ],
-    },
-    {
-      id: 'regions',
-      label: 'Region Management',
-      description: 'Inspect regions and save region configuration.',
-      steps: [send('region'), wait(150), send('region home'), wait(150), send('region get')],
-      confirm: true,
-      confirmMessage: 'Inspect regions and save region home configuration?',
-    },
-    {
-      id: 'enable-gps',
-      label: 'Enable GPS',
-      description: 'Enable GPS and sync time.',
-      steps: [send('gps on'), wait(100), send('gps sync')],
-      confirm: true,
-      confirmMessage: 'Enable GPS and sync?',
-    },
-    {
-      id: 'disable-gps',
-      label: 'Disable GPS',
-      description: 'Disable GPS.',
-      steps: [send('gps off')],
-      confirm: true,
-      confirmMessage: 'Disable GPS?',
-    },
-    {
-      id: 'enable-power-saving',
-      label: 'Enable Power Saving',
-      description: 'Enable power saving mode.',
-      steps: [send('powersaving on')],
-      confirm: true,
-      confirmMessage: 'Enable power saving mode?',
-    },
-    {
-      id: 'disable-power-saving',
-      label: 'Disable Power Saving',
-      description: 'Disable power saving mode.',
-      steps: [send('powersaving off')],
-      confirm: true,
-      confirmMessage: 'Disable power saving mode?',
-    },
-  ],
+const CONFIRMATION_OVERRIDES: Record<string, string> = {
+  regions: 'Inspect regions and save region home configuration?',
 };
+
+const MUTATING_ACTION_ID_PATTERN = /(?:clear|start|stop|reboot|reset|factory|region|enable|disable|sync|save|write|set|erase|gps|power)/i;
+const MUTATING_COMMAND_PATTERN = /^(?!get\b)(?:set\b|clear\b|log\s+(?:start|stop)\b|reboot\b|erase\b|region\s+home\b|region\s+save\b|clock\s+sync\b|gps\s+(?:on|off|sync)\b|powersaving\s+(?:on|off)\b|save\b|write\b)/i;
+const BLOCKED_WRITE_FIELD_PATTERN = /(?:private|secret|password|prv\.key)/i;
+const READ_ONLY_COMMAND_PATTERN = /^(?:get\b|ver\b|board\b|clock\b|stats\b|stats-|region$|region\s+get\b|discover\.|neighbor\b)/i;
+
+export const DEFAULT_SERIAL_COMMAND_PROFILE: SerialCommandProfile = adaptUpstreamSerialProfile(
+  UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE,
+);
 
 export const SERIAL_BAUD_RATES: readonly number[] = [
   9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600,
 ];
+
+export function adaptUpstreamSerialProfile(
+  profile: UpstreamSerialCommandProfile,
+): SerialCommandProfile {
+  return {
+    name: profile.name,
+    description: profile.description,
+    serial: {
+      baudRate: profile.serial.baudRate,
+      dataBits: toSerialDataBits(profile.serial.dataBits),
+      stopBits: toSerialStopBits(profile.serial.stopBits),
+      parity: toSerialParity(profile.serial.parity),
+      flowControl: toSerialFlowControl(profile.serial.flowControl),
+      defaultLineEnding: toSerialLineEnding(profile.serial.defaultLineEnding),
+    },
+    actions: profile.actions.map(adaptUpstreamAction),
+  };
+}
 
 export function lineEndingLabel(ending: SerialLineEnding): string {
   switch (ending) {
@@ -247,5 +88,85 @@ export function lineEndingLabel(ending: SerialLineEnding): string {
       return 'CRLF (\\r\\n)';
     case '':
       return 'None';
+  }
+}
+
+function adaptUpstreamAction(action: UpstreamSerialAction): SerialAction {
+  const actionLineEnding = action.lineEnding ? toSerialLineEnding(action.lineEnding) : undefined;
+  const steps = action.steps.map((step): SerialActionStep => {
+    if (step.type === 'wait') {
+      if (step.delayMs === undefined) throw new Error(`Serial action ${action.id} has a wait step without delayMs.`);
+      return { type: 'wait', durationMs: step.delayMs };
+    }
+
+    if (step.command === undefined || step.command.trim().length === 0) {
+      throw new Error(`Serial action ${action.id} has a send step without a command.`);
+    }
+
+    if (isBlockedSecretWrite(step.command)) {
+      throw new Error(`Serial action ${action.id} writes a private/secret/password field.`);
+    }
+
+    const lineEnding = step.lineEnding ? toSerialLineEnding(step.lineEnding) : actionLineEnding;
+    return lineEnding === undefined
+      ? { type: 'send', command: step.command }
+      : { type: 'send', command: step.command, lineEnding };
+  });
+
+  const confirmMessage = CONFIRMATION_OVERRIDES[action.id] ?? action.confirmMessage;
+  const confirm = action.confirm || action.id in CONFIRMATION_OVERRIDES || requiresLocalConfirmation(action, steps);
+
+  return {
+    id: action.id,
+    label: action.label,
+    description: action.description,
+    steps,
+    ...(confirm ? { confirm: true, confirmMessage: confirmMessage || `Run ${action.label}?` } : {}),
+  };
+}
+
+function requiresLocalConfirmation(action: UpstreamSerialAction, steps: SerialActionStep[]): boolean {
+  if (MUTATING_ACTION_ID_PATTERN.test(action.id)) return true;
+  return steps.some((step) => step.type === 'send' && MUTATING_COMMAND_PATTERN.test(step.command));
+}
+
+function isBlockedSecretWrite(command: string): boolean {
+  return BLOCKED_WRITE_FIELD_PATTERN.test(command) && !READ_ONLY_COMMAND_PATTERN.test(command);
+}
+
+function toSerialDataBits(value: number): 7 | 8 {
+  if (value === 7 || value === 8) return value;
+  throw new Error(`Unsupported serial data bits: ${value}`);
+}
+
+function toSerialStopBits(value: number): 1 | 2 {
+  if (value === 1 || value === 2) return value;
+  throw new Error(`Unsupported serial stop bits: ${value}`);
+}
+
+function toSerialParity(value: string): SerialParity {
+  if (value === 'none' || value === 'even' || value === 'odd' || value === 'mark' || value === 'space') {
+    return value;
+  }
+  throw new Error(`Unsupported serial parity: ${value}`);
+}
+
+function toSerialFlowControl(value: string): SerialFlowControl {
+  if (value === 'none' || value === 'hardware') return value;
+  throw new Error(`Unsupported serial flow control: ${value}`);
+}
+
+function toSerialLineEnding(value: string): SerialLineEnding {
+  switch (value) {
+    case 'CRLF':
+      return '\r\n';
+    case 'CR':
+      return '\r';
+    case 'LF':
+      return '\n';
+    case 'NONE':
+      return '';
+    default:
+      throw new Error(`Unsupported serial line ending: ${value}`);
   }
 }

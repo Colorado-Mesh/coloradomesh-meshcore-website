@@ -1,14 +1,14 @@
-import { airports } from '@/lib/data/airports';
+import { UPSTREAM_UTILITIES_REGIONS } from '@/lib/upstream-utilities';
 
 export interface MeshCoreRegion {
   code: string;
   label: string;
 }
 
-export const COLORADO_MESH_REGIONS: MeshCoreRegion[] = airports
+export const COLORADO_MESH_REGIONS: MeshCoreRegion[] = UPSTREAM_UTILITIES_REGIONS.airports
   .map((airport) => ({
     code: airport.code.toLowerCase(),
-    label: airport.airport,
+    label: airport.name,
   }))
   .sort((a, b) => a.code.localeCompare(b.code));
 

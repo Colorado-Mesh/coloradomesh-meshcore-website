@@ -44,6 +44,7 @@ export interface UpstreamSerialStep {
   type: 'send' | 'wait';
   command?: string;
   delayMs?: number;
+  lineEnding?: string;
   order: number;
 }
 
@@ -54,6 +55,7 @@ export interface UpstreamSerialAction {
   steps: UpstreamSerialStep[];
   confirm: boolean;
   confirmMessage: string;
+  lineEnding?: string;
 }
 
 export interface UpstreamSerialCommandProfile {

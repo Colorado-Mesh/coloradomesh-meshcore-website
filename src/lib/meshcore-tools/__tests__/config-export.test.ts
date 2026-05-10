@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { COLORADO_MESH_REGION_CODES } from '@/lib/meshcore-data/regions';
-import { UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS } from '@/lib/upstream-utilities';
+import { COLORADO_MESH_REGION_CODES, COLORADO_MESH_REGIONS } from '@/lib/meshcore-data/regions';
+import {
+  UPSTREAM_UTILITIES_PROVENANCE,
+  UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS,
+  UPSTREAM_UTILITIES_REGIONS,
+} from '@/lib/upstream-utilities';
 import {
   COLORADO_MESH_RADIO_COMMANDS,
   COLORADO_MESH_RADIO_SETTINGS,
+  MESHCORE_SETTINGS_PROVENANCE,
   buildRadioSettingsJson,
   formatRadioBandwidthHz,
   formatRadioFrequencyKHz,
@@ -27,6 +32,27 @@ import {
 describe('MeshCore settings export', () => {
   it('keeps canonical radio settings aligned with the upstream fixture', () => {
     expect(buildRadioSettingsJson()).toEqual(UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings);
+  });
+
+  it('tracks generated upstream settings provenance', () => {
+    expect(MESHCORE_SETTINGS_PROVENANCE).toEqual({
+      source: 'Colorado-Mesh/meshcore-utilities-site',
+      sourcePath: 'static/data/recommended_settings.json',
+      submodulePath: 'vendor/meshcore-utilities-site',
+      upstreamCommit: UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit,
+    });
+  });
+
+  it('keeps canonical regions aligned with upstream airport regions', () => {
+    expect(COLORADO_MESH_REGION_CODES).toEqual(
+      UPSTREAM_UTILITIES_REGIONS.airports
+        .map((airport) => airport.code.toLowerCase())
+        .sort((a, b) => a.localeCompare(b)),
+    );
+    expect(COLORADO_MESH_REGIONS.find((region) => region.code === 'den')).toEqual({
+      code: 'den',
+      label: 'Denver International Airport',
+    });
   });
 
   it('formats guide-facing radio settings and commands from canonical data', () => {

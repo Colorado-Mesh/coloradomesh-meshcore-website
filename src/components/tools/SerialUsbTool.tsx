@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { SectionEyebrow } from '@/components/brand';
 import {
   DEFAULT_SERIAL_COMMAND_PROFILE,
   SERIAL_BAUD_RATES,
@@ -375,47 +376,88 @@ export default function SerialUsbTool() {
     return null;
   }, [support]);
 
+  const statusBadge: { dot: string; tone: string } = (() => {
+    if (connection === 'connected') {
+      return {
+        dot: 'status-dot status-dot-pulse',
+        tone: 'text-forest-300',
+      };
+    }
+    if (connection === 'connecting') {
+      return {
+        dot: 'status-dot status-dot-amber status-dot-pulse',
+        tone: 'text-amber-signal',
+      };
+    }
+    if (connection === 'error') {
+      return {
+        dot: 'status-dot status-dot-red',
+        tone: 'text-red-signal',
+      };
+    }
+    if (support === 'ready') {
+      return {
+        dot: 'status-dot opacity-40',
+        tone: 'text-foreground-muted',
+      };
+    }
+    return {
+      dot: 'status-dot status-dot-red opacity-70',
+      tone: 'text-foreground-muted',
+    };
+  })();
+
   return (
     <div className="space-y-6">
       {supportBanner && (
         <div
           data-testid="serial-support-banner"
-          className="card-mesh p-5 border-sunset-500/40 bg-sunset-500/5"
+          role="status"
+          className="panel border-sunset-500/40 bg-sunset-500/[0.06] p-5"
         >
-          <p className="text-sm font-semibold text-foreground mb-1">
-            {supportBanner.title}
-          </p>
-          <p className="text-sm text-foreground-muted leading-relaxed">
-            {supportBanner.body}
-          </p>
-          <p className="text-xs text-foreground-dim mt-3">
-            You can still review the canned commands below to know what the tool
-            would send.
-          </p>
+          <div className="flex items-start gap-3">
+            <span className="status-dot status-dot-amber mt-2" aria-hidden />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-sm font-semibold text-foreground">
+                {supportBanner.title}
+              </p>
+              <p className="text-sm text-foreground-muted leading-relaxed">
+                {supportBanner.body}
+              </p>
+              <p className="text-xs text-foreground-dim">
+                You can still review the canned commands below to know what the tool
+                would send.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
-      <div className="card-mesh p-5 space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-foreground-dim mono">
-              Connection
-            </p>
-            <p data-testid="serial-support-status" className="text-sm text-foreground">
-              {connection === 'connected' ? (
-                <span className="text-forest-300">Connected · {baudRate} baud</span>
-              ) : connection === 'connecting' ? (
-                <span className="text-foreground-muted">Connecting…</span>
-              ) : connection === 'error' ? (
-                <span className="text-red-500">Error: {errorMsg}</span>
-              ) : support === 'ready' ? (
-                <span className="text-foreground-muted">Idle — click Connect to pick a port.</span>
-              ) : (
-                <span className="text-foreground-muted">Unavailable in this browser.</span>
-              )}
+      <section className="panel p-5 sm:p-6 space-y-5">
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 space-y-2">
+            <SectionEyebrow tone="mesh">Connection</SectionEyebrow>
+            <p
+              data-testid="serial-support-status"
+              className={`inline-flex items-center gap-2 text-sm ${statusBadge.tone}`}
+            >
+              <span className={statusBadge.dot} aria-hidden />
+              <span>
+                {connection === 'connected' ? (
+                  <>Connected · {baudRate} baud</>
+                ) : connection === 'connecting' ? (
+                  <>Connecting…</>
+                ) : connection === 'error' ? (
+                  <>Error: {errorMsg}</>
+                ) : support === 'ready' ? (
+                  <>Idle — click Connect to pick a port.</>
+                ) : (
+                  <>Unavailable in this browser.</>
+                )}
+              </span>
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             {connection === 'connected' ? (
               <button
                 type="button"
@@ -436,16 +478,16 @@ export default function SerialUsbTool() {
               </button>
             )}
           </div>
-        </div>
+        </header>
 
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           <label className="block text-xs text-foreground-muted">
-            <span className="block mb-1 mono uppercase tracking-wider">Baud rate</span>
+            <span className="metric-label block mb-1.5">Baud rate</span>
             <select
               value={baudRate}
               onChange={(e) => setBaudRate(Number(e.target.value))}
               disabled={connection === 'connected' || connection === 'connecting'}
-              className="w-full bg-night-800/50 border border-card-border rounded-lg px-3 py-2 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none disabled:opacity-60"
+              className="w-full bg-night-800/50 border border-card-border rounded-lg px-3 py-2.5 text-foreground font-mono text-sm focus:ring-2 focus:ring-mesh focus:border-mesh outline-none disabled:opacity-60"
             >
               {SERIAL_BAUD_RATES.map((rate) => (
                 <option key={rate} value={rate}>
@@ -455,11 +497,11 @@ export default function SerialUsbTool() {
             </select>
           </label>
           <label className="block text-xs text-foreground-muted">
-            <span className="block mb-1 mono uppercase tracking-wider">Line ending</span>
+            <span className="metric-label block mb-1.5">Line ending</span>
             <select
               value={lineEnding}
               onChange={(e) => setLineEnding(e.target.value as SerialLineEnding)}
-              className="w-full bg-night-800/50 border border-card-border rounded-lg px-3 py-2 text-foreground font-mono focus:ring-2 focus:ring-mesh focus:border-mesh outline-none"
+              className="w-full bg-night-800/50 border border-card-border rounded-lg px-3 py-2.5 text-foreground font-mono text-sm focus:ring-2 focus:ring-mesh focus:border-mesh outline-none"
             >
               {(['\n', '\r', '\r\n', ''] as SerialLineEnding[]).map((opt) => (
                 <option key={opt || 'none'} value={opt}>
@@ -470,20 +512,32 @@ export default function SerialUsbTool() {
           </label>
         </div>
 
-        <p className="text-xs text-foreground-dim">
-          ◊ The browser will prompt you to choose a serial port. Nothing is sent
+        <p className="rounded-lg border border-card-border bg-night-800/30 px-3 py-2.5 text-xs text-foreground-dim leading-relaxed">
+          <span aria-hidden className="text-mesh mr-1.5">◊</span>
+          The browser will prompt you to choose a serial port. Nothing is sent
           until you click <strong className="text-foreground">Connect</strong>{' '}
           and the data stays between this tab and your device.
         </p>
-      </div>
+      </section>
 
-      <div className="card-mesh p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Manual send</h3>
-          <span className="text-xs text-foreground-dim mono uppercase tracking-wider">
+      <section className="panel p-5 sm:p-6 space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <SectionEyebrow tone="mesh">Manual send</SectionEyebrow>
+            <h3 className="text-sm font-semibold text-foreground">
+              One-off commands
+            </h3>
+          </div>
+          <span
+            className={`mono text-[0.65rem] uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border ${
+              connection === 'connected'
+                ? 'border-forest-300/40 bg-forest-300/[0.08] text-forest-300'
+                : 'border-card-border bg-night-800/40 text-foreground-dim'
+            }`}
+          >
             {connection === 'connected' ? 'Ready' : 'Disabled'}
           </span>
-        </div>
+        </header>
         <div className="flex flex-col sm:flex-row gap-2">
           <input
             type="text"
@@ -508,40 +562,60 @@ export default function SerialUsbTool() {
             Send
           </button>
         </div>
-      </div>
+        <p className="text-[11px] text-foreground-dim">
+          Press <kbd className="mono px-1.5 py-0.5 rounded border border-card-border bg-night-800/60 text-foreground-muted">Enter</kbd> to send. Line ending follows the connection setting above.
+        </p>
+      </section>
 
-      <div className="card-mesh p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Canned commands</h3>
-          <span className="text-xs text-foreground-dim mono uppercase tracking-wider">
-            Default profile
+      <section className="panel p-5 sm:p-6 space-y-4">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <div className="space-y-1.5">
+            <SectionEyebrow tone="sky">Canned commands</SectionEyebrow>
+            <h3 className="text-sm font-semibold text-foreground">
+              Default profile
+            </h3>
+          </div>
+          <span className="mono text-[0.65rem] uppercase tracking-[0.18em] text-foreground-dim">
+            {PROFILE.actions.length} actions
           </span>
-        </div>
-        <div className="grid gap-2 sm:grid-cols-2">
+        </header>
+        <div className="grid gap-2.5 sm:grid-cols-2">
           {PROFILE.actions.map((action) => {
             const isRunning = runningActionId === action.id;
             const disabled =
               connection !== 'connected' || (!!runningActionId && !isRunning);
+            const requiresConfirm = !!action.confirm;
             return (
               <button
                 key={action.id}
                 type="button"
                 onClick={() => void runAction(action)}
                 disabled={disabled}
-                className={`text-left px-4 py-3 rounded-lg border transition-colors ${
+                className={`group text-left px-4 py-3 rounded-lg border transition-all ${
                   isRunning
                     ? 'border-mesh bg-mesh/10 text-foreground'
-                    : 'border-card-border bg-night-800/20 text-foreground-muted hover:border-mesh/50 disabled:opacity-50 disabled:hover:border-card-border disabled:cursor-not-allowed'
+                    : 'border-card-border bg-night-800/20 text-foreground-muted hover:border-mesh/50 hover:bg-night-800/40 disabled:opacity-50 disabled:hover:border-card-border disabled:hover:bg-night-800/20 disabled:cursor-not-allowed'
                 }`}
               >
-                <span className="font-mono font-bold text-sm text-foreground">
-                  {action.label}
-                </span>
-                <p className="text-xs text-foreground-muted mt-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono font-semibold text-sm text-foreground">
+                    {action.label}
+                  </span>
+                  {requiresConfirm && (
+                    <span
+                      className="mono text-[0.6rem] uppercase tracking-[0.16em] px-1.5 py-0.5 rounded border border-sunset-500/40 text-sunset-500"
+                      title="Requires confirmation"
+                    >
+                      confirm
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-foreground-muted mt-1 leading-relaxed">
                   {action.description}
                 </p>
                 {isRunning && (
-                  <p className="text-[10px] text-mesh mt-1 mono uppercase tracking-wider">
+                  <p className="text-[10px] text-mesh mt-2 mono uppercase tracking-[0.18em] inline-flex items-center gap-1.5">
+                    <span className="status-dot status-dot-pulse" aria-hidden />
                     Running…
                   </p>
                 )}
@@ -549,12 +623,28 @@ export default function SerialUsbTool() {
             );
           })}
         </div>
-      </div>
+      </section>
 
-      <div className="card-mesh p-5 space-y-3" data-testid="serial-settings-card">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-foreground">Apply settings JSON</h3>
-          <span className="text-xs text-foreground-dim mono uppercase tracking-wider">
+      <section
+        className="panel p-5 sm:p-6 space-y-4"
+        data-testid="serial-settings-card"
+      >
+        <header className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1.5">
+            <SectionEyebrow tone="sunset">Settings JSON</SectionEyebrow>
+            <h3 className="text-sm font-semibold text-foreground">
+              Apply settings JSON
+            </h3>
+          </div>
+          <span
+            className={`mono text-[0.65rem] uppercase tracking-[0.18em] px-2.5 py-1 rounded-full border ${
+              settingsResult?.ok
+                ? 'border-mesh/40 bg-mesh/[0.08] text-mesh'
+                : settingsResult && !settingsResult.ok
+                  ? 'border-red-500/40 bg-red-500/[0.08] text-red-signal'
+                  : 'border-card-border bg-night-800/40 text-foreground-dim'
+            }`}
+          >
             {settingsResult?.ok
               ? `Preview · ${settingsResult.action.steps.length} step${
                   settingsResult.action.steps.length === 1 ? '' : 's'
@@ -563,8 +653,8 @@ export default function SerialUsbTool() {
                 ? 'Errors'
                 : 'Idle'}
           </span>
-        </div>
-        <p className="text-xs text-foreground-dim">
+        </header>
+        <p className="text-xs text-foreground-muted leading-relaxed">
           Paste a MeshCore settings JSON (or upload a <code className="text-mesh">.json</code> file) to
           preview the exact serial commands that would be sent. Nothing is transmitted until you click
           <strong className="text-foreground"> Apply previewed settings</strong> and confirm.
@@ -581,7 +671,7 @@ export default function SerialUsbTool() {
           rows={6}
           data-testid="serial-settings-input"
           aria-label="MeshCore settings JSON"
-          className="w-full bg-night-800/50 border border-card-border rounded-lg px-3 py-2 text-foreground font-mono text-xs leading-relaxed focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/40"
+          className="w-full bg-night-900/60 border border-card-border rounded-lg px-3 py-2.5 text-foreground font-mono text-xs leading-relaxed focus:ring-2 focus:ring-mesh focus:border-mesh outline-none placeholder:text-foreground-muted/40"
         />
 
         <div className="flex flex-wrap items-center gap-2">
@@ -631,9 +721,12 @@ export default function SerialUsbTool() {
           <div
             data-testid="serial-settings-error"
             role="alert"
-            className="rounded-lg border border-red-500/40 bg-red-500/5 p-3 text-xs text-red-300 space-y-1"
+            className="rounded-lg border border-red-500/40 bg-red-500/[0.06] p-3 text-xs text-red-300 space-y-1"
           >
-            <p className="font-semibold text-red-200">Cannot apply these settings:</p>
+            <p className="font-semibold text-red-200 inline-flex items-center gap-1.5">
+              <span aria-hidden>✕</span>
+              Cannot apply these settings:
+            </p>
             <ul className="list-disc pl-5 space-y-0.5">
               {settingsResult.errors.map((err, idx) => (
                 <li key={`${idx}-${err}`}>{err}</li>
@@ -644,23 +737,29 @@ export default function SerialUsbTool() {
 
         {settingsResult?.ok && (
           <div data-testid="serial-settings-preview" className="space-y-3">
-            <div className="rounded-lg border border-card-border bg-night-900/60 p-3">
-              <p className="text-[10px] uppercase tracking-wider text-foreground-dim mono mb-2">
-                Command preview
-              </p>
-              <ol className="space-y-0.5 font-mono text-xs">
+            <div className="rounded-lg border border-card-border bg-night-900/70 p-3.5">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-[0.18em] text-foreground-dim mono">
+                  Command preview
+                </p>
+                <p className="text-[10px] uppercase tracking-[0.18em] text-foreground-dim mono">
+                  {settingsResult.action.steps.length} step
+                  {settingsResult.action.steps.length === 1 ? '' : 's'}
+                </p>
+              </div>
+              <ol className="space-y-1 font-mono text-xs">
                 {settingsResult.action.steps.map((step, idx) => (
-                  <li key={idx} className="flex gap-2">
-                    <span className="text-foreground-dim w-6 text-right shrink-0">
+                  <li key={idx} className="flex gap-2 items-baseline">
+                    <span className="text-foreground-dim w-6 text-right shrink-0 select-none">
                       {String(idx + 1).padStart(2, '0')}
                     </span>
                     {step.type === 'send' ? (
-                      <span className="text-foreground">
-                        <span className="text-mesh mr-2">→</span>
+                      <span className="text-foreground break-all">
+                        <span className="text-mesh mr-2" aria-hidden>→</span>
                         {step.command}
                       </span>
                     ) : (
-                      <span className="text-foreground-muted">
+                      <span className="text-foreground-muted italic">
                         wait {step.durationMs}ms
                       </span>
                     )}
@@ -672,9 +771,12 @@ export default function SerialUsbTool() {
             {settingsResult.warnings.length > 0 && (
               <div
                 data-testid="serial-settings-warnings"
-                className="rounded-lg border border-sunset-500/40 bg-sunset-500/5 p-3 text-xs text-foreground-muted space-y-1"
+                className="rounded-lg border border-sunset-500/40 bg-sunset-500/[0.06] p-3 text-xs text-foreground-muted space-y-1"
               >
-                <p className="font-semibold text-foreground">Warnings</p>
+                <p className="font-semibold text-foreground inline-flex items-center gap-1.5">
+                  <span aria-hidden className="text-sunset-500">⚠</span>
+                  Warnings
+                </p>
                 <ul className="list-disc pl-5 space-y-0.5">
                   {settingsResult.warnings.map((w, idx) => (
                     <li key={`${idx}-${w}`}>{w}</li>
@@ -694,39 +796,57 @@ export default function SerialUsbTool() {
                 <p className="font-mono break-all leading-relaxed">
                   {settingsResult.unsupportedKeys.join(', ')}
                 </p>
-                <p className="text-foreground-dim mt-1">
+                <p className="text-foreground-dim mt-1.5">
                   Review and apply these manually if needed.
                 </p>
               </div>
             )}
 
             {connection !== 'connected' && (
-              <p className="text-xs text-foreground-dim">
+              <p className="text-xs text-foreground-dim inline-flex items-center gap-1.5">
+                <span aria-hidden className="text-foreground-dim">◌</span>
                 Connect a device above to enable Apply.
               </p>
             )}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="card-mesh p-0 overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-card-border bg-night-800/40">
-          <h3 className="text-sm font-semibold text-foreground">Terminal log</h3>
+      <section className="panel overflow-hidden">
+        <header className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-card-border bg-night-800/40">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <span
+              className={
+                connection === 'connected'
+                  ? 'status-dot status-dot-pulse'
+                  : 'status-dot opacity-30'
+              }
+              aria-hidden
+            />
+            <h3 className="text-sm font-semibold text-foreground truncate">
+              Terminal log
+            </h3>
+            <span className="mono text-[0.65rem] uppercase tracking-[0.18em] text-foreground-dim hidden sm:inline">
+              {log.length} {log.length === 1 ? 'line' : 'lines'}
+            </span>
+          </div>
           <button
             type="button"
             onClick={handleClearLog}
-            className="text-xs text-foreground-muted hover:text-mesh transition-colors"
+            disabled={log.length === 0}
+            className="text-xs text-foreground-muted hover:text-mesh disabled:opacity-40 disabled:hover:text-foreground-muted transition-colors"
           >
             Clear
           </button>
-        </div>
+        </header>
         <div
           className="bg-night-900 text-xs font-mono leading-relaxed h-72 overflow-y-auto p-4 space-y-0.5"
           aria-live="polite"
           aria-label="Serial terminal log"
         >
           {log.length === 0 ? (
-            <p className="text-foreground-dim">
+            <p className="text-foreground-dim flex items-center gap-2">
+              <span aria-hidden>·</span>
               Output will appear here once the device is connected.
             </p>
           ) : (
@@ -743,10 +863,10 @@ export default function SerialUsbTool() {
                         : 'text-foreground-muted'
                 }
               >
-                <span className="text-foreground-dim mr-2">
+                <span className="text-foreground-dim mr-2 select-none">
                   {formatTime(entry.ts)}
                 </span>
-                <span className="text-foreground-dim mr-2">
+                <span className="text-foreground-dim mr-2 select-none">
                   {entry.kind === 'tx'
                     ? '→'
                     : entry.kind === 'rx'
@@ -761,7 +881,7 @@ export default function SerialUsbTool() {
           )}
           <div ref={logEndRef} />
         </div>
-      </div>
+      </section>
     </div>
   );
 }

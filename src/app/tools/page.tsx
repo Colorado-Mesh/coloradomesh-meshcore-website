@@ -91,25 +91,35 @@ export default function ToolsPage() {
           }
           meta={
             <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
-              <Breadcrumbs
-                items={[{ label: 'Home', href: '/' }, { label: PAGE_TITLE }]}
-              />
+              <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+                <Breadcrumbs
+                  items={[{ label: 'Home', href: '/' }, { label: PAGE_TITLE }]}
+                />
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[0.7rem] mono uppercase tracking-[0.18em] text-foreground-dim">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="status-dot status-dot-pulse" aria-hidden />
+                    Live data
+                  </span>
+                  <span className="hidden sm:inline-block w-px h-3 bg-card-border" aria-hidden />
+                  <span>4 first-class tools</span>
+                  <span className="hidden sm:inline-block w-px h-3 bg-card-border" aria-hidden />
+                  <span>
+                    Upstream <span className="text-mesh normal-case tracking-normal">{upstreamUtilitiesCommit}</span>
+                  </span>
+                </div>
+              </div>
             </div>
           }
         />
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="px-4 sm:px-6 lg:px-8 pb-14 -mt-10">
           <div className="mx-auto max-w-7xl">
-            <SectionEyebrow tone="mesh" className="mb-3">
-              Naming &amp; Identity
-            </SectionEyebrow>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-              Name your nodes.
-            </h2>
-            <p className="mt-3 mb-6 text-sm text-foreground-muted max-w-2xl">
-              Compose standards-aligned identifiers for repeaters and companion devices that fit
-              MeshCore&apos;s 23-character limit and the {COMMUNITY_NAME} naming convention.
-            </p>
+            <SectionHeader
+              tone="mesh"
+              eyebrow="Naming & Identity"
+              title="Name your nodes."
+              description={`Compose standards-aligned identifiers for repeaters and companion devices that fit MeshCore’s 23-character limit and the ${COMMUNITY_NAME} naming convention.`}
+            />
             <div className="grid gap-5 sm:grid-cols-2">
               <ToolCard
                 tone="mesh"
@@ -133,25 +143,26 @@ export default function ToolsPage() {
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-16">
+        <section className="px-4 sm:px-6 lg:px-8 pb-14">
           <div className="mx-auto max-w-7xl">
-            <SectionEyebrow tone="sunset" className="mb-3">
-              Network Planning
-            </SectionEyebrow>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-              Plan keys and coverage.
-            </h2>
-            <p className="mt-3 mb-6 text-sm text-foreground-muted max-w-2xl">
-              Coordinate keys and coverage before you flash a new node. Inspect occupied address
-              space and pair planning with the{' '}
-              <Link
-                href="/map"
-                className="text-mesh hover:text-mesh-light underline underline-offset-2"
-              >
-                Live Map
-              </Link>
-              .
-            </p>
+            <SectionHeader
+              tone="sunset"
+              eyebrow="Network Planning"
+              title="Plan keys and coverage."
+              description={
+                <>
+                  Coordinate keys and coverage before you flash a new node. Inspect occupied address
+                  space and pair planning with the{' '}
+                  <Link
+                    href="/map"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                  >
+                    Live Map
+                  </Link>
+                  .
+                </>
+              }
+            />
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               <ToolCard
                 tone="sunset"
@@ -185,24 +196,25 @@ export default function ToolsPage() {
           </div>
         </section>
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-16">
+        <section className="px-4 sm:px-6 lg:px-8 pb-14">
           <div className="mx-auto max-w-7xl">
-            <SectionEyebrow tone="sky" className="mb-3">
-              Field &amp; USB Operations
-            </SectionEyebrow>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-              Bench and field tools.
-            </h2>
-            <p className="mt-3 mb-6 text-sm text-foreground-muted max-w-2xl">
-              Browser-side serial tooling for bench installs and field service. Pairs with the{' '}
-              <Link
-                href="/guides/repeater-setup"
-                className="text-mesh hover:text-mesh-light underline underline-offset-2"
-              >
-                repeater setup guide
-              </Link>{' '}
-              for the standard preflight command set.
-            </p>
+            <SectionHeader
+              tone="sky"
+              eyebrow="Field & USB Operations"
+              title="Bench and field tools."
+              description={
+                <>
+                  Browser-side serial tooling for bench installs and field service. Pairs with the{' '}
+                  <Link
+                    href="/guides/repeater-setup"
+                    className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                  >
+                    repeater setup guide
+                  </Link>{' '}
+                  for the standard preflight command set.
+                </>
+              }
+            />
             <div className="grid gap-5 sm:grid-cols-2">
               <ToolCard
                 tone="forest"
@@ -228,36 +240,36 @@ export default function ToolsPage() {
 
         <section className="px-4 sm:px-6 lg:px-8 pb-16">
           <div className="mx-auto max-w-7xl">
-            <SectionEyebrow tone="mesh" className="mb-3">
-              Need the reference?
-            </SectionEyebrow>
-            <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
-              Hand off to the guides.
-            </h2>
-            <p className="mt-3 mb-6 text-sm text-foreground-muted max-w-2xl">
-              Tools do — guides teach. Jump to the matching reference page when you want the
-              theory or the manual workflow behind any tool.
-            </p>
+            <SectionHeader
+              tone="mesh"
+              eyebrow="Need the reference?"
+              title="Hand off to the guides."
+              description="Tools do — guides teach. Jump to the matching reference page when you want the theory or the manual workflow behind any tool."
+            />
             <div className="grid gap-4 sm:grid-cols-3">
               {guideHandoffs.map((guide) => (
                 <Link
                   key={guide.href}
                   href={guide.href}
-                  className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+                  className="group panel p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:border-mesh/40 focus-ring"
                 >
-                  <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
-                    Guide
+                  <div className="flex items-center justify-between">
+                    <span className="mono text-[0.65rem] uppercase tracking-[0.18em] text-foreground-dim">
+                      <span aria-hidden>◊ </span>Guide
+                    </span>
+                    <span
+                      aria-hidden
+                      className="text-mesh/60 group-hover:text-mesh transition-colors"
+                    >
+                      →
+                    </span>
                   </div>
-                  <h3 className="text-base font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                  <h3 className="mt-3 text-base font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
                     {guide.label}
                   </h3>
                   <p className="mt-2 text-sm text-foreground-muted leading-relaxed">
                     {guide.description}
                   </p>
-                  <div className="mt-4 inline-flex items-center gap-2 text-sm text-mesh group-hover:text-mesh-light">
-                    Read guide
-                    <span aria-hidden>→</span>
-                  </div>
                 </Link>
               ))}
             </div>
@@ -266,44 +278,88 @@ export default function ToolsPage() {
 
         <section className="px-4 sm:px-6 lg:px-8 pb-24">
           <div className="mx-auto max-w-7xl">
-            <div className="panel p-6 sm:p-8 text-sm text-foreground-muted leading-relaxed">
-              <SectionEyebrow tone="sky" className="mb-3">
-                Coming from somewhere else?
-              </SectionEyebrow>
-              <p>
-                These tools live inside the {SITE_NAME} site so they share the
-                same live data as the{' '}
-                <Link
-                  href="/map"
-                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
-                >
-                  network map
-                </Link>
-                . Utility defaults are generated from{' '}
-                <a
-                  href={UPSTREAM_UTILITIES_PROVENANCE.upstreamUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
-                >
-                  {UPSTREAM_UTILITIES_PROVENANCE.upstreamRepository}
-                </a>{' '}
-                at commit <code className="text-mesh">{upstreamUtilitiesCommit}</code>.
-                Suggest more utilities or report issues in the{' '}
-                <a
-                  href={DISCORD_INVITE_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-mesh hover:text-mesh-light underline underline-offset-2"
-                >
-                  {COMMUNITY_NAME} Discord
-                </a>
-                .
-              </p>
+            <div className="panel p-6 sm:p-8">
+              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
+                <div className="max-w-2xl">
+                  <SectionEyebrow tone="sky" className="mb-3">
+                    Coming from somewhere else?
+                  </SectionEyebrow>
+                  <p className="text-sm text-foreground-muted leading-relaxed">
+                    These tools live inside the {SITE_NAME} site so they share the same live data
+                    as the{' '}
+                    <Link
+                      href="/map"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                    >
+                      network map
+                    </Link>
+                    . Utility defaults are generated from{' '}
+                    <a
+                      href={UPSTREAM_UTILITIES_PROVENANCE.upstreamUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                    >
+                      {UPSTREAM_UTILITIES_PROVENANCE.upstreamRepository}
+                    </a>{' '}
+                    at commit <code className="text-mesh">{upstreamUtilitiesCommit}</code>. Suggest
+                    more utilities or report issues in the{' '}
+                    <a
+                      href={DISCORD_INVITE_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-mesh hover:text-mesh-light underline underline-offset-2"
+                    >
+                      {COMMUNITY_NAME} Discord
+                    </a>
+                    .
+                  </p>
+                </div>
+                <dl className="grid grid-cols-2 gap-x-6 gap-y-3 sm:flex sm:flex-col sm:gap-2 sm:text-right shrink-0">
+                  <div>
+                    <dt className="metric-label">Upstream</dt>
+                    <dd className="mono text-xs text-foreground mt-1">
+                      Colorado-Mesh
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="metric-label">Pinned commit</dt>
+                    <dd className="mono text-xs text-mesh mt-1">{upstreamUtilitiesCommit}</dd>
+                  </div>
+                  <div>
+                    <dt className="metric-label">Runtime</dt>
+                    <dd className="mono text-xs text-foreground mt-1">Local · No proxy</dd>
+                  </div>
+                </dl>
+              </div>
             </div>
           </div>
         </section>
       </div>
     </>
+  );
+}
+
+function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  tone,
+}: {
+  eyebrow: React.ReactNode;
+  title: string;
+  description: React.ReactNode;
+  tone: 'mesh' | 'sunset' | 'sky';
+}) {
+  return (
+    <div className="mb-7 max-w-2xl">
+      <SectionEyebrow tone={tone} className="mb-3">
+        {eyebrow}
+      </SectionEyebrow>
+      <h2 className="text-2xl sm:text-3xl font-semibold text-foreground tracking-tight">
+        {title}
+      </h2>
+      <p className="mt-3 text-sm text-foreground-muted leading-relaxed">{description}</p>
+    </div>
   );
 }

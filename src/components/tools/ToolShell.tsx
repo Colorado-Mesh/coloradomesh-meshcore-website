@@ -45,11 +45,12 @@ export default function ToolShell({
         }
         meta={
           <div className="panel px-5 sm:px-6 py-4 backdrop-blur-md bg-card/85">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs">
+            <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3 text-xs">
               <Breadcrumbs items={breadcrumbs} />
               {apiTag && (
-                <span className="text-foreground-dim mono uppercase tracking-[0.18em]">
-                  {apiTag}
+                <span className="inline-flex items-center gap-2 mono uppercase tracking-[0.18em] text-foreground-dim">
+                  <span aria-hidden className="text-mesh">◊</span>
+                  <span>{apiTag}</span>
                 </span>
               )}
             </div>
@@ -58,16 +59,26 @@ export default function ToolShell({
       />
 
       <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
-        <div className={`mx-auto max-w-5xl ${aside ? 'lg:max-w-7xl lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-8' : ''}`}>
+        <div
+          className={`mx-auto max-w-5xl ${
+            aside
+              ? 'lg:max-w-7xl lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-10'
+              : ''
+          }`}
+        >
           <div className="space-y-8">{children}</div>
 
           {aside && (
-            <aside className="mt-10 lg:mt-0 space-y-4">
-              {asideEyebrow && (
-                <SectionEyebrow tone="sky">{asideEyebrow}</SectionEyebrow>
-              )}
-              <div className="panel p-5 text-sm text-foreground-muted leading-relaxed space-y-3">
-                {aside}
+            <aside className="mt-10 lg:mt-0">
+              <div className="lg:sticky lg:top-24 panel p-5 sm:p-6 space-y-3">
+                {asideEyebrow && (
+                  <SectionEyebrow tone="sky" className="mb-1">
+                    {asideEyebrow}
+                  </SectionEyebrow>
+                )}
+                <div className="text-sm text-foreground-muted leading-relaxed space-y-3">
+                  {aside}
+                </div>
               </div>
             </aside>
           )}

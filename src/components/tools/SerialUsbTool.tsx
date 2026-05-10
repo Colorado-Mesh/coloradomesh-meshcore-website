@@ -378,7 +378,10 @@ export default function SerialUsbTool() {
   return (
     <div className="space-y-6">
       {supportBanner && (
-        <div className="card-mesh p-5 border-sunset-500/40 bg-sunset-500/5">
+        <div
+          data-testid="serial-support-banner"
+          className="card-mesh p-5 border-sunset-500/40 bg-sunset-500/5"
+        >
           <p className="text-sm font-semibold text-foreground mb-1">
             {supportBanner.title}
           </p>
@@ -398,7 +401,7 @@ export default function SerialUsbTool() {
             <p className="text-xs uppercase tracking-wider text-foreground-dim mono">
               Connection
             </p>
-            <p className="text-sm text-foreground">
+            <p data-testid="serial-support-status" className="text-sm text-foreground">
               {connection === 'connected' ? (
                 <span className="text-forest-300">Connected · {baudRate} baud</span>
               ) : connection === 'connecting' ? (
@@ -426,6 +429,7 @@ export default function SerialUsbTool() {
                 type="button"
                 onClick={handleConnect}
                 disabled={support !== 'ready' || connection === 'connecting'}
+                data-testid="serial-connect"
                 className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {connection === 'connecting' ? 'Opening…' : 'Connect'}

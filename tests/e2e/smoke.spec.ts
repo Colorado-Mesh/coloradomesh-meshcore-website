@@ -183,8 +183,18 @@ test.describe('critical page smoke', () => {
   });
 
   test('serial-usb tool previews settings JSON and disables Apply without a connection', async ({ page }) => {
+    await page.addInitScript(() => {
+      Object.defineProperty(Navigator.prototype, 'serial', {
+        configurable: true,
+        get: () => undefined,
+      });
+    });
     await page.goto('/tools/serial-usb');
     await expect(page.getByRole('heading', { name: /USB serial/i })).toBeVisible();
+
+    await expect(page.getByTestId('serial-support-banner')).toContainText('Web Serial not available');
+    await expect(page.getByTestId('serial-support-status')).toContainText('Unavailable in this browser');
+    await expect(page.getByTestId('serial-connect')).toBeDisabled();
 
     const input = page.getByTestId('serial-settings-input');
     await expect(input).toBeVisible();
@@ -202,6 +212,7 @@ test.describe('critical page smoke', () => {
 
     const apply = page.getByTestId('serial-settings-apply');
     await expect(apply).toBeDisabled();
+    await expect(page.getByText('Connect a device above to enable Apply.')).toBeVisible();
 
     await input.fill('{not json');
     await expect(page.getByTestId('serial-settings-error')).toBeVisible();

@@ -27,6 +27,21 @@ describe('MeshCore serial settings conversion', () => {
       UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.actions.map((action) => action.id),
     );
 
+    for (const id of [
+      'sync-clock',
+      'clear-stats',
+      'start-packet-logging',
+      'stop-packet-logging',
+      'reboot',
+      'factory-reset',
+      'regions',
+      'enable-gps',
+      'disable-gps',
+      'enable-power-saving',
+      'disable-power-saving',
+    ]) {
+      expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === id)?.confirm).toBe(true);
+    }
     expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'factory-reset')).toMatchObject({
       confirm: true,
       confirmMessage: 'Reset all settings to factory defaults?',
@@ -38,6 +53,10 @@ describe('MeshCore serial settings conversion', () => {
     expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'summary')?.steps).toContainEqual({
       type: 'send',
       command: 'get guest.password',
+    });
+    expect(DEFAULT_SERIAL_COMMAND_PROFILE.actions.find((action) => action.id === 'bridge-config')?.steps).toContainEqual({
+      type: 'send',
+      command: 'get bridge.secret',
     });
   });
 
@@ -167,6 +186,27 @@ describe('MeshCore serial settings conversion', () => {
       errors: ['No supported serial settings were found.'],
     });
     expect(buildSerialSettingsPlan({ name: 'DEN-GLDN-LKVST-RC-A10F', private_key: 'abc' })).toEqual({
+      ok: false,
+      errors: ['Settings JSON includes private/secret/password fields that cannot be applied from the browser.'],
+    });
+    expect(buildSerialSettingsPlan({
+      name: 'DEN-GLDN-LKVST-RC-A10F',
+      radio_settings: { frequency: 910525, guest_password: 'abc' },
+    })).toEqual({
+      ok: false,
+      errors: ['Settings JSON includes private/secret/password fields that cannot be applied from the browser.'],
+    });
+    expect(buildSerialSettingsPlan({
+      name: 'DEN-GLDN-LKVST-RC-A10F',
+      owner_info: { contact: '@meshops', secret: 'abc' },
+    })).toEqual({
+      ok: false,
+      errors: ['Settings JSON includes private/secret/password fields that cannot be applied from the browser.'],
+    });
+    expect(buildSerialSettingsPlan({
+      name: 'DEN-GLDN-LKVST-RC-A10F',
+      channels: [{ password: 'abc' }],
+    })).toEqual({
       ok: false,
       errors: ['Settings JSON includes private/secret/password fields that cannot be applied from the browser.'],
     });

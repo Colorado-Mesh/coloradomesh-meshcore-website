@@ -19,6 +19,7 @@ interface UpstreamStatsShape {
   packet_count?: number | null;
   node_count?: number | null;
   connected_clients?: number | null;
+  source?: { label?: string | null; type?: string | null } | null;
 }
 
 function readNumber(value: unknown): number | null {
@@ -69,9 +70,9 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
 
   if (!advancedAvailable) {
     return (
-      <section className="cm-panel" aria-label="Upstream live-map stats">
+      <section className="cm-panel" aria-label="Live-map stats">
         <header className="cm-panel__head">
-          <h2 className="cm-panel__title">Upstream stats</h2>
+          <h2 className="cm-panel__title">Live-map stats</h2>
           <span className="cm-panel__tag cm-panel__tag--dim">Unavailable</span>
         </header>
         <p className="cm-panel__hint">
@@ -97,11 +98,12 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
   const connectedClients = readNumber(data?.connected_clients);
   const mqttConnected = readBooleanFlag(mqtt, ['connected', 'is_connected']);
   const uptimeLabel = formatUptime(uptimeSeconds);
+  const sourceLabel = typeof data?.source?.label === 'string' ? data.source.label : null;
 
   return (
-    <section className="cm-panel" aria-label="Upstream live-map stats">
+    <section className="cm-panel" aria-label="Live-map stats">
       <header className="cm-panel__head">
-        <h2 className="cm-panel__title">Upstream stats</h2>
+        <h2 className="cm-panel__title">Live-map stats</h2>
         <button
           type="button"
           className="cm-panel__refresh"
@@ -119,9 +121,9 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
           {error}
         </p>
       ) : loading && !data ? (
-        <p className="cm-panel__hint">Fetching upstream live-map stats…</p>
+        <p className="cm-panel__hint">Fetching live-map stats…</p>
       ) : !data ? (
-        <p className="cm-panel__hint">No upstream stats reported yet.</p>
+        <p className="cm-panel__hint">No live-map stats reported yet.</p>
       ) : (
         <>
           <dl className="cm-panel__stats">
@@ -174,6 +176,9 @@ export default function LiveMapStatsPanel({ features, enabled }: LiveMapStatsPan
               </div>
             )}
           </dl>
+          {sourceLabel && (
+            <p className="cm-panel__sub">Source: {sourceLabel}</p>
+          )}
           {lastUpdated && (
             <p className="cm-panel__sub">Updated {formatRelativeTime(lastUpdated.toISOString())}</p>
           )}

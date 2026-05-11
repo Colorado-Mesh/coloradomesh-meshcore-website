@@ -99,7 +99,7 @@ export default function SerialUsbTool() {
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const readLoopAbortRef = useRef<boolean>(false);
   const cancelActionRef = useRef<boolean>(false);
-  const logEndRef = useRef<HTMLDivElement | null>(null);
+  const logScrollRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -116,7 +116,10 @@ export default function SerialUsbTool() {
   }, []);
 
   useEffect(() => {
-    logEndRef.current?.scrollIntoView({ block: 'end' });
+    if (log.length === 0) return;
+    const container = logScrollRef.current;
+    if (!container) return;
+    container.scrollTop = container.scrollHeight;
   }, [log]);
 
   useEffect(() => {
@@ -840,6 +843,7 @@ export default function SerialUsbTool() {
           </button>
         </header>
         <div
+          ref={logScrollRef}
           className="bg-night-900 text-xs font-mono leading-relaxed h-72 overflow-y-auto p-4 space-y-0.5"
           aria-live="polite"
           aria-label="Serial terminal log"
@@ -879,7 +883,6 @@ export default function SerialUsbTool() {
               </div>
             ))
           )}
-          <div ref={logEndRef} />
         </div>
       </section>
     </div>

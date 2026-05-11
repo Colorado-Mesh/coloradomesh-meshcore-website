@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { proxyLiveMapEndpoint } from '@/lib/live-map';
+import { buildLocalLiveMapStats, canUseLocalLiveMapFallback, proxyLiveMapEndpoint } from '@/lib/live-map';
+import { getMapSnapshot } from '@/lib/map';
 import type { ApiResponse } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -8,14 +9,18 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const result = await proxyLiveMapEndpoint('stats');
 
-  if (!result.ok) {
+  if (!result.ok && !canUseLocalLiveMapFallback(result)) {
     return NextResponse.json<ApiResponse<never>>(
       { success: false, error: result.error },
       { status: result.status }
     );
   }
 
-  const response = NextResponse.json<ApiResponse<unknown>>({ success: true, data: result.data });
+  const data = result.ok
+    ? result.data
+    : buildLocalLiveMapStats(await getMapSnapshot());
+
+  const response = NextResponse.json<ApiResponse<unknown>>({ success: true, data });
   response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=20');
   return response;
 }

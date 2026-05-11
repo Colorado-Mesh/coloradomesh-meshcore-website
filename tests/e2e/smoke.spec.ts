@@ -9,6 +9,76 @@ const upstreamUtilityRedirects = [
   { source: '/serial_usb_tool', destination: '/tools/serial-usb' },
 ] as const;
 
+function mockOperatorPanelSnapshot(page: import('@playwright/test').Page) {
+  return page.route('/api/map/snapshot', async (route) => {
+    const generatedAt = '2026-05-09T12:00:00.000Z';
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        data: {
+          generatedAt,
+          nodes: [
+            {
+              id: 'node-test-1',
+              publicKey: 'A10F000000000000000000000000000000000000000000000000000000000000000',
+              name: 'DEN-OP-A',
+              role: 'repeater',
+              coordinates: { latitude: 39.74, longitude: -104.99 },
+              lastHeardAt: generatedAt,
+              status: 'online',
+              isOnline: true,
+            },
+          ],
+          links: [],
+          routes: [],
+          stats: {
+            totalNodes: 1,
+            onlineNodes: 1,
+            visibleNodes: 1,
+            locatedNodes: 1,
+            repeaterNodes: 1,
+            staleNodes: 0,
+            offlineNodes: 0,
+            linkCount: 0,
+            routeCount: 0,
+            averageBatteryPercent: null,
+            lastUpdated: generatedAt,
+            source: { type: 'live_map_api', label: 'Mocked map data', lastUpdated: generatedAt },
+            connectionState: 'connected',
+          },
+          connection: {
+            state: 'connected',
+            configured: true,
+            sampleData: false,
+            historyEnabled: false,
+            topic: null,
+            lastConnectedAt: generatedAt,
+            lastMessageAt: generatedAt,
+            message: 'Mocked map data is active.',
+          },
+          source: { type: 'live_map_api', label: 'Mocked map data', lastUpdated: generatedAt },
+          warnings: [],
+          features: [
+            {
+              id: 'live-map-snapshot',
+              label: 'Live map snapshot',
+              status: 'available',
+              message: 'Mocked.',
+            },
+            {
+              id: 'advanced-live-map-proxy',
+              label: 'Advanced live-map operator endpoints',
+              status: 'available',
+              message: 'Mocked operator endpoints.',
+            },
+          ],
+        },
+      }),
+    });
+  });
+}
+
 function mockPrefixMatrixSnapshot(page: import('@playwright/test').Page) {
   return page.route('/api/map/snapshot', async (route) => {
     const generatedAt = '2026-05-09T12:00:00.000Z';
@@ -117,6 +187,69 @@ test.describe('critical page smoke', () => {
     await expect(page.getByText(/\/api\/live-map\/\*/)).toBeVisible();
     const diagnostics = page.getByTestId('map-diagnostics');
     await expect(diagnostics).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('map page exposes configured live-map operator fallbacks', async ({ page }) => {
+    await mockOperatorPanelSnapshot(page);
+    await page.route('/api/live-map/stats', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            node_count: 1,
+            decoder: { nodes: 1, errors_total: 0 },
+            mqtt: { connected: true },
+            source: { label: 'Mocked map data', type: 'live_map_api' },
+          },
+        }),
+      });
+    });
+    await page.route('/api/live-map/coverage', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { type: 'FeatureCollection', features: [] } }),
+      });
+    });
+    await page.route('/api/live-map/los**', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { distance_km: 1.2, clear: true } }),
+      });
+    });
+    await page.route('/api/live-map/weather/radar/country-bounds**', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { country: 'United States', country_code: 'US' } }),
+      });
+    });
+
+    await page.goto('/map');
+
+    const diagnostics = page.getByTestId('map-diagnostics');
+    await expect(diagnostics).toContainText('Advanced live-map operator endpoints', { timeout: 15_000 });
+    await expect(diagnostics).toContainText('Available');
+
+    const stats = page.getByRole('region', { name: 'Live-map stats' });
+    await expect(stats.getByText('NODES')).toBeVisible({ timeout: 15_000 });
+
+    const coverage = page.getByRole('region', { name: 'Coverage overlay' });
+    await expect(coverage.getByRole('button', { name: /Probe coverage/i })).toBeEnabled();
+    await coverage.getByRole('button', { name: /Probe coverage/i }).click();
+    await expect(coverage.getByText('FeatureCollection')).toBeVisible({ timeout: 15_000 });
+
+    const los = page.getByRole('region', { name: 'Line-of-sight' });
+    await expect(los.getByRole('button', { name: /Calculate LOS/i })).toBeEnabled();
+    await los.getByRole('button', { name: /Calculate LOS/i }).click();
+    await expect(los.getByText('DISTANCE')).toBeVisible({ timeout: 15_000 });
+
+    const weather = page.getByRole('region', { name: 'Weather radar bounds' });
+    await expect(weather.getByRole('button', { name: /Probe bounds/i })).toBeEnabled();
+    await weather.getByRole('button', { name: /Probe bounds/i }).click();
+    await expect(weather.getByText('United States')).toBeVisible({ timeout: 15_000 });
+
+    const peerHistory = page.getByRole('region', { name: 'Peer history' });
+    await expect(peerHistory.getByRole('combobox', { name: /Node/i })).toBeVisible();
   });
 
   test('tools hub exposes all four operator tools as first-class entries', async ({ page }) => {
@@ -341,5 +474,111 @@ test.describe('global navigation', () => {
 
     await page.keyboard.press('Enter');
     await expect(page).toHaveURL(/#main-content$/);
+  });
+});
+
+test.describe('map page interaction details', () => {
+  test('mobile viewport keeps the map within ~70svh of the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/map');
+    const shell = page.locator('.cm-map-shell .cm-map').first();
+    await expect(shell).toBeVisible({ timeout: 15_000 });
+    const box = await shell.boundingBox();
+    expect(box).not.toBeNull();
+    if (box) {
+      // clamp(360px, 70svh, 620px) at 844px viewport ≈ min(620, 590) = 590px
+      expect(box.height).toBeLessThanOrEqual(620);
+      expect(box.height).toBeGreaterThanOrEqual(360);
+    }
+  });
+
+  test('operator-panels anchor scrolls clear of the fixed header', async ({ page }) => {
+    await page.goto('/map');
+    const panels = page.getByTestId('map-operator-panels');
+    await expect(panels).toBeVisible({ timeout: 15_000 });
+
+    await page.evaluate(() => {
+      const target = document.getElementById('cm-operator-panels');
+      target?.scrollIntoView({ behavior: 'auto', block: 'start' });
+    });
+
+    // Allow the browser a tick to settle scroll position.
+    await page.waitForTimeout(100);
+
+    const headerBottom = await page.evaluate(() => {
+      const header = document.querySelector('header[role="banner"]');
+      return header ? header.getBoundingClientRect().bottom : 0;
+    });
+    const panelsTop = await panels.evaluate(
+      (node) => (node as HTMLElement).getBoundingClientRect().top
+    );
+
+    // Panels heading must not be hidden behind the fixed header.
+    expect(panelsTop).toBeGreaterThanOrEqual(headerBottom);
+  });
+
+  test('LOS panel rejects out-of-range latitude and disables submit', async ({ page }) => {
+    await mockOperatorPanelSnapshot(page);
+    await page.goto('/map');
+
+    const los = page.getByRole('region', { name: 'Line-of-sight' });
+    await expect(los).toBeVisible({ timeout: 15_000 });
+    const submit = los.getByRole('button', { name: /Calculate LOS/i });
+    await expect(submit).toBeEnabled();
+
+    const lat1 = los.getByLabel('Lat 1', { exact: true });
+    await expect(lat1).toBeVisible();
+    await lat1.fill('91');
+
+    await expect(lat1).toHaveAttribute('aria-invalid', 'true');
+    await expect(los.getByText(/Latitude must be between/i)).toBeVisible();
+    await expect(submit).toBeDisabled();
+
+    await lat1.fill('40');
+    await expect(submit).toBeEnabled();
+  });
+
+  test('Weather radar panel rejects out-of-range longitude and disables submit', async ({ page }) => {
+    await mockOperatorPanelSnapshot(page);
+    await page.goto('/map');
+
+    const weather = page.getByRole('region', { name: 'Weather radar bounds' });
+    await expect(weather).toBeVisible({ timeout: 15_000 });
+    const submit = weather.getByRole('button', { name: /Probe bounds/i });
+    await expect(submit).toBeEnabled();
+
+    const lon = weather.getByLabel('Longitude', { exact: true });
+    await expect(lon).toBeVisible();
+    await lon.fill('-200');
+
+    await expect(lon).toHaveAttribute('aria-invalid', 'true');
+    await expect(weather.getByText(/Longitude must be between/i)).toBeVisible();
+    await expect(submit).toBeDisabled();
+
+    await lon.fill('-105');
+    await expect(submit).toBeEnabled();
+  });
+
+  test('coverage probe button has a visible focus outline when focused via keyboard', async ({ page }) => {
+    await mockOperatorPanelSnapshot(page);
+    await page.goto('/map');
+
+    const coverage = page.getByRole('region', { name: 'Coverage overlay' });
+    await expect(coverage).toBeVisible({ timeout: 15_000 });
+    const probe = coverage.getByRole('button', { name: /Probe coverage/i });
+    await expect(probe).toBeEnabled();
+
+    await probe.evaluate((node) => (node as HTMLElement).focus({ preventScroll: true } as FocusOptions));
+
+    const outline = await probe.evaluate((node) => {
+      const style = window.getComputedStyle(node, null);
+      return {
+        outlineStyle: style.outlineStyle,
+        outlineWidth: parseFloat(style.outlineWidth || '0'),
+      };
+    });
+
+    expect(outline.outlineStyle).not.toBe('none');
+    expect(outline.outlineWidth).toBeGreaterThanOrEqual(2);
   });
 });

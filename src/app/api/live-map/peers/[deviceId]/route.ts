@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { proxyLiveMapEndpoint, validatePeerQuery } from '@/lib/live-map';
+import { buildLocalPeerHistory, canUseLocalLiveMapFallback, proxyLiveMapEndpoint, validatePeerQuery } from '@/lib/live-map';
+import { getMapSnapshot } from '@/lib/map';
 import type { ApiResponse } from '@/lib/types';
 
 export const runtime = 'nodejs';
@@ -31,14 +32,20 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     query: validation.query,
   });
 
-  if (!result.ok) {
+  if (!result.ok && !canUseLocalLiveMapFallback(result)) {
     return NextResponse.json<ApiResponse<never>>(
       { success: false, error: result.error },
       { status: result.status }
     );
   }
 
-  const response = NextResponse.json<ApiResponse<unknown>>({ success: true, data: result.data });
+  const rawLimit = validation.query.get('limit');
+  const limit = rawLimit ? Number(rawLimit) : 20;
+  const data = result.ok
+    ? result.data
+    : buildLocalPeerHistory(await getMapSnapshot(), deviceId, limit);
+
+  const response = NextResponse.json<ApiResponse<unknown>>({ success: true, data });
   response.headers.set('Cache-Control', 'public, s-maxage=10, stale-while-revalidate=20');
   return response;
 }

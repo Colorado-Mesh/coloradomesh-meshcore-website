@@ -362,14 +362,21 @@ export function NetworkMap({
     >
       <LiveMapStatsPanel features={features ?? []} enabled />
       <CoveragePanel features={features ?? []} />
-      <LosPanel features={features ?? []} defaultCenter={runtimeConfig?.defaultCenter ?? null} />
+      <LosPanel
+        features={features ?? []}
+        defaultCenter={runtimeConfig?.defaultCenter ?? null}
+        nodes={markerNodes}
+        selectedNode={focusedNode}
+      />
       <WeatherRadarPanel
         features={features ?? []}
         defaultCenter={runtimeConfig?.defaultCenter ?? null}
+        selectedNode={focusedNode}
       />
       <PeerHistoryPanel
         features={features ?? []}
         selectedNode={focusedNode}
+        nodes={markerNodes}
         onClear={focusedNode ? clearFocus : undefined}
       />
     </section>

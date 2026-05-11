@@ -122,11 +122,11 @@ export default function MapPage() {
           }
         />
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 mt-4 sm:mt-6">
           <div className="mx-auto max-w-7xl">
             <NetworkMapWrapper
               className="shadow-xl"
-              height={620}
+              height="clamp(360px, 70svh, 620px)"
             />
 
             <p className="mt-3 text-xs text-foreground-dim mono uppercase tracking-[0.18em]">

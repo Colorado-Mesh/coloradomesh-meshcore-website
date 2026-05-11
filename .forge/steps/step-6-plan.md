@@ -1,55 +1,63 @@
-# Step 6 Execution Plan: Final route, accessibility, Lighthouse, and browser validation
+# Step 6 Execution Plan: Delegate Utilities Visual Redesign and Interaction Polish to Native Opus UI
 
 ## Goal
-Validate the completed UI/UX pass across route coverage, accessibility, Lighthouse, browser journeys, and final Forge review readiness, fixing only validation-scope defects.
+Have native Opus UI polish the utilities experience across `/tools` and the utility pages while preserving route contracts, generated-data imports, serial safety behavior, smoke selectors, and no-runtime-submodule constraints.
 
 ## Current Code Observations
-- `tests/e2e/smoke.spec.ts` covers the primary route smoke set, `/start` journeys, map diagnostics, all four tool links, `/guides` guide/tool handoffs, serial settings preview behavior, prefix matrix behavior, global nav labels/current states, mobile menu Escape behavior, and skip link behavior.
-- The Playwright `criticalPages` array currently includes `/`, `/start`, `/map`, and `/tools`, while `src/lib/__tests__/site.test.ts` expects metadata-derived critical routes to include `/guides` and `/about` as well.
-- `.lighthouserc.json` previously audited `/`, `/map`, and `/tools` only, so Step 6 adds `/start` and `/guides` and moves Lighthouse to a dedicated local port to avoid stale process reuse on port 3000.
-- `package.json` exposes the required Step 6 gates: `lint`, `typecheck`, `test:unit`, `build`, `test:e2e`, `test:a11y`, and `test:lighthouse`.
-- Step 1 through Step 5 review artifacts exist for completed steps; Step 5 is committed as `dbcab44` with no reviewer findings.
-- The working tree still has pre-existing `.forge` artifact churn and `.forge.bak.*` archived directories, so staging must remain specific to Step 6 files and the final review artifact.
+- This session is Codex-backed, so frontend visual/aesthetic implementation must be delegated to `co-ui`/native Opus UI rather than hand-coded here.
+- `/tools` already includes four first-class local tools plus the external analyzer card and generated upstream provenance copy from Step 4.
+- `ToolShell` provides shared hero/breadcrumb/action/aside scaffolding for utility pages.
+- `SerialUsbTool` now has stable safety selectors: `serial-support-banner`, `serial-support-status`, `serial-connect`, `serial-settings-input`, `serial-settings-apply`, `serial-settings-preview`, `serial-settings-error`, `serial-settings-warnings`, and `serial-settings-unsupported`.
+- Critical Playwright tests depend on visible tool links, prefix-matrix controls, serial settings selectors, redirect outcomes, and nav/current states.
+- Generated utility data is consumed through `@/lib/upstream-utilities`; runtime UI must not import from `vendor/meshcore-utilities-site` or copy upstream templates/CSS/assets.
 
 ## Files to Change
-- `tests/e2e/smoke.spec.ts` — include `/guides` in the axe-critical page set to match final high-value template coverage.
-- `.lighthouserc.json` — include `/start` and `/guides` in Lighthouse collection URLs.
-- `.forge/steps/step-6-plan.md` — record this execution plan.
-- `.forge/reviews/final-claude-review.json` — save the final Forge review result.
-- `src/components/Navigation.tsx` — restore focus to the mobile menu trigger before closing the drawer so the hidden/inert panel never retains focused descendants.
-- Source files only if validation reveals another real defect; otherwise no UI/source edits.
+- Likely `src/app/tools/page.tsx` — tools hub presentation and provenance/analyzer surfacing.
+- Likely `src/app/tools/repeater-name/page.tsx` — page shell/copy polish only.
+- Likely `src/app/tools/companion-name/page.tsx` — page shell/copy polish only.
+- Likely `src/app/tools/prefix-matrix/page.tsx` — page shell/copy polish only.
+- Likely `src/app/tools/serial-usb/page.tsx` — safety/requirements copy polish only.
+- Likely `src/components/tools/ToolShell.tsx` — shared shell visual polish.
+- Likely `src/components/tools/SerialUsbTool.tsx` — interaction polish that does not weaken safety logic.
+- Optional `src/components/NamingWizard.tsx`, `src/components/CompanionNamer.tsx`, `src/components/PrefixMatrix.tsx` if Opus UI identifies low-risk interaction polish.
+- Optional `tests/e2e/smoke.spec.ts` only if intentional copy/selector changes require updates.
 
 ## Ordered Implementation Checklist
-1. Make the small validation-coverage updates to Playwright axe coverage and Lighthouse URLs.
-2. Run `npm run lint` and fix only direct validation-scope failures.
-3. Run `npm run typecheck` and fix only direct validation-scope failures.
-4. Run `npm run test:unit` to confirm metadata, sitemap, and route invariants still pass.
-5. Run `npm run build` to validate production compilation and generated routes.
-6. Run `npm run test:e2e` and `npm run test:a11y` against the built app defaults or configured test server behavior.
-7. Run `npm run test:lighthouse` after the build to audit `/`, `/start`, `/map`, `/tools`, and `/guides`.
-8. Start a known-current production server on `127.0.0.1:4574` and browser-check `/`, `/start`, `/map`, `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, `/tools/serial-usb`, `/guides`, `/guides/repeater-setup`, `/why-meshcore`, `/use-cases`, `/blog`, and `/about` at representative desktop/mobile widths.
-9. Check header active state, skip link, mobile menu open/close/Escape, footer groups, journey cards, tool visibility, guide handoffs, sitemap/robots responses, and console/network cleanliness.
-10. Stage only Step 6 validation files and final review artifact, request final Forge review over the complete UI/UX pass, fix blockers if any, then commit the approved Step 6 validation changes.
+1. Run `co-ui` from the repository root with a concise prompt containing exact scope, files, current contracts, smoke selectors, serial safety invariants, and forbidden changes.
+2. Inspect the resulting diff for any edits to `vendor/`, runtime `vendor/` imports, copied upstream templates/CSS/assets, iframe/proxy behavior, removed test IDs, or weakened serial guards.
+3. If Opus UI changed visual labels or markup intentionally, update smoke tests only to match user-visible behavior while preserving stable critical selectors.
+4. Run targeted typecheck, lint, unit, e2e, a11y, and build checks from the Step 6 verification plan.
+5. Start the app and manually browser-test `/tools`, all four local tool routes, representative compatibility redirects, serial unsupported/no-connection preview, and prefix matrix search/suggestion behavior.
+6. If visual issues remain, delegate a focused follow-up to `co-ui`; do not hand-code visual/aesthetic fixes in this Codex-backed session.
+7. Stage only Step 6 implementation files and request Forge review.
 
 ## Interfaces and Data Contracts
-- Public routes remain unchanged, including `/`, `/start`, `/map`, `/tools`, all four tool routes, `/guides`, five guide routes, `/why-meshcore`, `/use-cases`, `/blog`, and `/about`.
-- Primary nav labels remain `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
-- External links keep `target="_blank"` and `rel="noopener noreferrer"` where they open third-party destinations.
-- Lighthouse config remains local-only and does not upload reports outside `.lighthouseci`.
-- No new dependencies, shared service changes, pushes, releases, workflows, forms, disclaimers, or feature scope.
+- Canonical routes remain `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, and `/tools/serial-usb`.
+- Compatibility redirects from Step 4 remain intact.
+- Serial safety selectors and disabled states remain intact.
+- Serial mutating actions continue to require confirmation and settings Apply remains disabled without a connected port.
+- Prefix matrix continues to use local `/api/map/snapshot`/local live-map data, not upstream contacts export.
+- External links retain `target="_blank"` and `rel="noopener noreferrer"`.
 
 ## Verification Plan
-- Automated: `npm run lint`
-- Automated: `npm run typecheck`
-- Automated: `npm run test:unit`
-- Automated: `npm run build`
-- Automated: `npm run test:e2e`
-- Automated: `npm run test:a11y`
-- Automated: `npm run test:lighthouse`
-- Manual: production browser validation on `127.0.0.1:4574` for the routes and interactions listed in the checklist.
-- Regression: confirm archived `.forge.bak.*` directories and unrelated stale Forge artifacts are not staged or committed.
+- Automated:
+  - `npm run typecheck`
+  - `npm run lint`
+  - `npm run test:unit`
+  - `npm run test:e2e -- --grep "tools|serial-usb|prefix-matrix|critical page smoke"`
+  - `npm run test:a11y`
+  - `npm run build`
+- Manual:
+  - Start the app and test `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, and `/tools/serial-usb` in Chromium.
+  - Visit `/repeater_name_tool`, `/companion_name_tool`, `/prefix_matrix`, and `/serial_usb_tool` and confirm redirects land on canonical routes.
+  - Validate mobile and desktop widths for nav, tools cards, forms, serial preview, and prefix matrix.
+  - Monitor browser console and network errors.
+- Regression:
+  - No direct runtime imports from `vendor/meshcore-utilities-site`.
+  - No upstream Flask runtime/proxy/iframe is introduced.
+  - No removal of critical smoke selectors.
 
 ## Stop Conditions
-- Pause if validation failures imply new product behavior, new dependencies, CI workflow changes, or source changes beyond validation fixes.
-- Pause if Lighthouse instability is environmental rather than a real page regression and document the exact failure instead of masking thresholds.
-- Pause if any browser route cannot be loaded locally, if console/network errors indicate runtime breakage, or if final Forge review returns blocking findings that require scope changes.
+- Stop and delegate back to `co-ui` if a needed change is visual/aesthetic.
+- Stop before accepting any change that edits `vendor/`, imports from `vendor/` at runtime, copies upstream UI/CSS/templates, weakens serial safety, removes smoke selectors, or introduces iframe/proxy behavior.
+- Stop before broadening scope to contacts export or new utility capabilities.

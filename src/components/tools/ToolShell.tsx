@@ -58,7 +58,7 @@ export default function ToolShell({
         }
       />
 
-      <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
         <div
           className={`mx-auto max-w-5xl ${
             aside

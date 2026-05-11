@@ -2,64 +2,56 @@
   "verdict": "APPROVED",
   "blocking_issues": 0,
   "reviewed_files": [
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-2-plan.md",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/site.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/Navigation.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/MobileMenu.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/Footer.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/layout.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/MapDiagnosticsPanel.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/LiveMapStatsPanel.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/CoveragePanel.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/LosPanel.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/PeerHistoryPanel.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/map/WeatherRadarPanel.tsx"
+    "/Users/cjvana/Documents/GitHub/denvermc-org/package.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/generate-utilities-artifacts.mjs",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/provenance.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/recommended-settings.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/regions.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/serial-command-profile.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/serial-command-schema.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/index.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/__tests__/config-export.test.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/__tests__/manifest.test.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/provenance.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/default_serial_commands.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/recommended_settings.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/regions.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/serial_commands.schema.json",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts"
   ],
   "diff_basis": "provided_list",
-  "plan_section": "Step 2: Global navigation, footer, active state, and accessibility orientation",
+  "plan_section": "Step 2: Generate local typed artifacts and provenance from upstream source files",
   "dimensions": {
     "plan_alignment": {
-      "score": "FLAG",
-      "notes": "Primary nav, active state, mobile state, skip link, and smoke coverage align with Step 2. Footer uses metadata and keeps destinations reachable, but its internal labels are Explore/Tools/Learn rather than the master plan's Get Started/Operate/Learn phrasing."
+      "score": "PASS",
+      "notes": "Implements the Step 2 generator, deterministic stale check, generated local artifacts, stable exports, and manifest/provenance migration to submodule-backed upstream refs."
     },
     "correctness_safety": {
       "score": "PASS",
-      "notes": "Active route matching handles nested tools/guides and learning routes without marking home for all paths. External links preserve safe target/rel attributes."
+      "notes": "Generator validates selected JSON shapes, records the pinned upstream commit, compares generated outputs in check mode without rewriting, and no runtime source imports from vendor paths were found."
     },
     "code_quality": {
       "score": "PASS",
-      "notes": "Implementation is readable, localized, and reuses site metadata helpers. Map accessibility tweaks are small and safe."
+      "notes": "Implementation is straightforward, uses Node built-ins as specified by the step plan, and keeps generated data isolated behind a typed local export boundary."
     },
     "completeness": {
-      "score": "FLAG",
-      "notes": "Core acceptance criteria are satisfied and verification is strong. The planned npm run test:a11y command initially could not start because an existing next dev server was running on this repo; it then passed against an explicit next start server on port 4573."
+      "score": "PASS",
+      "notes": "Acceptance criteria are satisfied: commands are present, generated artifacts/provenance are committed, legacy utility fixtures were removed by move, parity tests use generated data, and reported verification covers check/generate/unit/typecheck/lint."
     },
     "patterns": {
       "score": "PASS",
-      "notes": "Navigation and footer now follow the metadata-source pattern introduced in Step 1."
+      "notes": "Follows the planned architecture: vendor remains read-only source material, local generated files are the import boundary, and manifest upstream refs now point to vendor paths while local refs point to generated artifacts."
     },
     "integration": {
       "score": "PASS",
-      "notes": "Imports, client/server component boundaries, and Playwright coverage integrate cleanly with existing code."
+      "notes": "Imports/exports integrate cleanly with existing Vitest and TypeScript JSON module usage; manifest shape remains compatible with the existing report builder."
     }
   },
   "flags": [
     {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/site.ts",
-      "line": 199,
-      "note": "Footer metadata groups render as Explore/Tools/Learn; consider aligning group labels to Get Started/Operate/Learn in a follow-up if the master IA wording is intended to be exact."
-    },
-    {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-2-plan.md",
-      "line": 45,
-      "note": "Step verification lists npm run test:a11y. The command passed against next start after the default dev-server path was blocked by an existing repo dev server."
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/generate-utilities-artifacts.mjs",
+      "line": 139,
+      "note": "Serial step validation is intentionally narrower than the generated schema, accepting only explicit send/wait step types; if upstream later emits schema-valid command or omitted send types, the stale check will fail and require a conscious adapter update."
     }
-  ],
-  "additional_verification": [
-    "PLAYWRIGHT_PORT=4573 npm run test:a11y initially failed because Playwright could not start next dev while PID 49785 was already running for this repo.",
-    "PLAYWRIGHT_PORT=4573 PLAYWRIGHT_BASE_URL=http://127.0.0.1:4573 npm run test:a11y against npm start passed: 3 tests."
   ]
 }

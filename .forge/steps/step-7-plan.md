@@ -1,49 +1,58 @@
-# Step 7 Execution Plan: Guarded serial settings JSON application and Nominatim proxy
+# Step 7 Execution Plan: Add Submodule Update Automation and Final Integration Gates
 
 ## Goal
-Add a safe settings-JSON-to-serial-command conversion path, expose it in the Web Serial tool with preview and confirmation safeguards, and move naming wizard geocoding behind a local `/api/geocode` proxy.
+Make upstream utility submodule updates visible through reviewable weekly PRs and make CI fail when committed generated utility artifacts are stale relative to the pinned submodule.
 
 ## Current Code Observations
-- `src/components/tools/SerialUsbTool.tsx` already owns Web Serial connection, manual send, canned command execution, confirmation prompts, and terminal logging.
-- `src/lib/tools/serial-commands.ts` contains typed canned action/step contracts, including existing destructive confirmations for reboot, erase, GPS, power, and regions.
-- `src/lib/meshcore-tools/config-export.ts` emits deterministic repeater/companion settings JSON with keys such as `name`, `node_type`, `role`, `repeat`, `radio_settings`, `regions`, `public_key_id`, `owner_info`, and `companion`.
-- `src/components/NamingWizard.tsx` currently fetches `https://nominatim.openstreetmap.org/search` directly from the browser with a User-Agent header that browsers will not reliably send.
-- `src/lib/rate-limit.ts` provides request IP extraction and in-memory rate-limit helpers usable from API routes.
-- API routes use `NextResponse.json<ApiResponse<T>>`, `runtime = 'nodejs'`, and `dynamic = 'force-dynamic'` for server-side runtime behavior.
-- Existing smoke tests exercise critical routes and browser-only dynamic behavior; no serial settings preview test exists yet.
+- `.github/workflows/ci.yml` already uses `submodules: recursive` for quality, browser smoke, accessibility, Lighthouse, and Docker smoke jobs.
+- The quality job already runs `npm run utilities:check-submodule` after `npm ci`.
+- The quality job does not yet run `npm run utilities:check`, so CI does not currently enforce generated utility artifact freshness.
+- `package.json` already exposes `utilities:check-submodule`, `utilities:generate`, and `utilities:check` scripts.
+- `.github/dependabot.yml` does not exist yet.
+- `src/lib/parity/manifest.ts` still says utilities stale-artifact checks are planned after generated artifacts land in CI.
 
 ## Files to Change
-- `src/lib/meshcore-tools/serial-settings.ts` — add pure settings JSON validation and conversion into a guarded serial command plan.
-- `src/lib/meshcore-tools/__tests__/serial-settings.test.ts` — cover valid repeater/companion conversion, malformed JSON, unsupported fields, safety metadata, and command injection rejection.
-- `src/components/tools/SerialUsbTool.tsx` — add settings JSON paste/upload, preview, explicit confirmation, and run-plan support without weakening existing canned-command confirmations.
-- `src/app/api/geocode/route.ts` — add server-side Nominatim proxy with input validation, country/limit constraints, rate limiting, caching, and safe normalized output.
-- `src/components/NamingWizard.tsx` — replace direct Nominatim browser fetch with `/api/geocode` and update copy to describe server-proxied lookup.
-- `src/lib/parity/manifest.ts` — mark guarded serial settings and geocoding proxy parity references.
-- `tests/e2e/smoke.spec.ts` — add a stable unsupported-browser/settings-preview smoke assertion that does not require hardware.
+- `.github/dependabot.yml` — add weekly Dependabot updates for the root `gitsubmodule` ecosystem without auto-merge.
+- `.github/workflows/ci.yml` — add `npm run utilities:check` to the quality job after the submodule check and before lint/type/test/build gates.
+- `src/lib/parity/manifest.ts` — update CI parity notes to reflect that stale generated utility artifacts are now enforced in CI.
+- `.forge/steps/step-7-plan.md` — record this execution plan for Forge review.
 
 ## Ordered Implementation Checklist
-1. Define serial settings input contracts and a `buildSerialSettingsPlan` pure function that accepts unknown JSON or text, validates allowed fields, rejects private-key-like fields and command-control characters, and returns a `SerialAction`-compatible plan plus warnings.
-2. Map only locally verified write commands to safe commands: `name`, `radio_settings.frequency`, `radio_settings.bandwidth`/`spreading_factor`/`coding_rate`, and `radio_settings.tx_power`; leave `node_type`, `role`, `repeat`, `regions`, `owner_info`, companion metadata, and other unverified settings visible as unsupported/manual-review fields.
-3. Add tests proving generated repeater and companion exports convert deterministically, malformed/private/unsupported settings fail safely, and mutating commands are marked as requiring confirmation.
-4. Add `/api/geocode` with query validation, IP rate limiting, a small in-memory cache by normalized query, server-side Nominatim fetch with identification headers, US-only `countrycodes=us`, `limit=1`, normalized `{ lat, lon, displayName }`, no credential exposure, and failure responses through `ApiResponse`.
-5. Update `NamingWizard` logic to call `/api/geocode?q=...`, then reuse existing nearest-airport distance logic; update text so users know the server contacts Nominatim only when they click lookup.
-6. Add Serial USB tool settings JSON input/preview/run flow using the pure converter and existing `runStep` sending path; if broad layout/aesthetic work is required, delegate the visual/frontend integration to Opus UI.
-7. Add Playwright smoke coverage for `/tools/serial-usb` showing Web Serial unsupported/secure-context messaging and settings JSON preview behavior without connecting hardware.
-8. Update parity manifest refs and run verification.
+1. Create `.github/dependabot.yml` with version 2 config and a weekly `gitsubmodule` entry for `/`.
+2. Keep Dependabot scope narrow to submodule updates only so this step does not alter npm dependency update policy.
+3. Edit `.github/workflows/ci.yml` to run `npm run utilities:check` immediately after `npm run utilities:check-submodule` in the quality job.
+4. Edit `src/lib/parity/manifest.ts` so the CI quality gate note names the utilities submodule and stale-artifact checks as implemented.
+5. Run submodule and generated-artifact checks, then lint, typecheck, unit tests, targeted/full browser checks as feasible, a11y, build, and Docker smoke if Docker is available.
+6. Stage only Step 7 implementation files and request Claude Forge review.
 
 ## Interfaces and Data Contracts
-- `parseSerialSettingsInput(input: string | unknown): SerialSettingsParseResult` accepts pasted JSON text or already-parsed values.
-- `buildSerialSettingsPlan(input: string | unknown): SerialSettingsPlanResult` returns either `{ ok: true, action, warnings, unsupportedKeys }` or `{ ok: false, errors }`.
-- The returned `action` conforms to `SerialAction` and always has `confirm: true` for settings application.
-- `/api/geocode?q=<query>` returns `ApiResponse<{ lat: number; lon: number; displayName: string }>`.
-- Browser code must not call `nominatim.openstreetmap.org` directly.
+- Dependabot ecosystem: `gitsubmodule` at root directory `/`.
+- CI quality command order: install dependencies, check submodule, check generated artifacts, then lint/type/unit/build.
+- Existing scripts remain unchanged: `npm run utilities:check-submodule`, `npm run utilities:generate`, `npm run utilities:check`.
+- No runtime source imports from `vendor/meshcore-utilities-site`; generated artifacts remain the application boundary.
 
 ## Verification Plan
-- Automated: `npm run lint`, `npm run typecheck`, `npm run test:unit`, targeted Playwright smoke for serial/geocode if added, `npm run build`.
-- Manual: open `/tools/serial-usb` in the browser without hardware and verify unsupported/ready messaging, paste generated settings JSON, see command preview, and confirm the apply action remains disabled until connected. Run naming wizard lookup and verify `/api/geocode` is the browser request path.
-- Regression: existing canned command confirmations remain present, config export tests continue passing, and critical page smoke remains green aside from the known out-of-scope `/map` axe issue.
+- Automated:
+  - `npm run utilities:check-submodule`
+  - `npm run utilities:check`
+  - `npm run lint`
+  - `npm run typecheck`
+  - `npm run test:unit`
+  - `npm run test:e2e -- --grep "tools|serial-usb|prefix-matrix|critical page smoke"`
+  - `npm run test:a11y`
+  - `npm run build`
+  - Docker image build plus `npm run docker:smoke -- --image colorado-meshcore-site:ci` if local Docker is available.
+- Manual:
+  - Inspect Dependabot YAML syntax and scope.
+  - Browser-test `/tools`, the four local utility routes, and representative upstream compatibility redirects against a fresh production server.
+- Regression:
+  - CI keeps recursive submodule checkout for all build/test jobs.
+  - Dependabot does not auto-merge submodule updates.
+  - No broad npm dependency update policy is introduced.
+  - No contacts export, Flask proxy, iframe, or runtime vendor import is introduced.
 
 ## Stop Conditions
-- If a supported settings key cannot be mapped to a known safe serial command, leave it unsupported with a warning rather than inventing a firmware command.
-- If Web Serial apply flow needs significant visual redesign beyond adding a functional preview panel, pause and delegate that UI work to Opus UI.
-- If Nominatim route tests would require live network access, keep route logic deterministic and validate with mocked fetch or manual browser/API checks instead.
+- Stop before adding auto-merge or broad dependency-update policy.
+- Stop before changing generated artifacts manually unless `npm run utilities:generate` produces the change.
+- Stop if `npm run utilities:check` reports stale generated output that requires a submodule/generated artifact decision beyond this CI-gate step.
+- Stop before releasing or starting map-data work until Forge Step 7 review and final Forge completion are done.

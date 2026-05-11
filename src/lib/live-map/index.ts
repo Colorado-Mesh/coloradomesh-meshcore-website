@@ -1,5 +1,8 @@
 export {
+  canUseLocalLiveMapFallback,
+  getLiveMapBaseUrl,
   getLiveMapEndpointDefinitions,
+  normalizeLiveMapSourceUrl,
   proxyLiveMapEndpoint,
   validateElevationQuery,
   validateLosQuery,
@@ -7,6 +10,14 @@ export {
   validatePeerQuery,
   validateWeatherBoundsQuery,
 } from './client';
+export {
+  buildLocalCoverage,
+  buildLocalElevationSamples,
+  buildLocalLineOfSight,
+  buildLocalLiveMapStats,
+  buildLocalPeerHistory,
+  buildLocalWeatherRadarBounds,
+} from './local';
 export { buildLiveMapStatus } from './normalize';
 export type {
   LiveMapDeferredEndpointId,

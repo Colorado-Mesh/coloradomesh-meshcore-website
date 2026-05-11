@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { cities } from '@/lib/data/cities';
 import { COLORADO_MESH_REGION_CODES, COLORADO_MESH_REGIONS } from '@/lib/meshcore-data/regions';
 import {
   UPSTREAM_UTILITIES_PROVENANCE,
@@ -53,6 +54,32 @@ describe('MeshCore settings export', () => {
       code: 'den',
       label: 'Denver International Airport',
     });
+  });
+
+  it('keeps selectable repeater city codes aligned with valid upstream five-character city codes', () => {
+    expect(cities).toEqual(
+      UPSTREAM_UTILITIES_REGIONS.cities
+        .map((city) => ({ code: city.codes.five, name: city.name }))
+        .filter((city) => /^[A-Z]{1,5}$/.test(city.code))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    );
+    expect(cities.find((city) => city.name === 'Fort Collins')).toEqual({
+      code: 'FOCO',
+      name: 'Fort Collins',
+    });
+    expect(cities.find((city) => city.name === 'Hooper')).toBeUndefined();
+    expect(cities.find((city) => city.name === 'Williamsburg')).toBeUndefined();
+    for (const city of cities) {
+      expect(
+        validateRepeaterNameInput({
+          region: 'DEN',
+          city: city.code,
+          landmark: 'LKVST',
+          nodeType: 'RC',
+          pubkey: '9F2E',
+        }),
+      ).not.toContain('City must be 1–5 letters only');
+    }
   });
 
   it('formats guide-facing radio settings and commands from canonical data', () => {

@@ -1,113 +1,108 @@
-# Architecture Research — Colorado MeshCore Hardening & Parity Pass
+# Architecture Research: Submodule-Backed MeshCore Utilities Integration
 
-Checked: 2026-05-06
+Project: integrate `https://github.com/Colorado-Mesh/meshcore-utilities-site` into the existing Colorado MeshCore Next.js 16 / React 19 / Tailwind 4 public site while preserving upstream updateability and the local design system.
 
-Scope inspected:
-- Current repo: `/Users/cjvana/Documents/GitHub/denvermc-org`
-- Utilities upstream: `/tmp/meshcore-utilities-site` cloned from `https://github.com/Colorado-Mesh/meshcore-utilities-site`
-- Live-map upstream: `/tmp/meshcore-mqtt-live-map` cloned from `https://github.com/yellowcooln/meshcore-mqtt-live-map`
+### ITEM-architecture-1: Treat the upstream repo as a pinned source dependency, not a runtime app
 
-### ITEM-architecture-1: Treat parity as a versioned manifest, not an ad-hoc visual audit
-
-- **Recommendation:** Add a small parity-audit subsystem that records upstream features/data sources and the site’s implementation status in a machine-readable manifest, then generate a human audit report from it. Structure it around domains: `utilities`, `repeater-config`, `serial-usb`, `prefix-matrix`, `live-map-api`, `live-map-ui`, `ci`, and `docker`.
-- **Rationale:** The current site already contains tools, guides, live-map routes, Docker, and CI, but the upstream utilities repo has distinct assets that are easy to partially copy and then drift: `recommended_settings.json`, `regions.json`, `emojis.json`, `default_serial_commands.json`, JSON schemas, and client-side key generation. A manifest gives the fresh hardening pass a stable checklist and prevents “looks done” parity from missing data/config parity. Keep the manifest in code or JSON, not `.forge`, because this pass must not depend on archived Forge artifacts and future maintainers should be able to rerun the audit outside Forge.
+- **Recommendation:** Add the upstream repository as a Git submodule at a clearly non-routable path such as `vendor/meshcore-utilities-site`, track its `main` branch in `.gitmodules`, and commit only the submodule pointer plus local integration/generation changes.
+- **Rationale:** The upstream project is a Flask/Python app with templates, static JS/CSS, and data files; this site is a Next.js App Router application. The clean boundary is to pin upstream as source material and adapt its data/logic into local Next components, not to run two web apps inside one public-site surface. Official Git submodule workflow supports `git submodule add -b main`, `git submodule update --init --recursive`, and `git submodule update --remote` for pulling remote-tracking changes, then recording the new submodule commit in the superproject.
 - **Confidence:** HIGH
-- **Source:** Codebase + upstream inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools`, `/tmp/meshcore-utilities-site/static/data`, `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md`; GitHub: `https://github.com/Colorado-Mesh/meshcore-utilities-site`, `https://github.com/yellowcooln/meshcore-mqtt-live-map`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not keep parity notes only in a markdown checklist; that cannot drive tests or reveal drift when upstream JSON/schema files change. Do not reuse archived `.forge` artifacts as the active parity source.
+- **Source:** Official docs + GitHub inspection — https://git-scm.com/docs/git-submodule.html ; https://github.com/Colorado-Mesh/meshcore-utilities-site
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not copy the upstream repo contents into `src/` by hand; that destroys update provenance. Do not deploy the Flask app as a reverse-proxied/iframe utility island; it creates styling, CSP, auth, routing, and operational drift inside a single public website.
 
-### ITEM-architecture-2: Promote utility/repeater configuration data into typed, schema-validated data modules
+### ITEM-architecture-2: Use a local adapter/generator boundary between upstream files and Next code
 
-- **Recommendation:** Move repeater/utility data into `src/lib/meshcore-data/` with typed loaders and validation fixtures. Preserve upstream JSON shapes where useful, but expose normalized TypeScript contracts to UI components: regions/cities/airports, emojis/companion suffix roles, node type codes, recommended radio settings, serial command profiles, and repeater delay profiles. Add tests that compare imported upstream fixtures against local normalized output.
-- **Rationale:** Current components hardcode important domain data in UI files (`NamingWizard.tsx`, `CompanionNamer.tsx`, `guides/repeater-setup/page.tsx`) while upstream keeps some canonical data in JSON (`regions.json`, `recommended_settings.json`, `default_serial_commands.json`, `serial_commands.schema.json`). Data-driven modules make parity auditable, testable, and safer for delegated UI work because Opus can render against stable data contracts without changing domain rules.
+- **Recommendation:** Create a small adapter layer, e.g. `src/lib/upstream-utilities/`, plus an import/verification script that reads from `vendor/meshcore-utilities-site` and emits typed local artifacts under `src/lib/meshcore-data` or `src/lib/meshcore-tools/generated`. Keep hand-written integration code in `src/components/tools`, `src/lib/meshcore-tools`, and App Router pages.
+- **Rationale:** The existing site already has deterministic TypeScript utility domains (`src/lib/meshcore-tools/*`, `src/lib/meshcore-data/*`) and a parity manifest. Upstream supplies Python models/routes plus static JSON/JS. A generator boundary lets upstream changes be pulled forward while preserving local type safety, unit tests, and UI conventions. It also makes upstream drift visible as diffs in generated artifacts or parity tests.
 - **Confidence:** HIGH
-- **Source:** Codebase + upstream inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/tools/serial-commands.ts`, `/tmp/meshcore-utilities-site/static/data/recommended_settings.json`, `/tmp/meshcore-utilities-site/static/data/default_serial_commands.json`, `/tmp/meshcore-utilities-site/serial_commands.schema.json`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not keep repeater settings duplicated across guide pages, tools, and serial command profiles. Do not import upstream JSON blindly into React components without a normalization/validation layer.
+- **Source:** Codebase + GitHub inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/config-export.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://github.com/Colorado-Mesh/meshcore-utilities-site
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not import upstream Python or browser scripts directly into React components. Do not make the submodule itself part of the TypeScript app structure; keep it as an external source dependency with explicit adapters.
 
-### ITEM-architecture-3: Keep utility business logic pure and isolate browser-only capabilities at the edge
+### ITEM-architecture-3: Prefer build-time generated JSON/TS artifacts over runtime reads from the submodule
 
-- **Recommendation:** Split tools into pure domain modules plus thin client components: `src/lib/meshcore-tools/naming.ts`, `prefixes.ts`, `serial-profile.ts`, `config-export.ts`, and, if parity requires vanity key generation, a browser-only `keygen` adapter loaded lazily. UI components should call pure functions and display results; they should not own naming rules, prefix collision rules, or config export shape.
-- **Rationale:** The upstream utilities app intentionally generates private keys client-side so the server never sees secrets. The current site already has Web Serial isolated in a client component and notes that bytes stay in the tab, but naming/config logic is mixed into UI. Separating pure logic enables deterministic unit tests, protects zero-knowledge key generation boundaries, and allows Opus visual work to change forms/layouts without altering rules.
+- **Recommendation:** For stable upstream utility data such as `static/data/default_serial_commands.json`, `serial_commands.schema.json`, `static/data/recommended_settings.json`, region/emoji data, and naming constants, ingest them at build/update time into local typed modules and validate them with the existing test stack. Runtime pages should import local TS/JSON modules, not read files from the submodule on demand.
+- **Rationale:** The current Next config uses `output: 'standalone'`, and Next standalone output traces server dependencies/files during build. Runtime `fs` reads into submodule paths are easy to omit from file tracing and Docker images unless `outputFileTracingIncludes` is carefully configured. Build-time generation keeps deployed runtime small and predictable, and generated diffs make upstream updates reviewable.
 - **Confidence:** HIGH
-- **Source:** Upstream + codebase inspection — `/tmp/meshcore-utilities-site/static/js/repeater_name_tool.js`, `/tmp/meshcore-utilities-site/static/js/companion_name_tool.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`; MDN Web Serial docs: `https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not recreate the Flask endpoint model in Next unless server-side generation is truly needed; it increases secret-handling risk and complicates Docker. Do not let visual UI delegation modify naming/key-generation rules inline.
+- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Avoid runtime `fs.readFile` from `vendor/meshcore-utilities-site` for public tool data unless there is a strong reason; if used, add narrow `outputFileTracingIncludes` and a Docker smoke test. Avoid serving raw upstream JSON from `public/` unless it truly must be public and cache headers are intentionally managed.
 
-### ITEM-architecture-4: Use `meshcore-mqtt-live-map` as the decoder/runtime boundary and consume its `/api/nodes` contract server-side
+### ITEM-architecture-4: Preserve `/tools` as the canonical route family and adapt upstream route names only as aliases
 
-- **Recommendation:** Treat `yellowcooln/meshcore-mqtt-live-map` as the authoritative MeshCore MQTT decoder and live-map runtime. The Next app should primarily consume `GET /api/nodes?mode=full` through server-side API routes with optional `MESHCORE_LIVE_MAP_API_TOKEN`; normalize that payload into the site’s `MapSnapshot` contract. Keep direct MQTT in the Next app only as a JSON-compatible fallback, not as a raw MeshCore packet decoder.
-- **Rationale:** Upstream live-map already owns MQTT connection modes, MeshCore packet decoding through `@michaelhart/meshcore-decoder`, state persistence, route history, peers, LOS, coverage, weather, Turnstile/token behavior, and node API compatibility. Reimplementing raw decoding in the Next site would duplicate a specialized subsystem and likely regress route/path decoding. The current Next app already has the right architectural direction: `MESHCORE_LIVE_MAP_API_URL` is preferred, token stays server-side, and raw MQTT is described as optional JSON-compatible payload input.
+- **Recommendation:** Keep the current public Next routes as canonical: `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, and `/tools/serial-usb`. If upstream users expect Flask paths like `/repeater_name_tool`, add explicit redirects or compatibility route handlers, but do not expose the Flask URL shape as the primary IA.
+- **Rationale:** Next App Router uses folders as URL segments, and this codebase already has well-structured `/tools/*` pages with metadata, breadcrumbs, JSON-LD, and design-system wrapping. Route groups can organize implementation without changing URLs, but they are unnecessary unless the tools need a subset layout. Multiple root layouts would create full page reloads between sections and should be avoided for this unified public site.
 - **Confidence:** HIGH
-- **Source:** Upstream docs + codebase inspection — `/tmp/meshcore-mqtt-live-map/README.md`, `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md`, `/tmp/meshcore-mqtt-live-map/backend/app.py`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/.env.example`; GitHub: `https://github.com/yellowcooln/meshcore-mqtt-live-map`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not subscribe the browser directly to MQTT. Do not add MeshCore packet decoding into the Next app unless the upstream live-map is unavailable and the scope explicitly changes. Do not expose `PROD_TOKEN` or `MESHCORE_LIVE_MAP_API_TOKEN` as `NEXT_PUBLIC_*`.
+- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/getting-started/project-structure ; https://nextjs.org/docs/app/api-reference/file-conventions/route-groups ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not mirror upstream Flask routes one-for-one as the main Next routes. Do not introduce a separate root layout for utilities unless intentionally accepting full page reloads and a different app shell.
 
-### ITEM-architecture-5: Collapse map client fetching behind a single snapshot endpoint and cache only at the server boundary
+### ITEM-architecture-5: Keep Server Component shells and Client Component tool islands
 
-- **Recommendation:** Add or prefer a single `/api/map/snapshot` endpoint that returns nodes, links/routes, stats, connection, and source in one response; let `/api/map/nodes` and `/api/map/stats` remain compatibility wrappers over the same server-side snapshot. Keep route handlers request-time, with short server-side polling/debounce in `src/lib/map/store.ts`, and avoid CDN/client cache surprises for live data.
-- **Rationale:** Current `useMapSnapshot` fetches `/api/map/nodes` and `/api/map/stats` in parallel; both call `getMapSnapshot()`, which can duplicate normalization/fetch work and expose inconsistent generated timestamps. Upstream live-map supports full snapshots and deltas; the Next app should establish one canonical snapshot contract first, then add delta support if needed. Official Next.js 16 docs say route handlers are not cached by default and Cache Components replace older route segment configs in some setups, so live API behavior should be deliberate rather than relying on old caching assumptions.
+- **Recommendation:** Render each utility page as a Server Component shell for metadata, SEO, JSON-LD, breadcrumbs, and shared layout, then mount a focused Client Component for interactive workflows such as naming, prefix analysis, serial USB, and browser-side key generation.
+- **Rationale:** Next’s `'use client'` boundary is intended for state, event handlers, and browser APIs; props passed into Client Components must be serializable. This matches the current pattern: `src/app/tools/repeater-name/page.tsx` is a server page that renders `ToolShell` and mounts `NamingWizard`, while `NamingWizard` owns state, clipboard, fetch, and generated download behavior.
 - **Confidence:** HIGH
-- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/hooks/useMapSnapshot.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/map/nodes/route.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/map/stats/route.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; Next.js route handlers: `https://nextjs.org/docs/app/getting-started/route-handlers`, Next.js caching: `https://nextjs.org/docs/app/getting-started/caching`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not keep independent nodes/stats fetch paths as the primary client contract. Do not add persistent database storage for the public site unless the site becomes the live-map runtime; upstream already persists state/history.
+- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/directives/use-client ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/repeater-name/page.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not make the whole tools area client-rendered; it weakens SEO and consistency. Do not pass functions/classes from server code into client components; use serializable data and local client handlers.
 
-### ITEM-architecture-6: Make browser-only UI boundaries explicit with client-only loaders and non-visual contracts for Opus
+### ITEM-architecture-6: Put browser-only and secret-sensitive workflows entirely in client islands
 
-- **Recommendation:** Put all Leaflet, React-Leaflet, Web Serial, clipboard-heavy, and future key-generation browser APIs behind explicit client-only boundaries. For maps, use `next/dynamic(..., { ssr: false })` or the current equivalent wrapper, and keep `leaflet`/`react-leaflet` imports inside the browser-only module. For visual delegation, define non-visual contracts first: props, data DTOs, test IDs, and interaction requirements; delegate styling/layout/component composition to Opus via `co-ui` or `/opus-ui`.
-- **Rationale:** React Leaflet is not SSR-compatible because Leaflet calls the DOM at import/runtime. The current repo already uses a manual `NetworkMapWrapper` to import `NetworkMap` after mount, but making this pattern explicit and documented will prevent future SSR regressions. This is also the cleanest boundary for the session constraint: Codex handles data/API/tests/CI; Opus handles visual UI.
+- **Recommendation:** Keep Web Serial access, clipboard/download behavior, and vanity/private-key generation in `'use client'` components. Server APIs may provide public data or validation, but private keys and raw device interaction must not traverse Next route handlers.
+- **Rationale:** Upstream explicitly generates key material client-side to avoid server knowledge of secrets, and this site already blocks private/secret/password fields in serial settings application. Browser APIs like Web Serial and Web Crypto belong behind client boundaries, while the server shell can still provide documentation and structured data.
 - **Confidence:** HIGH
-- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMapWrapper.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`; React Leaflet SSR note: `https://react-leaflet.js.org/docs/start-introduction/`, Next.js browser-only rendering: `https://nextjs.org/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser`, Next.js no-SSR dynamic import: `https://nextjs.org/docs/pages/guides/lazy-loading#with-no-ssr`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not import Leaflet in server components or shared modules. Do not let visual work happen in this Codex-backed session except for non-visual wiring required to support Opus.
+- **Source:** GitHub inspection + codebase inspection — https://github.com/Colorado-Mesh/meshcore-utilities-site/blob/main/static/js/repeater_name_tool.js ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts`; https://nextjs.org/docs/app/api-reference/directives/use-client
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not port upstream key generation to a server route. Do not send uploaded settings containing private/secret/password fields to the server for convenience.
 
-### ITEM-architecture-7: Preserve a clear boundary between “site map summary” and “full live-map application” parity
+### ITEM-architecture-7: Use Route Handlers only for bounded server responsibilities
 
-- **Recommendation:** Architect the current Next map as a Colorado MeshCore site-integrated summary/consumer, while linking or reverse-proxying to a deployed `meshcore-mqtt-live-map` instance for full operator parity features such as route history, peers, LOS, coverage, weather, path-byte filters, and WebSocket live updates. Only port individual upstream UI features into Next after their data contracts are available via the server-side proxy.
-- **Rationale:** Upstream live-map is a full app with a FastAPI backend, WebSocket protocol, persisted state, route history JSONL, LOS/elevation proxy, coverage cache, and weather/Turnstile support. Current Next map is intentionally simpler: it renders markers, role/status filters, stats, and source attribution. Max parity should therefore verify correct integration first and avoid half-porting complex upstream map behavior into a React component without the supporting backend semantics.
+- **Recommendation:** Add or keep App Router `route.ts` handlers only where the utility needs server-side mediation: external geocoding/rate limiting, map data snapshots, compatibility redirects, or serving validated generated data with explicit cache headers. Pure deterministic utility logic should remain local TS functions used by Client Components and unit tests.
+- **Rationale:** Next Route Handlers support Web `Request`/`Response`, HTTP methods, query parsing, and segment config. They are a good fit for the existing `/api/geocode` and `/api/map/*` style boundaries, but overusing them for every upstream Flask endpoint would recreate the upstream backend unnecessarily.
 - **Confidence:** HIGH
-- **Source:** Upstream + codebase inspection — `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md`, `/tmp/meshcore-mqtt-live-map/docs.md`, `/tmp/meshcore-mqtt-live-map/README.md`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not attempt a one-pass rewrite of upstream `backend/static/app.js` into React. Do not claim full live-map UI parity if the site only consumes `/api/nodes` and does not expose route history/peers/LOS/coverage semantics.
+- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/file-conventions/route ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/geocode/route.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/README.md`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not rebuild Flask blueprints as a parallel Next API surface unless a client workflow truly needs server mediation. Do not expose broad CORS/public APIs for internal utility calculations.
 
-### ITEM-architecture-8: Add a layered test pyramid focused on contracts, fixtures, and browser-only smoke tests
+### ITEM-architecture-8: Drive design-system adaptation from local shells, not upstream CSS/templates
 
-- **Recommendation:** Add fast unit tests for pure modules (`map/normalize`, config env parsing, utility naming, serial profile normalization, repeater data validation), integration tests for Next route handlers using upstream `/api/nodes` fixtures, and a small Playwright suite for critical browser-only flows: map page loads with mocked API, serial page renders unsupported/secure-context states, and tools generate expected names/prefix states. Keep these in CI before Docker smoke.
-- **Rationale:** Next.js official testing guidance positions unit tests for logic and synchronous UI, while recommending E2E tests for App Router/server-component flows. This repo currently has lint/typecheck/build but no test script; upstream live-map has pytest coverage for `/api/nodes` modes, auth, WebSocket snapshots, decoder roles, route resolution, and state persistence. The site’s highest-risk changes are contracts and browser-only rendering, not just TypeScript compilation.
+- **Recommendation:** Recreate upstream utility experiences using local brand components (`HeroPanel`, `ToolShell`, `ToolCard`, panels, buttons, form styles) and Tailwind/design tokens. Treat upstream templates/CSS as functional reference only, and delegate final visual implementation to `co-ui`/native Opus UI per project constraint.
+- **Rationale:** The existing site has a mature dark operations-console design system in `globals.css` plus brand components. Importing upstream Flask templates and CSS would bypass accessibility, navigation, metadata, and public-site polish standards. The local architecture should expose clean props/data/contracts so UI work can be delegated without entangling upstream files.
 - **Confidence:** HIGH
-- **Source:** Codebase + upstream tests + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`, `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml`, `/tmp/meshcore-mqtt-live-map/tests/test_api_nodes_modes.py`, `/tmp/meshcore-mqtt-live-map/.github/workflows/tests.yml`; Next.js testing: `https://nextjs.org/docs/app/guides/testing`, Playwright with Next.js: `https://nextjs.org/docs/app/guides/testing/playwright`, Vitest with Next.js: `https://nextjs.org/docs/app/guides/testing/vitest`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not rely on `next build` as the only regression test. Do not unit-test async Server Components heavily; use E2E/smoke for those flows and unit-test extracted logic instead.
+- **Source:** Codebase inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/ToolShell.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/brand/ToolCard.tsx`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not iframe `tools.meshcore.coloradomesh.org` or paste upstream CSS into the app. Do not hand-code a new visual system in the Codex-backed session; provide architecture and contracts for UI delegation.
 
-### ITEM-architecture-9: Harden CI as fast PR gates plus separate release/security gates
+### ITEM-architecture-9: Make upstream updates a repeatable, test-gated workflow
 
-- **Recommendation:** Keep normal PR CI fast: checkout, setup Node 24, `npm ci`, lint, typecheck, unit tests, production build, and Docker build smoke with Buildx cache. Add dependency review for PRs and CodeQL/security scan on schedule or separate workflow. Keep Docker publishing restricted to release/tag/manual events and never push images during this Forge pass without explicit approval.
-- **Rationale:** Current CI already runs lint/typecheck/build and Docker build smoke. Current security workflow runs `npm audit --audit-level=high`. Current Docker release workflow is appropriately gated to releases/tags/manual dispatch and uses provenance. Pragmatic hardening should add high-value checks without making every PR slow or affecting shared services. Docker’s current GitHub Actions guidance supports GHA cache and provenance/SBOM attestations through build-push-action.
+- **Recommendation:** Add a documented script/workflow roughly equivalent to: initialize submodule, update from upstream `main`, run the generator/parity checks, run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build`, then commit the submodule pointer and any generated/local integration diffs together. Add CI checks that fail when the submodule is missing or generated artifacts are stale.
+- **Rationale:** Submodule updates are explicit: `git submodule update --remote` moves the submodule worktree to a remote-tracking commit, and the superproject records that commit only after `git add <submodule-path>`. Without a repeatable workflow, maintainers will either forget to pull upstream data forward or silently drift from it.
 - **Confidence:** HIGH
-- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml`, `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/security.yml`, `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/docker-release.yml`; Docker GHA cache: `https://docs.docker.com/build/cache/backends/gha/`, Docker attestations: `https://docs.docker.com/build/ci/github-actions/attestations/`, Dependency Review Action: `https://github.com/actions/dependency-review-action`, CodeQL docs: `https://docs.github.com/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not put long-running browser matrices or image publishing in the normal PR path. Do not disable hooks/checks or mark security scans as optional without an explicit project decision.
+- **Source:** Official docs + codebase inspection — https://git-scm.com/docs/git-submodule.html ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not rely on developers manually inspecting upstream diffs with no generated parity output. Do not auto-track upstream HEAD at runtime; pin and review each submodule pointer bump.
 
-### ITEM-architecture-10: Keep Docker standalone as the production target and document runtime topology explicitly
+### ITEM-architecture-10: Keep deployment submodule-aware but runtime submodule-independent
 
-- **Recommendation:** Continue using Next standalone output in the site container, with `meshcore-mqtt-live-map` deployed as a separate runtime/service when live data is needed. Document the recommended topology in env examples and Docker Compose: Next site -> server-side `/api/map/*` proxy -> live-map `/api/nodes?mode=full` -> MQTT broker. Healthcheck should remain a cheap public API read (`/api/map/stats` or future `/api/map/snapshot`).
-- **Rationale:** The current Dockerfile already follows the standalone pattern: build with Next, copy `.next/standalone`, `.next/static`, `public`, and run `node server.js` as a non-root user. The live-map upstream is a separate Python/FastAPI container with its own persistent `/data` and MQTT credentials. Conflating them into one container would mix unrelated lifecycles and complicate deployments, backups, and secret scopes.
+- **Recommendation:** Ensure all build environments initialize submodules before build, but design the deployed standalone Next runtime so it does not require the submodule directory to be present. Docker/CI should fail early if `vendor/meshcore-utilities-site` is absent when generation/parity checks run.
+- **Rationale:** The Dockerfile copies the repository into a builder stage and then copies only `public`, `.next/standalone`, and `.next/static` into the runner. This is good if submodule-derived outputs are built into local artifacts; it is fragile if runtime code expects the submodule path. Next standalone tracing can include extra files, but narrow generated artifacts are simpler than tracing an entire upstream repo.
 - **Confidence:** HIGH
-- **Source:** Codebase + upstream + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`, `/tmp/meshcore-mqtt-live-map/docker-compose.yaml`, `/tmp/meshcore-mqtt-live-map/deploy/docker-compose.image.yaml`; Next.js output config: `https://nextjs.org/docs/pages/api-reference/config/next-config-js/output`, Docker Next.js guide: `https://docs.docker.com/guides/nextjs/containerize/`, Next.js Docker example: `https://github.com/vercel/next.js/tree/canary/examples/with-docker`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not bundle the live-map FastAPI runtime inside the Next image. Do not require a database for the site unless a future feature needs durable site-owned state.
+- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not ship the whole upstream repo in the production image by default. Do not assume platform checkouts include submodules unless CI/build config explicitly initializes them.
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-architecture-1 | HIGH | Codebase + upstream inspection | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools`; `https://github.com/Colorado-Mesh/meshcore-utilities-site`; `https://github.com/yellowcooln/meshcore-mqtt-live-map` |
-| ITEM-architecture-2 | HIGH | Codebase + upstream inspection | `/tmp/meshcore-utilities-site/static/data`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx` |
-| ITEM-architecture-3 | HIGH | Upstream + MDN | `https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API`; `/tmp/meshcore-utilities-site/static/js/repeater_name_tool.js` |
-| ITEM-architecture-4 | HIGH | Upstream docs + codebase inspection | `https://github.com/yellowcooln/meshcore-mqtt-live-map`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts` |
-| ITEM-architecture-5 | HIGH | Official docs + codebase inspection | `https://nextjs.org/docs/app/getting-started/route-handlers`; `https://nextjs.org/docs/app/getting-started/caching` |
-| ITEM-architecture-6 | HIGH | Official docs + codebase inspection | `https://react-leaflet.js.org/docs/start-introduction/`; `https://nextjs.org/docs/app/guides/single-page-applications#rendering-components-only-in-the-browser` |
-| ITEM-architecture-7 | HIGH | Upstream + codebase inspection | `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx` |
-| ITEM-architecture-8 | HIGH | Official docs + upstream tests | `https://nextjs.org/docs/app/guides/testing`; `https://nextjs.org/docs/app/guides/testing/playwright`; `/tmp/meshcore-mqtt-live-map/tests/test_api_nodes_modes.py` |
-| ITEM-architecture-9 | HIGH | Official docs + codebase inspection | `https://docs.docker.com/build/cache/backends/gha/`; `https://github.com/actions/dependency-review-action`; `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml` |
-| ITEM-architecture-10 | HIGH | Official docs + codebase/upstream inspection | `https://nextjs.org/docs/pages/api-reference/config/next-config-js/output`; `https://docs.docker.com/guides/nextjs/containerize/`; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |
+| ITEM-architecture-1 | HIGH | Official docs + GitHub inspection | https://git-scm.com/docs/git-submodule.html ; https://github.com/Colorado-Mesh/meshcore-utilities-site |
+| ITEM-architecture-2 | HIGH | Codebase + GitHub inspection | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/config-export.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://github.com/Colorado-Mesh/meshcore-utilities-site |
+| ITEM-architecture-3 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js` |
+| ITEM-architecture-4 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/getting-started/project-structure ; https://nextjs.org/docs/app/api-reference/file-conventions/route-groups ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx` |
+| ITEM-architecture-5 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/directives/use-client ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/repeater-name/page.tsx` |
+| ITEM-architecture-6 | HIGH | GitHub + codebase inspection | https://github.com/Colorado-Mesh/meshcore-utilities-site/blob/main/static/js/repeater_name_tool.js ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts` |
+| ITEM-architecture-7 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/file-conventions/route ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/geocode/route.ts` |
+| ITEM-architecture-8 | HIGH | Codebase inspection | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/ToolShell.tsx` |
+| ITEM-architecture-9 | HIGH | Official docs + codebase inspection | https://git-scm.com/docs/git-submodule.html ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json` |
+| ITEM-architecture-10 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |

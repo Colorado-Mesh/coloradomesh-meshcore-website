@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const ENV_KEYS = [
   'MESHCORE_LIVE_MAP_API_URL',
   'MESHCORE_LIVE_MAP_API_TOKEN',
+  'MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS',
   'MESHCORE_MAP_SAMPLE_DATA',
   'MESHCORE_MQTT_URL',
 ] as const;
@@ -59,6 +60,39 @@ describe('map snapshot store', () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('https://live-map.example.test/api/nodes?mode=full');
     expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer secret-token' }));
+  });
+
+  it('rejects private live-map API snapshot URLs before fetching', async () => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'http://127.0.0.1:8080/api/nodes';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getMapSnapshot } = await loadStoreModule();
+    const snapshot = await getMapSnapshot();
+
+    expect(snapshot.source.type).toBe('live_map_api');
+    expect(snapshot.connection.state).toBe('error');
+    expect(snapshot.connection.message).toContain('Unable to fetch live map API data');
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('allows private production live-map API snapshot URLs with explicit override', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'http://127.0.0.1:8080/api/nodes';
+    process.env.MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS = 'true';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ nodes: [] }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getMapSnapshot } = await loadStoreModule();
+    const snapshot = await getMapSnapshot();
+
+    expect(snapshot.source.type).toBe('live_map_api');
+    expect(snapshot.connection.state).toBe('connected');
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not return sample nodes when no real source is configured', async () => {

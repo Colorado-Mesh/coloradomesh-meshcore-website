@@ -1,3 +1,6 @@
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
+
 import { getMapRuntimeConfig } from '@/lib/map/config';
 
 import type {
@@ -18,6 +21,17 @@ const MAX_RESPONSE_BYTES = 10_000_000;
 const MAX_ELEVATION_LOCATIONS = 200;
 const MAX_ELEVATION_QUERY_LENGTH = 8_000;
 const MAX_PEER_LIMIT = 100;
+const PUBLIC_TOKEN_PROXY_ENV = 'MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED';
+const PUBLIC_TOKEN_PROXY_DISABLED_ERROR = `Public live-map token proxying is disabled. Set ${PUBLIC_TOKEN_PROXY_ENV}=true only for upstreams whose token may be used by public site visitors.`;
+
+const LOCAL_FALLBACK_ENDPOINT_IDS = new Set<LiveMapProxiedEndpointId>([
+  'stats',
+  'peers',
+  'los',
+  'los-elevations',
+  'coverage',
+  'weather-radar-country-bounds',
+]);
 
 const PROXIED_ENDPOINTS: Record<LiveMapProxiedEndpointId, LiveMapEndpointDefinition> = {
   snapshot: {
@@ -145,35 +159,139 @@ function ensureTrailingSlash(pathname: string): string {
   return pathname.endsWith('/') ? pathname : `${pathname}/`;
 }
 
-function getLiveMapBaseUrl(): URL | null {
-  const config = getMapRuntimeConfig();
-  if (!config.liveMapApiUrl) return null;
+function isPrivateIpv4(value: string): boolean {
+  const parts = value.split('.').map(Number);
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
 
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+}
+
+function isPrivateIpv6(value: string): boolean {
+  const normalized = value.toLowerCase();
+  if (normalized === '::' || normalized === '::1') return true;
+
+  const dottedIpv4Mapped = normalized.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
+  if (dottedIpv4Mapped) return isPrivateIpv4(dottedIpv4Mapped[1]);
+
+  const hexIpv4Mapped = normalized.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/);
+  if (hexIpv4Mapped) {
+    const high = Number.parseInt(hexIpv4Mapped[1], 16);
+    const low = Number.parseInt(hexIpv4Mapped[2], 16);
+    if (Number.isFinite(high) && Number.isFinite(low)) {
+      return isPrivateIpv4([
+        (high >> 8) & 255,
+        high & 255,
+        (low >> 8) & 255,
+        low & 255,
+      ].join('.'));
+    }
+  }
+
+  const firstSegment = normalized.split(':', 1)[0];
+  const first = Number.parseInt(firstSegment || '0', 16);
+  if (!Number.isFinite(first)) return false;
+
+  return (
+    (first & 0xfe00) === 0xfc00 ||
+    (first & 0xffc0) === 0xfe80 ||
+    (first & 0xff00) === 0xff00
+  );
+}
+
+function isPrivateIpAddress(value: string): boolean {
+  const normalized = value.toLowerCase().replace(/^\[|\]$/g, '');
+  const ipVersion = isIP(normalized);
+  if (ipVersion === 4) return isPrivateIpv4(normalized);
+  if (ipVersion === 6) return isPrivateIpv6(normalized);
+  return false;
+}
+
+function isPrivateHostname(hostname: string): boolean {
+  const normalized = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (['localhost', 'metadata.google.internal', '169.254.169.254'].includes(normalized)) return true;
+  if (normalized.endsWith('.localhost')) return true;
+
+  return isPrivateIpAddress(normalized);
+}
+
+function isLocalLiveMapOverrideEnabled(): boolean {
+  return process.env.MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS === 'true';
+}
+
+function publicTokenProxyEnabled(): boolean {
+  return process.env[PUBLIC_TOKEN_PROXY_ENV]?.trim().toLowerCase() === 'true';
+}
+
+export function normalizeLiveMapSourceUrl(value: string): URL | null {
   try {
-    const url = new URL(config.liveMapApiUrl);
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    if (isPrivateHostname(url.hostname) && !isLocalLiveMapOverrideEnabled()) return null;
+
     url.username = '';
     url.password = '';
     url.search = '';
     url.hash = '';
-
-    if (url.pathname.endsWith('/api/nodes')) {
-      url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/api/nodes'.length));
-    } else if (url.pathname.endsWith('/snapshot')) {
-      url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/snapshot'.length));
-    } else if (url.pathname.endsWith('/stats')) {
-      url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/stats'.length));
-    } else {
-      url.pathname = ensureTrailingSlash(url.pathname);
-    }
-
     return url;
   } catch {
     return null;
   }
 }
 
+async function resolvesToPrivateAddress(hostname: string): Promise<boolean> {
+  if (isLocalLiveMapOverrideEnabled()) return false;
+  if (isPrivateHostname(hostname)) return true;
+
+  try {
+    const addresses = await lookup(hostname.replace(/^\[|\]$/g, ''), { all: true });
+    return addresses.some((entry) => isPrivateIpAddress(entry.address));
+  } catch {
+    return false;
+  }
+}
+
+function normalizeLiveMapBaseUrl(value: string): URL | null {
+  const url = normalizeLiveMapSourceUrl(value);
+  if (!url) return null;
+
+  if (url.pathname.endsWith('/api/nodes')) {
+    url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/api/nodes'.length));
+  } else if (url.pathname.endsWith('/snapshot')) {
+    url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/snapshot'.length));
+  } else if (url.pathname.endsWith('/stats')) {
+    url.pathname = ensureTrailingSlash(url.pathname.slice(0, -'/stats'.length));
+  } else {
+    url.pathname = ensureTrailingSlash(url.pathname);
+  }
+
+  return url;
+}
+
+export function getLiveMapBaseUrl(): URL | null {
+  const config = getMapRuntimeConfig();
+  return config.liveMapApiUrl ? normalizeLiveMapBaseUrl(config.liveMapApiUrl) : null;
+}
+
 function getLiveMapToken(): string | null {
   return getMapRuntimeConfig().liveMapApiToken;
+}
+
+export function canUseLocalLiveMapFallback(result: LiveMapProxyResult): boolean {
+  return !result.ok && (
+    result.status === 404 ||
+    result.status === 502 ||
+    result.status === 503 ||
+    result.status === 504 ||
+    result.error === PUBLIC_TOKEN_PROXY_DISABLED_ERROR
+  );
 }
 
 function buildQuery(query: LiveMapProxyOptions['query']): URLSearchParams {
@@ -188,9 +306,10 @@ function buildQuery(query: LiveMapProxyOptions['query']): URLSearchParams {
   return params;
 }
 
-function buildUpstreamUrl(endpoint: LiveMapEndpointDefinition, options: LiveMapProxyOptions): URL | null {
+async function buildUpstreamUrl(endpoint: LiveMapEndpointDefinition, options: LiveMapProxyOptions): Promise<URL | null> {
   const baseUrl = getLiveMapBaseUrl();
   if (!baseUrl || !endpoint.upstreamPath) return null;
+  if (await resolvesToPrivateAddress(baseUrl.hostname)) return null;
 
   let path = endpoint.upstreamPath;
   for (const [key, value] of Object.entries(options.pathParams ?? {})) {
@@ -264,6 +383,13 @@ async function readJsonWithSizeGuard(response: Response): Promise<unknown> {
 export function getLiveMapEndpointDefinitions(configured = Boolean(getLiveMapBaseUrl())): LiveMapEndpointDefinition[] {
   return LIVE_MAP_ENDPOINTS.map((endpoint) => {
     if (endpoint.availability === 'deferred') return endpoint;
+    if (!configured && LOCAL_FALLBACK_ENDPOINT_IDS.has(endpoint.id as LiveMapProxiedEndpointId)) {
+      return {
+        ...endpoint,
+        availability: 'available',
+        message: 'Available from local map snapshot fallback data when the upstream endpoint is unavailable.',
+      };
+    }
 
     return {
       ...endpoint,
@@ -280,7 +406,7 @@ export async function proxyLiveMapEndpoint(
   options: LiveMapProxyOptions = {}
 ): Promise<LiveMapProxyResult> {
   const endpoint = PROXIED_ENDPOINTS[endpointId];
-  const url = buildUpstreamUrl(endpoint, options);
+  const url = await buildUpstreamUrl(endpoint, options);
 
   if (!url) {
     return {
@@ -290,9 +416,17 @@ export async function proxyLiveMapEndpoint(
     };
   }
 
+  const token = getLiveMapToken();
+  if (token && !publicTokenProxyEnabled()) {
+    return {
+      ok: false,
+      status: 403,
+      error: PUBLIC_TOKEN_PROXY_DISABLED_ERROR,
+    };
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), liveMapTimeoutMs());
-  const token = getLiveMapToken();
 
   try {
     const response = await fetch(url, {
@@ -345,9 +479,18 @@ function readFiniteNumber(input: URLSearchParams, key: string): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function readRequiredFiniteNumber(input: URLSearchParams, output: URLSearchParams, key: string): boolean {
+function isLatitude(value: number): boolean {
+  return value >= -90 && value <= 90;
+}
+
+function isLongitude(value: number): boolean {
+  return value >= -180 && value <= 180;
+}
+
+function readRequiredCoordinate(input: URLSearchParams, output: URLSearchParams, key: string): boolean {
   const value = readFiniteNumber(input, key);
   if (value === null) return false;
+  if (key.startsWith('lat') ? !isLatitude(value) : !isLongitude(value)) return false;
 
   output.set(key, String(value));
   return true;
@@ -393,14 +536,17 @@ export function validateLosQuery(input: URLSearchParams): LiveMapQueryValidation
   const query = new URLSearchParams();
 
   for (const key of ['lat1', 'lon1', 'lat2', 'lon2'] as const) {
-    if (!readRequiredFiniteNumber(input, query, key)) {
+    if (!readRequiredCoordinate(input, query, key)) {
       return { ok: false, status: 400, error: 'Missing or invalid live-map LOS coordinates' };
     }
   }
 
   for (const key of ['h1', 'h2'] as const) {
     const value = readFiniteNumber(input, key);
-    if (value !== null) query.set(key, String(value));
+    if (value !== null) {
+      if (value < 0) return { ok: false, status: 400, error: 'Invalid live-map LOS antenna height' };
+      query.set(key, String(value));
+    }
   }
 
   const profile = input.get('profile')?.trim().toLowerCase();
@@ -428,7 +574,17 @@ export function validateElevationQuery(input: URLSearchParams): LiveMapQueryVali
 
   for (const entry of entries) {
     const [lat, lon, extra] = entry.split(',');
-    if (extra !== undefined || !lat || !lon || !Number.isFinite(Number(lat)) || !Number.isFinite(Number(lon))) {
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+    if (
+      extra !== undefined ||
+      !lat ||
+      !lon ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      !isLatitude(latitude) ||
+      !isLongitude(longitude)
+    ) {
       return { ok: false, status: 400, error: 'Invalid live-map elevation location' };
     }
   }
@@ -440,7 +596,7 @@ export function validateWeatherBoundsQuery(input: URLSearchParams): LiveMapQuery
   const query = new URLSearchParams();
 
   for (const key of ['lat', 'lon'] as const) {
-    if (!readRequiredFiniteNumber(input, query, key)) {
+    if (!readRequiredCoordinate(input, query, key)) {
       return { ok: false, status: 400, error: 'Missing or invalid live-map weather coordinates' };
     }
   }

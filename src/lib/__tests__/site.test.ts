@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { meshCoreSetupHowTo } from '../schemas/howto';
 import {
   getBreadcrumbTrail,
   getCriticalTestRoutes,
@@ -96,5 +97,10 @@ describe('site route metadata', () => {
     expect(getFooterRouteGroups().map((group) => group.key)).toEqual(['explore', 'tools', 'learn']);
     expect(getCriticalTestRoutes()).toEqual(['/', '/start', '/map', '/tools', '/guides', '/about']);
     expect(getPublicSiteRoutes()).toHaveLength(SITE_ROUTES.length);
+  });
+
+  it('does not reference the retired MeshCore apps page', () => {
+    expect(meshCoreSetupHowTo.steps.map((step) => step.url)).toContain('https://meshcore.io/downloads.html');
+    expect(JSON.stringify(meshCoreSetupHowTo)).not.toContain('https://meshcore.io/apps.html');
   });
 });

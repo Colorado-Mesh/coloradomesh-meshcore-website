@@ -77,6 +77,10 @@ function normalizeTileAttribution(value: string): string {
   const lower = value.toLowerCase();
   if (lower.includes('<script') || lower.includes('javascript:')) return DEFAULT_MAP_TILE_ATTRIBUTION;
   if (/\son[a-z]+\s*=/.test(lower)) return DEFAULT_MAP_TILE_ATTRIBUTION;
+
+  const withoutAllowedLinks = value.replace(/<a\s+href\s*=\s*(?:"https?:\/\/[^">]+"|'https?:\/\/[^'>]+'|https?:\/\/[^\s>]+)\s*>|<\/a>/gi, '');
+  if (/[<>]/.test(withoutAllowedLinks)) return DEFAULT_MAP_TILE_ATTRIBUTION;
+
   return value;
 }
 
@@ -111,20 +115,7 @@ function buildMapWarnings(config: Pick<MapRuntimeConfig, 'demoMode' | 'sampleDat
   ];
 }
 
-function hasAdvancedLiveMapProxy(config: Pick<MapRuntimeConfig, 'liveMapApiUrl'>): boolean {
-  if (!config.liveMapApiUrl) return false;
-
-  try {
-    const url = new URL(config.liveMapApiUrl);
-    return !url.hostname.endsWith('analyzer.meshcore.coloradomesh.org');
-  } catch {
-    return false;
-  }
-}
-
-function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured' | 'liveMapApiUrl'>): MapAdvancedFeature[] {
-  const advancedProxyAvailable = hasAdvancedLiveMapProxy(config);
-
+function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured'>): MapAdvancedFeature[] {
   return [
     {
       id: 'live-map-snapshot',
@@ -137,10 +128,10 @@ function buildMapFeatures(config: Pick<MapRuntimeConfig, 'liveMapApiConfigured' 
     {
       id: 'advanced-live-map-proxy',
       label: 'Advanced live-map operator endpoints',
-      status: advancedProxyAvailable ? 'available' : 'unavailable',
-      message: advancedProxyAvailable
-        ? 'Advanced live-map proxy endpoints are configured.'
-        : 'Advanced live-map tools require a full meshcore-mqtt-live-map upstream; the default analyzer feed provides node data only.',
+      status: config.liveMapApiConfigured ? 'available' : 'unavailable',
+      message: config.liveMapApiConfigured
+        ? 'Operator endpoints are available from the configured map source with local fallbacks when upstream only provides node data.'
+        : 'Configure a live-map upstream to enable operator endpoints with local fallbacks.',
     },
   ];
 }

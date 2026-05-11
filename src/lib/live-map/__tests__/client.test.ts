@@ -5,6 +5,8 @@ const ENV_KEYS = [
   'MESHCORE_LIVE_MAP_API_TOKEN',
   'MESHCORE_LIVE_MAP_PROXY_TIMEOUT_MS',
   'MESHCORE_LIVE_MAP_PROXY_MAX_RESPONSE_BYTES',
+  'MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED',
+  'MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS',
   'MESHCORE_MAP_SAMPLE_DATA',
   'MESHCORE_MQTT_URL',
 ] as const;
@@ -21,9 +23,10 @@ afterEach(() => {
 });
 
 describe('live-map proxy client', () => {
-  it('proxies configured endpoints with bearer auth and strips source URL credentials', async () => {
+  it('proxies configured endpoints with bearer auth only when public token proxying is opted in', async () => {
     process.env.MESHCORE_LIVE_MAP_API_URL = 'https://user:pass@live-map.example.test/api/nodes?token=leaky';
     process.env.MESHCORE_LIVE_MAP_API_TOKEN = 'secret-token';
+    process.env.MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED = 'true';
     process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
 
     const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
@@ -40,6 +43,78 @@ describe('live-map proxy client', () => {
     expect(url.toString()).not.toContain('user:pass');
     expect(url.toString()).not.toContain('token=leaky');
     expect(init.headers).toEqual(expect.objectContaining({ authorization: 'Bearer secret-token' }));
+  });
+
+  it('blocks public token-backed proxy requests by default but allows local fallback handling', async () => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'https://live-map.example.test/api/nodes';
+    process.env.MESHCORE_LIVE_MAP_API_TOKEN = 'secret-token';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { canUseLocalLiveMapFallback, proxyLiveMapEndpoint } = await loadClientModule();
+    const result = await proxyLiveMapEndpoint('stats');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe(403);
+      expect(result.error).toContain('Public live-map token proxying is disabled');
+    }
+    expect(canUseLocalLiveMapFallback(result)).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('rejects private live-map upstream URLs unless override is explicitly enabled', async () => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'http://127.0.0.1:8080/api/nodes';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { getLiveMapBaseUrl, proxyLiveMapEndpoint } = await loadClientModule();
+    const result = await proxyLiveMapEndpoint('nodes');
+
+    expect(getLiveMapBaseUrl()).toBeNull();
+    expect(result).toEqual({
+      ok: false,
+      status: 503,
+      error: 'Live-map upstream is not configured',
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('allows private production live-map upstream URLs only with explicit override', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    process.env.MESHCORE_LIVE_MAP_API_URL = 'http://127.0.0.1:8080/api/nodes';
+    process.env.MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS = 'true';
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { proxyLiveMapEndpoint } = await loadClientModule();
+    const result = await proxyLiveMapEndpoint('nodes');
+
+    expect(result).toEqual({ ok: true, status: 200, data: { ok: true } });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url] = fetchMock.mock.calls[0] as unknown as [URL, RequestInit];
+    expect(url.toString()).toBe('http://127.0.0.1:8080/api/nodes');
+  });
+
+  it.each([
+    'http://[::1]:8080/api/nodes',
+    'http://[fe80::1]:8080/api/nodes',
+    'http://[fc00::1]:8080/api/nodes',
+    'http://[::ffff:127.0.0.1]:8080/api/nodes',
+    'http://169.254.169.254/api/nodes',
+    'http://metadata.google.internal/api/nodes',
+  ])('rejects private live-map upstream URL %s', async (url) => {
+    process.env.MESHCORE_LIVE_MAP_API_URL = url;
+    process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
+
+    const { getLiveMapBaseUrl } = await loadClientModule();
+    expect(getLiveMapBaseUrl()).toBeNull();
   });
 
   it('preserves upstream app base paths when deriving advanced endpoint URLs', async () => {
@@ -72,9 +147,10 @@ describe('live-map proxy client', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it('redacts thrown upstream errors', async () => {
+  it('redacts thrown upstream errors and allows local fallback handling', async () => {
     process.env.MESHCORE_LIVE_MAP_API_URL = 'https://user:pass@live-map.example.test/api/nodes';
     process.env.MESHCORE_LIVE_MAP_API_TOKEN = 'secret-token';
+    process.env.MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED = 'true';
     process.env.MESHCORE_MAP_SAMPLE_DATA = 'false';
 
     vi.stubGlobal(
@@ -84,7 +160,7 @@ describe('live-map proxy client', () => {
       })
     );
 
-    const { proxyLiveMapEndpoint } = await loadClientModule();
+    const { canUseLocalLiveMapFallback, proxyLiveMapEndpoint } = await loadClientModule();
     const result = await proxyLiveMapEndpoint('nodes');
     const serialized = JSON.stringify(result);
 
@@ -93,6 +169,7 @@ describe('live-map proxy client', () => {
       status: 502,
       error: 'Live-map upstream request failed',
     });
+    expect(canUseLocalLiveMapFallback(result)).toBe(true);
     expect(serialized).not.toContain('secret-token');
     expect(serialized).not.toContain('user:pass');
     expect(serialized).not.toContain('live-map.example.test');
@@ -145,12 +222,43 @@ describe('live-map proxy client', () => {
 
     const los = validateLosQuery(new URLSearchParams('lat1=39&lon1=-105&lat2=40&lon2=-104&profile=1&h1=2'));
     expect(los.ok && los.query.toString()).toBe('lat1=39&lon1=-105&lat2=40&lon2=-104&h1=2&profile=true');
+    expect(validateLosQuery(new URLSearchParams('lat1=91&lon1=-105&lat2=40&lon2=-104'))).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Missing or invalid live-map LOS coordinates',
+    });
+    expect(validateLosQuery(new URLSearchParams('lat1=39&lon1=-105&lat2=40&lon2=-104&h1=-1'))).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Invalid live-map LOS antenna height',
+    });
 
     const elevations = validateElevationQuery(new URLSearchParams('locations=39,-105|40,-104'));
     expect(elevations.ok && elevations.query.toString()).toBe('locations=39%2C-105%7C40%2C-104');
+    expect(validateElevationQuery(new URLSearchParams('locations=91,-105'))).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Invalid live-map elevation location',
+    });
 
     const weather = validateWeatherBoundsQuery(new URLSearchParams('lat=39&lon=-105'));
     expect(weather.ok && weather.query.toString()).toBe('lat=39&lon=-105');
+    expect(validateWeatherBoundsQuery(new URLSearchParams('lat=39&lon=-181'))).toEqual({
+      ok: false,
+      status: 400,
+      error: 'Missing or invalid live-map weather coordinates',
+    });
+  });
+
+  it('reports local fallback endpoint metadata without requiring an upstream', async () => {
+    const { getLiveMapEndpointDefinitions } = await loadClientModule();
+    const endpoints = getLiveMapEndpointDefinitions();
+
+    for (const id of ['stats', 'peers', 'los', 'los-elevations', 'coverage', 'weather-radar-country-bounds']) {
+      expect(endpoints).toContainEqual(expect.objectContaining({ id, availability: 'available' }));
+    }
+    expect(endpoints).toContainEqual(expect.objectContaining({ id: 'snapshot', availability: 'unavailable' }));
+    expect(endpoints).toContainEqual(expect.objectContaining({ id: 'nodes', availability: 'unavailable' }));
   });
 
   it('reports deferred and configured endpoint metadata without upstream secrets', async () => {

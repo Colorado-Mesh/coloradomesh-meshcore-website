@@ -1,130 +1,108 @@
-# Stack Research: Colorado MeshCore Site Hardening Pass
+# Stack Research: Submodule-backed MeshCore Utilities Integration
 
-Checked: 2026-05-06
+Project: add `https://github.com/Colorado-Mesh/meshcore-utilities-site` as a git submodule and redesign/integrate the utilities experience into the existing Colorado MeshCore public website. Current host app is a brownfield Next.js 16 / React 19 / Tailwind CSS 4 site with Node 24, npm, TypeScript, Vitest, Playwright, Lighthouse CI, Docker standalone output, and Netlify configuration.
 
-Scope: brownfield Next.js site at `/Users/cjvana/Documents/GitHub/denvermc-org`, plus upstream parity inspection of `/tmp/meshcore-utilities-site` and `/tmp/meshcore-mqtt-live-map`.
+### ITEM-stack-1: Keep the host stack as Next.js 16 App Router on Node 24
 
-### ITEM-stack-1: Keep the site on Next.js 16 + React 19 with Node 24 LTS
-
-- **Recommendation:** Keep the current core stack: Next.js `16.2.5`, React/React DOM `19.2.x`, TypeScript `5.x`, npm lockfile, and Node `24` for local, CI, and Docker. Treat Node 24 as the deployment baseline, not merely a permissive version range.
-- **Rationale:** The repo is already on Next 16.2.5, React 19.2.3, TypeScript 5, and `node:24-alpine`. Next 16 officially requires Node 20.9+ and TypeScript 5.1+, while Node 24 is Active LTS in 2026. Staying on the existing stack avoids a rewrite and keeps alignment with React Leaflet v5's React 19 requirement.
+- **Recommendation:** Build the integrated utilities inside the existing Next.js App Router application using the current Node.js 24/npm runtime. Use Server Component page shells for metadata/layout and focused Client Components for interactive tools.
+- **Rationale:** The project is brownfield and already runs `next@^16.2.5`, `react@19.2.3`, `react-dom@19.2.3`, strict TypeScript, App Router routes under `src/app`, and `output: 'standalone'`. Official Next.js 16 docs show App Router as the current full-stack model and document Node.js server/Docker deployments as supporting all Next.js features. Replatforming to the upstream Flask runtime would add a second production app and fight the existing public-site design and CI.
 - **Confidence:** HIGH
-- **Source:** Local repo + Official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`; https://nextjs.org/docs/app/guides/upgrading/version-16; https://github.com/nodejs/Release
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not downgrade to Next 15/React 18; it would fight the installed React Leaflet v5 stack. Do not port the Flask utilities site wholesale; the current deliverable is a consolidated Next.js site.
+- **Source:** Official docs + codebase — https://nextjs.org/docs/app/getting-started ; https://nextjs.org/docs/app/getting-started/deploying ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not mount the upstream Flask app as the primary runtime. Do not create a separate SPA/Vite app for utilities; it would duplicate routing, layout, CSP, SEO, and deployment concerns already solved by the host site.
 
-### ITEM-stack-2: Use no application database; keep content/static parity data in-repo and live state external
+### ITEM-stack-2: Use React 19.2 Client Components for browser-only utility islands
 
-- **Recommendation:** Do not add Postgres/Supabase/Redis for this pass. Keep blog/guides/static parity data as MDX/TypeScript/JSON in the repo, keep short-lived live-map aggregation in server memory, and rely on `meshcore-mqtt-live-map` for persistent MQTT state/history.
-- **Rationale:** The current repo has static MDX content, static TS data files, and API routes that proxy/normalize map data. The live-map upstream already persists device state, route history, peer history, backups, and optional coverage caches. Adding a database to the site would duplicate upstream responsibilities and create operational work without solving the audit/parity goal.
+- **Recommendation:** Keep React 19.2 and implement interactive utility flows as explicit `'use client'` islands: naming wizard, prefix matrix, serial USB console, settings JSON preview/apply, file upload/download, clipboard, and any future browser-side key generation.
+- **Rationale:** React 19 is stable and aligned with modern Next.js features. The existing package already pins React 19.2.3, while npm currently reports React 19.2.6; this small patch drift does not justify a stack change for the integration. Browser APIs such as Web Serial, clipboard, `Blob`, and file inputs cannot run in Server Components and should remain isolated behind client boundaries.
 - **Confidence:** HIGH
-- **Source:** Local repo + Upstream clone — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; `/tmp/meshcore-mqtt-live-map/README.md`; `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not add Supabase just because CSP already allows it; there is no current product requirement for user accounts or durable site-owned map state. Do not store MQTT history in Next.js API route globals beyond transient cache.
+- **Source:** Official docs + npm registry + codebase — https://react.dev/blog/2024/12/05/react-19 ; `npm view react version` => 19.2.6 ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not make the entire tools section client-rendered. Do not introduce another UI runtime such as Vue/Svelte/vanilla-microfrontend solely to consume upstream static scripts.
 
-### ITEM-stack-3: Consume `meshcore-mqtt-live-map` through its `/api/nodes` API as the primary integration
+### ITEM-stack-3: Keep TypeScript strict with local typed adapters and Zod validation
 
-- **Recommendation:** Treat yellowcooln's live map as a separate decoder/state service and configure this site with `MESHCORE_LIVE_MAP_API_URL=<live-map>/api/nodes`, `mode=full`, and server-side token support. Keep direct MQTT support as a fallback only for already-decoded JSON payloads.
-- **Rationale:** The upstream live map decodes raw MeshCore packets using `@michaelhart/meshcore-decoder`, tracks MQTT presence, stores state/history, exposes `/api/nodes`, `/snapshot`, `/stats`, `/peers/{id}`, and supports `PROD_TOKEN`. The current site already has server-side token handling and an API-normalization path, but raw direct MQTT in this repo cannot match upstream's route decoding, multibyte path handling, peer history, or persistence.
+- **Recommendation:** Keep TypeScript as the implementation language for host integration code, with strict mode, route-aware Next types where useful, and Zod for validating imported upstream JSON/config schemas before generating local typed artifacts.
+- **Rationale:** The existing repo is already TypeScript-first (`strict: true`, `moduleResolution: bundler`, `@/*` path alias), and Next.js 16 has built-in TypeScript support plus App Router type helpers. Upstream utility data includes JSON files and schemas; validating them during generation/parity checks gives safer upstream pull-forward than importing raw Python/static JS behavior.
 - **Confidence:** HIGH
-- **Source:** Upstream clone + Local repo — `/tmp/meshcore-mqtt-live-map/README.md`; `/tmp/meshcore-mqtt-live-map/backend/app.py`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; npm registry `npm view @michaelhart/meshcore-decoder version` returned `0.3.0`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not subscribe the Next.js site directly to raw `meshcore/#` packets for parity; that would recreate the FastAPI service. Do not expose the live-map token to browsers; keep token use server-side only.
+- **Source:** Official docs + codebase + npm registry — https://nextjs.org/docs/app/api-reference/config/typescript ; `/Users/cjvana/Documents/GitHub/denvermc-org/tsconfig.json` ; `npm view typescript version` => 6.0.3 ; `npm view zod version` => 4.4.3
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not rewrite host utility logic in Python to match upstream. Do not accept untyped JSON imports from the submodule without validation; upstream data/schema changes should fail visibly in tests or generation.
 
-### ITEM-stack-4: Keep Leaflet 1.9.4 + React Leaflet 5, and make tile configuration actually runtime-configurable
+### ITEM-stack-4: Use the upstream repository as a Git submodule under `vendor/`, not as an npm workspace initially
 
-- **Recommendation:** Keep `leaflet@1.9.4`, `react-leaflet@5.0.0`, and `@types/leaflet`, but harden the current implementation by reading the configured tile URL/attribution instead of hardcoding CARTO tiles in `NetworkMap.tsx`.
-- **Rationale:** React Leaflet v5 is the right binding for React 19 and requires React, React DOM, and Leaflet peer dependencies. The current repo declares `NEXT_PUBLIC_MAP_TILE_URL` and `getMapRuntimeConfig().mapTileUrl`, but `NetworkMap.tsx` hardcodes `https://{s}.basemaps.cartocdn.com/dark_all/...`; that makes compose/env configuration misleading and complicates CSP/tile-provider changes.
+- **Recommendation:** Add `Colorado-Mesh/meshcore-utilities-site` as a Git submodule at `vendor/meshcore-utilities-site` tracking `main`, and use scripts/parity tests to read selected upstream files. Do not add it to npm workspaces unless upstream later exposes a real package with a `package.json`.
+- **Rationale:** Official Git submodule docs support pinning an external repo to an exact commit and advancing it deliberately with `git submodule update --remote`. The upstream repo is a Flask app with `app.py`, `templates`, `static`, `requirements.txt`, and no `package.json`, so npm workspaces would add no value today. A vendor path makes the external boundary obvious and prevents accidental Next routing/imports.
 - **Confidence:** HIGH
-- **Source:** Local repo + Official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`; https://react-leaflet.js.org/docs/start-installation/; https://leafletjs.com/reference
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not migrate to Mapbox GL/MapLibre for this pass; Leaflet is already present, stable, and matches both the current implementation and upstream live-map UI. Do not adopt Leaflet 2 alpha.
+- **Source:** Official docs + GitHub inspection — https://git-scm.com/docs/git-submodule/2.54.0 ; https://github.com/Colorado-Mesh/meshcore-utilities-site ; `gh api repos/Colorado-Mesh/meshcore-utilities-site/contents`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not use Git subtree/vendor-copy because the project explicitly requires a submodule relationship. Do not force the Flask repo into npm workspaces; npm workspaces are appropriate only when each workspace path contains a package.
 
-### ITEM-stack-5: Add Zod for runtime validation of env, live-map payloads, and API responses
+### ITEM-stack-5: Treat upstream Flask/Python as source material only; do not run Flask in production
 
-- **Recommendation:** Add `zod@4.4.3` and use schemas for runtime env parsing, `meshcore-mqtt-live-map` `/api/nodes` responses, internal `/api/map/*` responses, and external geocoding responses.
-- **Rationale:** Current map normalization accepts many payload shapes defensively but without a schema boundary. The live-map upstream documents node fields (`public_key`, `name`, `device_role`, `last_seen`, `timestamp`, `location.latitude/longitude`) and token-protected modes. Zod gives type inference plus runtime checks and fits the strict TypeScript repo without introducing a database or RPC framework.
+- **Recommendation:** Do not add Flask, Pydantic, ObjectREST, or the `coloradomesh` Python package to the host production stack. Use the upstream Flask app as the canonical reference for behavior/data and port/reimplement the public UX natively in Next.js.
+- **Rationale:** Upstream currently declares `Flask==3.1.2`, `pydantic==2.12.5`, `objectrest==2.0.0`, and `coloradomesh==0.11.1`, with a Docker app on port 50000. Current Flask is 3.1.3, so directly running upstream would immediately introduce a second runtime and dependency update path. The host app already has equivalent tool routes and public-site security/design expectations.
 - **Confidence:** HIGH
-- **Source:** Local repo + Official docs + npm registry — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/normalize.ts`; https://zod.dev/; npm registry `npm view zod version` returned `4.4.3`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not rely only on TypeScript interfaces for network data; they vanish at runtime. Do not add a heavier API framework for two simple internal map endpoints.
+- **Source:** GitHub inspection + official/PyPI docs — https://github.com/Colorado-Mesh/meshcore-utilities-site ; https://flask.palletsprojects.com/en/stable/changes/ ; https://pypi.org/project/Flask/
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not proxy/iframe the Flask UI as the main experience. Keep a separate upstream deployment only as a reference/fallback link if maintainers need to compare behavior.
 
-### ITEM-stack-6: Add AJV-based schema parity checks for upstream serial command profiles
+### ITEM-stack-6: Keep Tailwind CSS 4 and the existing CSS-first design system
 
-- **Recommendation:** Add `ajv@8.20.0` or a small schema-validation script and vendor/check the upstream `serial_commands.schema.json` plus `default_serial_commands.json` as fixtures. CI should fail when the in-repo `DEFAULT_SERIAL_COMMAND_PROFILE` drifts unintentionally from upstream command IDs, confirmation flags, line endings, baud defaults, or destructive-action safeguards.
-- **Rationale:** The upstream utilities site defines a JSON schema and canonical serial command profile. The current Next site reimplements the profile in TypeScript and currently appears close, but there is no automated parity guard. Schema/golden checks are cheaper and safer than importing the whole Flask/Python stack.
+- **Recommendation:** Build UI with the current Tailwind CSS 4 setup (`tailwindcss`, `@tailwindcss/postcss`) and local design tokens/components (`ToolShell`, `HeroPanel`, `ToolCard`, `.panel`, `.card-mesh`, button classes). Delegate final visual implementation to `co-ui`/native Opus UI per the project constraint.
+- **Rationale:** Official Tailwind v4 PostCSS setup matches the existing `postcss.config.mjs`. The site already has a polished operations-console design; copying upstream `static/css` would leak global styles and undermine brand/a11y consistency. Tailwind 4 is the standard stack choice for this brownfield site, not an experiment.
 - **Confidence:** HIGH
-- **Source:** Upstream clone + Local repo — `/tmp/meshcore-utilities-site/serial_commands.schema.json`; `/tmp/meshcore-utilities-site/static/data/default_serial_commands.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/tools/serial-commands.ts`; npm registry `npm view ajv version` returned `8.20.0`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not hand-audit serial command parity on every release. Do not install Python/Flask just to validate a JSON profile.
+- **Source:** Official docs + codebase — https://tailwindcss.com/docs/installation/using-postcss ; https://tailwindcss.com/blog/tailwindcss-v4 ; `/Users/cjvana/Documents/GitHub/denvermc-org/postcss.config.mjs`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not import upstream CSS wholesale. Do not add a component library such as MUI/Chakra/Shadcn for this task; it would create a second design language and extra migration surface.
 
-### ITEM-stack-7: Keep Web Serial native; test it with typed mocks, not browser-specific serial libraries
+### ITEM-stack-7: Use build/update-time generators plus parity tests instead of runtime submodule reads
 
-- **Recommendation:** Keep the current native Web Serial implementation and add unit tests with mocked `navigator.serial`, `ReadableStream`, and `WritableStream` for connection state, command sends, destructive confirmations, disconnect cleanup, and unsupported/insecure-context messaging.
-- **Rationale:** Web Serial is limited to secure contexts and Chromium-family desktop browsers, which the page already communicates. The current TypeScript interfaces keep the browser API isolated and avoid a dependency that cannot make Firefox/Safari support exist. The best hardening is deterministic behavior tests and accurate fallback copy.
+- **Recommendation:** Add a Node/TypeScript generator script, run manually or in CI, that reads upstream data such as `static/data/default_serial_commands.json`, `static/data/recommended_settings.json`, `static/data/regions.json`, `static/data/emojis.json`, and `serial_commands.schema.json`, validates them, and emits local typed artifacts/tests. Runtime pages should import local generated modules.
+- **Rationale:** Next standalone output and Docker copy only the built app/runtime artifacts into the final image. Runtime `fs` reads into a submodule path are easy to omit from output tracing and deployments. Build/update-time generation makes upstream updates reviewable as diffs and keeps the production runtime independent of the submodule directory.
 - **Confidence:** HIGH
-- **Source:** Local repo + Web docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`; https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API; https://developer.chrome.com/docs/capabilities/serial; https://caniuse.com/web-serial
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not add a serial-port polyfill for browsers; Web Serial support is platform-gated. Do not try to run hardware serial tests in normal PR CI.
+- **Source:** Official docs + upstream/codebase inspection — https://nextjs.org/docs/app/getting-started/deploying ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js` ; `gh api repos/Colorado-Mesh/meshcore-utilities-site/git/trees/HEAD?recursive=1`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not serve raw upstream files directly from `vendor/`. Do not require the deployed container/serverless function to include the entire submodule unless a future tool has a proven need.
 
-### ITEM-stack-8: Add Vitest + React Testing Library for fast unit and component tests
+### ITEM-stack-8: Keep Vitest, Playwright, axe, and Lighthouse CI as the quality stack
 
-- **Recommendation:** Add `vitest@4.1.5`, `@vitejs/plugin-react@6.0.1`, `jsdom@29.1.1`, `@testing-library/react@16.3.2`, `@testing-library/dom`, and `vite-tsconfig-paths@6.1.1`. Add scripts such as `test`, `test:run`, and include `npm run test:run` in PR CI.
-- **Rationale:** The current repo has lint, typecheck, and build scripts but no tests. Next.js officially documents Vitest + React Testing Library for unit testing synchronous Server Components and Client Components, while recommending E2E for async Server Components. High-value targets here are map normalization/status thresholds, rate-limit behavior, serial command helpers, naming validation, prefix matrix logic, and API response shape validation.
+- **Recommendation:** Extend the existing test stack: Vitest for deterministic utility/parity tests, Playwright for route/interaction coverage, axe/Playwright for accessibility, and Lighthouse CI for public-site performance/regression gates.
+- **Rationale:** The repository already has scripts for `lint`, `typecheck`, `test:unit`, `test:e2e`, `test:a11y`, and `test:lighthouse`. This stack maps directly to the integration risks: tool algorithms must match upstream, Web Serial unsupported states need browser-level tests, and the redesigned utilities must preserve public-site a11y/performance quality.
 - **Confidence:** HIGH
-- **Source:** Local repo + Official docs + npm registry — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://nextjs.org/docs/app/guides/testing/vitest; npm registry version checks on 2026-05-06
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not use Jest for new tests unless a blocker appears; Vitest is faster to add for this TypeScript/client-heavy codebase. Do not try to unit-test async App Router pages as the primary coverage strategy.
+- **Source:** Codebase + npm registry — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json` ; `npm view vitest version` => 4.1.5 ; `npm view @playwright/test version` => 1.59.1
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not introduce Jest/Cypress for this feature; adding parallel test frameworks increases maintenance cost without solving a unique problem.
 
-### ITEM-stack-9: Add Playwright E2E smoke tests for critical routes and tool flows
+### ITEM-stack-9: Keep Web Serial as a browser capability with feature detection and secure-context UX
 
-- **Recommendation:** Add `@playwright/test@1.59.1` with Chromium-only PR smoke tests against a production build. Cover `/`, `/map`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, `/tools/serial-usb`, the mobile nav breakpoint, 404/global error basics, and map API empty/sample-data states.
-- **Rationale:** Next.js recommends Playwright for E2E testing and explicitly says it is the right tool for async components. This site's risk is not algorithm-only; it is route wiring, browser APIs, dynamic map import/Leaflet rendering, responsive navigation, and UI state. A small Chromium suite is pragmatic for normal PRs; full browser matrices can be scheduled.
+- **Recommendation:** Continue using the native Web Serial API directly from client components for `/tools/serial-usb`; guard it with `window.isSecureContext`, `navigator.serial` feature detection, user-gesture connection, and clear unsupported-browser copy.
+- **Rationale:** MDN marks Web Serial as limited availability and secure-context only. A browser-native implementation avoids a local daemon or server-mediated device access, preserving the privacy/security model that device bytes stay between the user’s browser and hardware. The current local implementation already follows this shape.
 - **Confidence:** HIGH
-- **Source:** Official docs + Local repo — https://nextjs.org/docs/app/guides/testing/playwright; https://playwright.dev/docs/ci; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app`; npm registry `npm view @playwright/test version` returned `1.59.1`
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not rely on `next build` as UX verification. Do not run Chromium+Firefox+WebKit on every PR initially; that is likely too slow/noisy for pragmatic CI hardening.
+- **Source:** Official docs + codebase — https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not add a Node native serial bridge, Electron app, or backend WebSocket serial proxy for the public website. Do not promise Safari/iOS support for serial operations.
 
-### ITEM-stack-10: Add `@axe-core/playwright` and Lighthouse CI for non-visual UI/UX verification
+### ITEM-stack-10: Deploy as the existing Next standalone/Docker/Netlify-compatible site, not a two-service app
 
-- **Recommendation:** Add `@axe-core/playwright@4.11.3` to the Playwright suite for WCAG A/AA page-state scans, and add `@lhci/cli@0.15.1` as a scheduled or optional PR check for performance/accessibility regressions on a small route set.
-- **Rationale:** The session constraint says visual aesthetics must be delegated, but automated a11y/performance checks are non-visual hardening. Playwright's official accessibility guidance supports axe scans in current page state and warns that automated checks are partial; Lighthouse CI is built for regression budgets and PR/status reporting.
+- **Recommendation:** Keep deployment centered on `next build`, `next start`, Docker standalone output, and the existing Netlify configuration. Ensure CI/build checkouts initialize the submodule before generator/parity steps, but make the runtime independent of it.
+- **Rationale:** Official Next.js docs state Node.js server and Docker support all Next.js features, and Netlify’s OpenNext adapter supports App Router, SSR, Route Handlers, Server Actions, middleware, and caching. The host repo already has `output: 'standalone'`, Dockerfile, Compose, Netlify config, and Lighthouse CI. A separate Flask service would complicate routing, CSP, cache headers, monitoring, and local setup.
 - **Confidence:** HIGH
-- **Source:** Official docs + npm registry — https://playwright.dev/docs/next/accessibility-testing; https://googlechrome.github.io/lighthouse-ci/; npm registry version checks on 2026-05-06
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not add Percy/Chromatic as a default requirement in this Codex-backed pass; those are visual-diff tools and should be owned by the Opus UI workflow if desired. Do not make broad Lighthouse performance budgets blocking before baselines are captured.
-
-### ITEM-stack-11: Harden Next.js config with typed routes, typegen, and middleware/proxy migration awareness
-
-- **Recommendation:** Enable `typedRoutes: true` in `next.config.js`, add a CI step for `next typegen` before `tsc --noEmit`, and plan to rename `src/middleware.ts` to `src/proxy.ts` when implementing code changes.
-- **Rationale:** Next.js 16 has stable route-aware typing and generated `.next/types`; this repo has many internal links and App Router pages where typed route checks would catch stale paths. Next 16 also deprecates `middleware` in favor of `proxy`; the current repo still has `src/middleware.ts` for API rate limiting, so the hardening pass should not ignore the migration warning.
-- **Confidence:** HIGH
-- **Source:** Local repo + Official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/middleware.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/tsconfig.json`; https://nextjs.org/docs/app/api-reference/config/typescript; https://nextjs.org/docs/app/api-reference/config/next-config-js/typedRoutes; https://nextjs.org/docs/app/guides/upgrading/version-16
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not wait for runtime navigation bugs to discover broken links. Do not suppress Next 16 proxy migration warnings by pinning older framework versions.
-
-### ITEM-stack-12: Expand CI with fast tests, dependency review, CodeQL, Dependabot groups, Docker cache, smoke run, and SBOM
-
-- **Recommendation:** Update CI to run `npm ci`, lint, typegen/typecheck, Vitest, Playwright smoke, build, and Docker build with GitHub Actions cache. Add dependency-review for PRs, CodeQL JavaScript/TypeScript scanning, grouped Dependabot updates for npm and GitHub Actions, a container smoke run hitting `/api/map/stats`, and `sbom: true` on Docker release.
-- **Rationale:** Current CI only runs ESLint, typecheck, Next build, Docker build, and a separate high-severity `npm audit`. Docker release already has provenance but not SBOM. GitHub officially supports CodeQL for JavaScript/TypeScript, Dependabot grouping, and dependency review; Docker officially supports GHA build cache plus SBOM/provenance attestations. A smoke run catches broken standalone output that build-only Docker checks miss.
-- **Confidence:** HIGH
-- **Source:** Local repo + Official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml`; `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/security.yml`; `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/docker-release.yml`; https://docs.github.com/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql; https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference; https://docs.docker.com/build/cache/backends/gha/; https://docs.docker.com/build/ci/github-actions/attestations/
-- **Checked:** 2026-05-06
-- **Alternatives rejected:** Do not make heavyweight full-browser E2E or Trivy image scans required on every PR at first; keep those scheduled/release-gated if added. Do not rely solely on `npm audit` for supply-chain hardening.
+- **Source:** Official docs + codebase — https://nextjs.org/docs/app/getting-started/deploying ; https://docs.netlify.com/frameworks/next-js/overview/ ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`
+- **Checked:** 2026-05-10
+- **Alternatives rejected:** Do not deploy Flask side-by-side for the main utilities. Do not switch to static export because the site uses route handlers/live data and static export has limited feature support.
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-stack-1 | HIGH | Local repo + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://nextjs.org/docs/app/guides/upgrading/version-16; https://github.com/nodejs/Release |
-| ITEM-stack-2 | HIGH | Local repo + Upstream clone | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; `/tmp/meshcore-mqtt-live-map/README.md`; `/tmp/meshcore-mqtt-live-map/ARCHITECTURE.md` |
-| ITEM-stack-3 | HIGH | Upstream clone + Local repo + npm registry | `/tmp/meshcore-mqtt-live-map/README.md`; `/tmp/meshcore-mqtt-live-map/backend/app.py`; `npm view @michaelhart/meshcore-decoder version` |
-| ITEM-stack-4 | HIGH | Local repo + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`; https://react-leaflet.js.org/docs/start-installation/; https://leafletjs.com/reference |
-| ITEM-stack-5 | HIGH | Local repo + Official docs + npm registry | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/normalize.ts`; https://zod.dev/; `npm view zod version` |
-| ITEM-stack-6 | HIGH | Upstream clone + Local repo + npm registry | `/tmp/meshcore-utilities-site/serial_commands.schema.json`; `/tmp/meshcore-utilities-site/static/data/default_serial_commands.json`; `npm view ajv version` |
-| ITEM-stack-7 | HIGH | Local repo + Web docs | `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx`; https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API; https://developer.chrome.com/docs/capabilities/serial |
-| ITEM-stack-8 | HIGH | Local repo + Official docs + npm registry | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://nextjs.org/docs/app/guides/testing/vitest; npm version checks |
-| ITEM-stack-9 | HIGH | Official docs + Local repo | https://nextjs.org/docs/app/guides/testing/playwright; https://playwright.dev/docs/ci; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app` |
-| ITEM-stack-10 | HIGH | Official docs + npm registry | https://playwright.dev/docs/next/accessibility-testing; https://googlechrome.github.io/lighthouse-ci/; npm version checks |
-| ITEM-stack-11 | HIGH | Local repo + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/src/middleware.ts`; https://nextjs.org/docs/app/api-reference/config/typescript; https://nextjs.org/docs/app/api-reference/config/next-config-js/typedRoutes |
-| ITEM-stack-12 | HIGH | Local repo + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml`; https://docs.github.com/code-security/code-scanning/introduction-to-code-scanning/about-code-scanning-with-codeql; https://docs.docker.com/build/ci/github-actions/attestations/ |
+| ITEM-stack-1 | HIGH | Official docs + codebase | https://nextjs.org/docs/app/getting-started ; https://nextjs.org/docs/app/getting-started/deploying ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json` |
+| ITEM-stack-2 | HIGH | Official docs + npm registry + codebase | https://react.dev/blog/2024/12/05/react-19 ; `npm view react version` ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx` |
+| ITEM-stack-3 | HIGH | Official docs + codebase + npm registry | https://nextjs.org/docs/app/api-reference/config/typescript ; `/Users/cjvana/Documents/GitHub/denvermc-org/tsconfig.json` ; `npm view zod version` |
+| ITEM-stack-4 | HIGH | Official docs + GitHub inspection | https://git-scm.com/docs/git-submodule/2.54.0 ; https://github.com/Colorado-Mesh/meshcore-utilities-site |
+| ITEM-stack-5 | HIGH | GitHub inspection + official/PyPI docs | https://github.com/Colorado-Mesh/meshcore-utilities-site ; https://flask.palletsprojects.com/en/stable/changes/ ; https://pypi.org/project/Flask/ |
+| ITEM-stack-6 | HIGH | Official docs + codebase | https://tailwindcss.com/docs/installation/using-postcss ; https://tailwindcss.com/blog/tailwindcss-v4 ; `/Users/cjvana/Documents/GitHub/denvermc-org/postcss.config.mjs` |
+| ITEM-stack-7 | HIGH | Official docs + upstream/codebase inspection | https://nextjs.org/docs/app/getting-started/deploying ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js` ; https://github.com/Colorado-Mesh/meshcore-utilities-site |
+| ITEM-stack-8 | HIGH | Codebase + npm registry | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json` ; `npm view vitest version` ; `npm view @playwright/test version` |
+| ITEM-stack-9 | HIGH | Official docs + codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/SerialUsbTool.tsx` |
+| ITEM-stack-10 | HIGH | Official docs + codebase | https://nextjs.org/docs/app/getting-started/deploying ; https://docs.netlify.com/frameworks/next-js/overview/ ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |

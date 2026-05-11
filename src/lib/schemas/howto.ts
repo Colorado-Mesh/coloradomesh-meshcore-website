@@ -76,7 +76,7 @@ export const meshCoreSetupHowTo = {
     {
       name: 'Configure Your Node',
       text: 'Download the MeshCore Companion app, connect to your node via Bluetooth, set a unique node name, and configure USA/Canada radio preset.',
-      url: 'https://meshcore.io/apps.html',
+      url: 'https://meshcore.io/downloads.html',
     },
     {
       name: 'Join the Colorado MeshCore Community',

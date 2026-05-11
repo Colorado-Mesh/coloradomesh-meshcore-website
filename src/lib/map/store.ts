@@ -1,4 +1,5 @@
 import mqtt, { type MqttClient } from 'mqtt';
+import { normalizeLiveMapSourceUrl } from '@/lib/live-map/client';
 import { getMapFeatures, getMapRuntimeConfig, getMapWarnings, type MapRuntimeConfig } from './config';
 import { buildMapStats, normalizeLiveMapNode, uniqueMapNodes } from './normalize';
 import { buildSampleMapSnapshot } from './sample-data';
@@ -203,16 +204,11 @@ function applyMqttPayload(payload: unknown) {
 function buildLiveMapApiUrl(config: MapRuntimeConfig): string | null {
   if (!config.liveMapApiUrl) return null;
 
-  try {
-    const endpoint = new URL(config.liveMapApiUrl);
-    endpoint.username = '';
-    endpoint.password = '';
-    endpoint.search = '';
-    endpoint.searchParams.set('mode', 'full');
-    return endpoint.toString();
-  } catch {
-    return null;
-  }
+  const endpoint = normalizeLiveMapSourceUrl(config.liveMapApiUrl);
+  if (!endpoint) return null;
+
+  endpoint.searchParams.set('mode', 'full');
+  return endpoint.toString();
 }
 
 function buildLiveMapApiHeaders(config: MapRuntimeConfig): HeadersInit {

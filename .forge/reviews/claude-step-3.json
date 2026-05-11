@@ -2,69 +2,46 @@
   "verdict": "APPROVED",
   "blocking_issues": 0,
   "reviewed_files": [
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/PLAN.md",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-3-plan.md",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/start/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/guides/getting-started/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/guides/repeater-setup/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/layout.tsx"
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-data/settings.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-data/regions.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/tools/serial-commands.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/index.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/__tests__/config-export.test.ts",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/__tests__/serial-settings.test.ts"
   ],
   "diff_basis": "provided_list",
-  "plan_section": "Step 3: /start chooser hub and homepage journey alignment",
+  "plan_section": "Step 3: Wire deterministic utility logic to generated upstream-derived data",
   "dimensions": {
     "plan_alignment": {
-      "score": "FLAG",
-      "notes": "The implementation satisfies the Step 3 contracts: /start is now canonical, has metadata/breadcrumb JSON-LD, three balanced paths, safe Discord links, homepage CTAs, and updated map label drift. Minor copy drift remains where homepage hero language still frames the site primarily as an operator portal."
+      "score": "PASS",
+      "notes": "Changes align with Step 3 by sourcing radio settings, airport regions, and serial command profiles from generated upstream artifacts while keeping local public interfaces stable."
     },
     "correctness_safety": {
       "score": "PASS",
-      "notes": "Internal routes are valid, external Discord links use target blank with noopener noreferrer, no new workflows or disclaimers were introduced, and /start no longer redirects."
+      "notes": "Prior serial safety blockers are resolved: generated mutating actions/commands are locally confirmation-gated, region override is preserved, secret/private/password writes fail closed, and read-only get commands remain allowed."
     },
     "code_quality": {
       "score": "PASS",
-      "notes": "The page uses existing brand components and straightforward typed journey metadata. Helper components keep internal and external link handling clear."
+      "notes": "The adapter is narrow and readable, with explicit conversion helpers for serial shape validation and line-ending mapping."
     },
     "completeness": {
       "score": "PASS",
-      "notes": "Acceptance criteria are covered: /start is usable, balanced homepage paths are visible, and guide/tool/map/about destinations are reachable from /start and the homepage."
+      "notes": "Tests cover upstream settings/provenance, generated airport regions, generated serial profile adaptation, confirmation enforcement, secret-write blocking, invalid send steps, and all documented line-ending mappings."
     },
     "patterns": {
       "score": "PASS",
-      "notes": "The implementation follows existing Next.js App Router metadata, JsonLd, Breadcrumbs, HeroPanel, NetworkPanel, and ToolCard patterns."
+      "notes": "Runtime code imports generated local artifacts through @/lib/upstream-utilities and does not import vendor paths directly."
     },
     "integration": {
       "score": "PASS",
-      "notes": "Changes integrate cleanly with existing navigation, map, tools, guide routes, and smoke/a11y coverage."
+      "notes": "Existing config export and SerialUsbTool contracts remain compatible with the local SerialCommandProfile shape and optional per-step line endings."
     }
   },
   "flags": [
     {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/page.tsx",
-      "line": 93,
-      "note": "Homepage hero copy still says the site is the operator portal, which slightly undercuts the Step 3 balanced newcomer/operator/community journey framing. Non-blocking because CTAs and journey cards are balanced."
-    },
-    {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/start/page.tsx",
-      "line": 178,
-      "note": "The /start hero uses 'Live map' and 'Operator tools' while the global labels are 'Live Map' and 'Tools'. Non-blocking, but consider tightening label consistency in a polish pass."
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-data/regions.ts",
+      "line": 7,
+      "note": "Generated airport regions now directly define local supported region codes; current verification confirms parity with the prior local set, but future upstream airport additions would expand local support unless a separate allowlist/parity guard is added."
     }
-  ],
-  "additional_verification": {
-    "reviewer_reran": [],
-    "implementer_reported_passed": [
-      "npm run typecheck",
-      "npm run build",
-      "PLAYWRIGHT_BASE_URL=http://127.0.0.1:4574 PLAYWRIGHT_PORT=4574 npm run test:e2e -- tests/e2e/smoke.spec.ts",
-      "PLAYWRIGHT_BASE_URL=http://127.0.0.1:4574 PLAYWRIGHT_PORT=4574 npm run test:a11y"
-    ],
-    "manual_validation_reported": [
-      "/start desktop and mobile",
-      "/ desktop",
-      "Chrome console without warnings or errors"
-    ]
-  }
+  ]
 }

@@ -66,7 +66,7 @@ describe('map runtime config', () => {
 
   it('falls back from unsafe public runtime config values', async () => {
     process.env.MESHCORE_MAP_TILE_URL = 'javascript:alert(1)';
-    process.env.MESHCORE_MAP_TILE_ATTRIBUTION = '<img src=x onerror=alert(1)>';
+    process.env.MESHCORE_MAP_TILE_ATTRIBUTION = '<a href=data:text/html,alert(1)>Bad Tiles</a>';
 
     const { getMapPublicRuntimeConfig } = await loadConfigModule();
     const runtimeConfig = getMapPublicRuntimeConfig();
@@ -75,6 +75,13 @@ describe('map runtime config', () => {
     expect(runtimeConfig.tileAttribution).toBe(
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
     );
+  });
+
+  it('allows plain text and http tile attribution links only', async () => {
+    process.env.MESHCORE_MAP_TILE_ATTRIBUTION = 'Tiles by <a href="https://tiles.example.test/legal">Example</a>';
+
+    const { getMapPublicRuntimeConfig } = await loadConfigModule();
+    expect(getMapPublicRuntimeConfig().tileAttribution).toBe('Tiles by <a href="https://tiles.example.test/legal">Example</a>');
   });
 
   it('uses the configured analyzer API without sample data in production', async () => {
@@ -92,21 +99,19 @@ describe('map runtime config', () => {
     expect(publicRuntimeConfig.features).toContainEqual(
       expect.objectContaining({
         id: 'advanced-live-map-proxy',
-        status: 'unavailable',
+        status: 'available',
       })
     );
   });
 
-  it('enables advanced live-map proxy features for full live-map upstreams', async () => {
-    process.env.MESHCORE_LIVE_MAP_API_URL = 'https://live-map.example.test/api/nodes';
-
+  it('does not label advanced live-map operator features available without a configured source', async () => {
     const { getMapPublicRuntimeConfig } = await loadConfigModule();
     const runtimeConfig = getMapPublicRuntimeConfig();
 
     expect(runtimeConfig.features).toContainEqual(
       expect.objectContaining({
         id: 'advanced-live-map-proxy',
-        status: 'available',
+        status: 'unavailable',
       })
     );
   });

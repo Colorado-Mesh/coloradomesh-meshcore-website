@@ -80,7 +80,7 @@ const setupSteps = [
     ],
     link: {
       text: "MeshCore Apps",
-      url: "https://meshcore.io/apps.html",
+      url: "https://meshcore.io/downloads.html",
     },
   },
   {

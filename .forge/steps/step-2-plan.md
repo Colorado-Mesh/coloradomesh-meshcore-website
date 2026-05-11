@@ -1,55 +1,57 @@
-# Step 2 Execution Plan: Global navigation, footer, active state, and accessibility orientation
+# Step 2 Execution Plan: Generate local typed artifacts and provenance from upstream source files
 
 ## Goal
-Make the global header, mobile menu, footer, and skip-link orientation reflect the approved IA using the Step 1 metadata foundation.
+Create a deterministic generator that reads selected upstream utility data from `vendor/meshcore-utilities-site`, emits narrow committed local artifacts under `src/lib/upstream-utilities/generated/`, and gives tests/CI a stale-checkable provenance contract.
 
 ## Current Code Observations
-- `src/components/Navigation.tsx` is a client component with a local `PRIMARY_NAV_LINKS` array: Home, Map, Tools, Guides, Blog, About.
-- `src/components/Navigation.tsx` does not use `usePathname`, so desktop links do not expose active/current route state.
-- `src/components/MobileMenu.tsx` receives `navLinks` from `Navigation` and preserves focus trap, close button focus, Escape close behavior, and body scroll locking through the parent.
-- `src/components/MobileMenu.tsx` does not expose active/current state for mobile links.
-- `src/components/Footer.tsx` has separate hardcoded quick/community/resource arrays; quick links partially overlap the approved IA and do not include all first-class tool pages.
-- `src/app/layout.tsx` renders `Navigation`, then `<main className="flex-1 pt-16">`, then `Footer`; there is no global skip link or `main` id target.
-- `tests/e2e/smoke.spec.ts` currently covers only `/`, `/map`, and `/tools` as critical pages and does not assert nav labels, active states, mobile menu behavior, or skip-link behavior.
-- This Codex-backed session must not directly implement visual/frontend aesthetic work; header/footer component implementation should be delegated to Opus UI via `co-ui`.
+- Step 1 added `scripts/check-utilities-submodule.mjs`, `npm run utilities:check-submodule`, recursive CI checkout, and `vendor/**` lint ignores.
+- `package.json` has no generator or stale-check command yet.
+- `tsconfig.json` has `resolveJsonModule: true`, so generated JSON can be imported by TypeScript through a stable `index.ts` wrapper.
+- Existing parity fixtures live under `src/lib/parity/fixtures/utilities/` and `src/lib/parity/fixtures/provenance.json`; provenance still references `/tmp/meshcore-utilities-site` rather than the submodule.
+- `src/lib/parity/manifest.ts` currently points several utilities items at static fixtures and some old backend paths, while the real submodule has Flask app/templates/static files.
+- Upstream selected source files are present at `static/data/recommended_settings.json`, `static/data/regions.json`, `static/data/default_serial_commands.json`, and `serial_commands.schema.json`.
+- Upstream recommended settings use snake_case radio fields that match the local config export contract.
+- Upstream regions have top-level `airports`, `cities`, `counties`, `regions`, and `alternatives` collections; some collections may be empty and should still validate.
+- Existing parity tests load static fixture JSON and validate the serial command fixture against the schema with Ajv.
 
 ## Files to Change
-- `src/components/Navigation.tsx` — consume metadata-derived primary nav, add active route semantics, pass active state to mobile menu.
-- `src/components/MobileMenu.tsx` — expose active route semantics while preserving existing focus trap and Escape close behavior.
-- `src/components/Footer.tsx` — derive internal route groups from site metadata while preserving external community/resource links.
-- `src/app/layout.tsx` — add a global skip link and `main` target.
-- `tests/e2e/smoke.spec.ts` — add smoke coverage for approved nav labels, active state, mobile menu behavior, and skip-link behavior.
-- `.forge/steps/step-2-plan.md` — this execution plan.
+- `scripts/generate-utilities-artifacts.mjs` — add deterministic generation and stale-check modes.
+- `package.json` — add `utilities:generate` and `utilities:check` scripts.
+- `src/lib/upstream-utilities/generated/recommended-settings.json` — generated upstream recommended settings.
+- `src/lib/upstream-utilities/generated/regions.json` — generated upstream region data.
+- `src/lib/upstream-utilities/generated/serial-command-profile.json` — generated upstream serial command profile.
+- `src/lib/upstream-utilities/generated/serial-command-schema.json` — generated upstream serial command schema.
+- `src/lib/upstream-utilities/generated/provenance.json` — generated source-path and commit metadata.
+- `src/lib/upstream-utilities/index.ts` — stable typed exports for generated artifacts.
+- `src/lib/parity/fixtures/provenance.json` — update utility provenance to submodule-backed generated data while preserving live-map provenance.
+- `src/lib/parity/manifest.ts` — update utility upstream/local refs to generated artifacts and submodule paths.
+- `src/lib/parity/__tests__/manifest.test.ts` — validate generated artifacts/provenance and schema compatibility.
 
 ## Ordered Implementation Checklist
-1. Delegate component implementation to Opus UI with a prompt scoped to metadata-driven navigation/footer, active state semantics, skip link, and tests.
-2. Replace the hardcoded primary nav array with `getPrimaryNavLinks()` from `src/lib/site.ts` so labels become `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
-3. Add active-route matching for exact routes and section routes: nested `/tools/*` activates Tools, nested `/guides/*` activates Guides, and learning routes such as `/why-meshcore`, `/use-cases`, and `/blog/*` activate Learn.
-4. Add `aria-current` and non-disruptive current-state classes to desktop and mobile nav links without introducing a broad visual redesign.
-5. Update `MobileMenu` to use the same metadata-derived links and active-state logic while preserving close-on-click, Escape close, and focus wrapping.
-6. Update the footer to render internal route groups from `getFooterRouteGroups()` and keep Discord/GitHub/MeshCore docs/LetsMesh external links safe with `target="_blank"` and `rel="noopener noreferrer"`.
-7. Add a keyboard-focusable skip link before the fixed header and set the main landmark id to the skip target.
-8. Expand Playwright smoke tests for desktop nav labels, active state on `/map`, `/tools/repeater-name`, `/guides/getting-started`, and `/blog`, mobile open/close behavior, and skip link focus/target behavior.
-9. Run Step 2 verification and inspect the actual diff for scope drift before staging.
+1. Add `scripts/generate-utilities-artifacts.mjs` using Node built-ins only, invoking the existing submodule check first.
+2. Read and validate the four upstream JSON/schema files with narrow runtime assertions for expected top-level shape, radio fields, serial actions, and regions collections.
+3. Generate deterministic pretty-printed JSON artifacts under `src/lib/upstream-utilities/generated/`, including provenance with the submodule commit SHA and stable source list.
+4. Implement `--check` mode that builds expected output in memory and compares it to tracked generated files without rewriting them.
+5. Add `utilities:generate` and `utilities:check` scripts to `package.json`.
+6. Add `src/lib/upstream-utilities/index.ts` typed JSON exports without importing from `vendor/`.
+7. Update parity manifest/provenance references from static utility fixtures and stale `/tmp` paths to submodule source paths and generated local artifacts.
+8. Update parity tests to import generated artifacts, validate serial profile against the generated schema, and assert provenance includes the submodule commit/source files.
+9. Run generation and stale check, then targeted unit tests and typecheck.
 
 ## Interfaces and Data Contracts
-- Desktop and mobile primary nav labels must be exactly: `Get Started`, `Live Map`, `Tools`, `Guides`, `Learn`, `About`.
-- `getPrimaryNavLinks()` is the single source for primary nav hrefs and labels.
-- `getFooterRouteGroups()` is the single source for internal footer route groups.
-- Active matching must not mark Home active for every path.
-- Learning-section matching must cover `/why-meshcore`, `/use-cases`, `/use-cases/*`, `/blog`, `/blog/*`, and blog tag routes.
-- Skip link must point to `#main-content`, and `<main>` must expose `id="main-content"`.
-- External links must keep `target="_blank"` and `rel="noopener noreferrer"`.
+- Commands: `npm run utilities:generate` and `npm run utilities:check`.
+- Generated local import boundary: `@/lib/upstream-utilities`.
+- Generated provenance fields: `upstreamRepository`, `upstreamUrl`, `submodulePath`, `upstreamCommit`, and `sources`.
+- Each provenance source maps an upstream path to a generated path and includes a stable `kind` string.
+- Generated JSON files must be deterministic; no generation timestamp is included.
 
 ## Verification Plan
-- Automated: `npm run test:e2e -- tests/e2e/smoke.spec.ts`
-- Automated: `npm run test:a11y`
-- Automated: `npm run typecheck`
-- Automated: `npm run build`
-- Manual: inspect desktop/mobile navigation behavior and footer grouping in a browser if the automated browser run does not cover a visible state.
-- Regression: mobile menu Escape close and focus trap continue to work; existing serial USB, prefix matrix, map diagnostics, and axe smoke tests remain intact.
+- Automated: `npm run utilities:check-submodule`; `npm run utilities:generate`; `npm run utilities:check`; `npm run test:unit -- --run src/lib/parity/__tests__/manifest.test.ts`; `npm run typecheck`.
+- Manual: inspect generated files for narrow JSON/schema/provenance only and confirm no upstream templates/CSS/JS implementation code was copied.
+- Regression: existing parity report generation still includes required utility domains and live-map provenance remains present.
 
 ## Stop Conditions
-- If Opus UI changes broad page layout, visual branding, route structure, or unrelated content, stop and narrow or revert before review.
-- If active-state tests conflict with current `/start` redirect behavior, defer `/start`-specific active assertions to Step 3 rather than changing `/start` early.
-- If Playwright cannot run because browser dependencies are missing or a server conflict exists, document the blocker and run typecheck/build before asking how to proceed.
+- Pause if upstream JSON is invalid or missing one of the selected source files.
+- Pause if upstream region data no longer exposes the expected top-level collections.
+- Pause if serial command data no longer validates against its upstream schema.
+- Pause if implementing the generator would require copying upstream UI templates, CSS, or large implementation JavaScript into runtime code.

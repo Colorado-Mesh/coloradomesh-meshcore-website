@@ -1,53 +1,48 @@
-# Step 3 Execution Plan: `/start` chooser hub and homepage journey alignment
+# Step 3 Execution Plan: Wire deterministic utility logic to generated upstream-derived data
 
 ## Goal
-Replace the redirect-only `/start` route with a canonical `Get Started` chooser hub, then align homepage journey links around newcomer, operator, and community paths without changing public URLs or adding new workflows.
+Make local MeshCore utility logic consume or assert against the generated upstream artifacts from `@/lib/upstream-utilities` while preserving deterministic local APIs and serial safety behavior.
 
 ## Current Code Observations
-- `src/app/start/page.tsx` currently only calls `redirect('/guides/getting-started')`, so the approved `Get Started` nav item lands on a redirect instead of a useful hub.
-- `src/app/page.tsx` already has homepage hero CTAs, promoted tool cards, and a “Pick a path” section, but the cards are rendered with the fixed label `Operator` even for `Newcomer` and community-adjacent journeys.
-- `src/app/guides/getting-started/page.tsx` already teaches first-radio setup and links onward to radio settings, repeater setup, naming standard, Discord, and the live map.
-- `src/app/guides/repeater-setup/page.tsx` already has deep repeater setup, serial preflight, naming, and Discord handoffs.
-- `src/app/tools/page.tsx` already presents the four current tools as first-class cards and links back to the live map and Discord.
-- `src/app/map/page.tsx` links to `/start` using “Quick start” language; if touched, that label should become consistent with `Get Started`.
-- `tests/e2e/smoke.spec.ts` currently smoke/a11y tests `/`, `/map`, and `/tools`, and has navigation tests, but does not assert `/start` as a real page or validate the three journey paths.
+- `src/lib/meshcore-data/settings.ts` still hard-codes Colorado radio settings and manual provenance, but Step 2 now exposes generated upstream recommended settings and provenance.
+- `src/lib/meshcore-data/regions.ts` derives local region codes from `src/lib/data/airports`; Step 2 generated upstream regions include an `airports` collection with matching airport codes plus broader city/alternative data that should not all become local region codes yet.
+- `src/lib/tools/serial-commands.ts` still defines a hand-copied `DEFAULT_SERIAL_COMMAND_PROFILE`; generated upstream serial profile now exists and can be adapted into the local `SerialCommandProfile` shape.
+- Upstream serial line endings use symbolic values (`CRLF`, `CR`, `LF`, `NONE`), while local serial command types use actual line-ending strings.
+- Upstream serial steps use `delayMs`; local wait steps use `durationMs`.
+- Existing serial settings conversion remains conservative and blocks private/secret/password keys; Step 3 should preserve that and add generated-profile assertions, not broaden automatic writes.
+- Config export tests already assert local radio settings match `UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS`.
 
 ## Files to Change
-- `src/app/start/page.tsx` — replace redirect with a server-rendered chooser hub with metadata, breadcrumbs, JSON-LD, three journey cards, and supporting links.
-- `src/app/page.tsx` — align hero CTAs and “Pick a path” copy/cards with `Get Started`, `Live Map`, `Tools`, and the newcomer/operator/community journey model.
-- `src/app/map/page.tsx` — only update `/start` link labels if needed to remove “Quick Start”/`Get Started` drift.
-- `tests/e2e/smoke.spec.ts` — add `/start` to critical coverage and assert the hub exposes the three paths plus links to guides, map, tools, and about/community destinations.
+- `src/lib/meshcore-data/settings.ts` — source canonical radio settings and provenance from generated upstream artifacts.
+- `src/lib/meshcore-data/regions.ts` — derive local region list from generated upstream airport regions.
+- `src/lib/tools/serial-commands.ts` — adapt generated upstream serial command profile into local `SerialCommandProfile`.
+- `src/lib/meshcore-tools/__tests__/config-export.test.ts` — add generated regions/provenance assertions.
+- `src/lib/meshcore-tools/__tests__/serial-settings.test.ts` — add generated serial profile and safety assertions.
+- `src/lib/parity/manifest.ts` — update notes/coverage if Step 3 changes parity meaning.
 
 ## Ordered Implementation Checklist
-1. Delegate the frontend/page implementation to Opus UI with this execution plan, because this Codex-backed session must not directly implement visual/frontend page work.
-2. In `/start`, add `Metadata` with title/description/canonical `/start` and Open Graph/Twitter fields following existing page patterns.
-3. In `/start`, add breadcrumb JSON-LD for Home → Get Started and visible breadcrumbs using existing `Breadcrumbs`/`JsonLd` helpers.
-4. Build the `/start` page from existing brand components (`HeroPanel`, `SectionEyebrow`, `ToolCard`, `NetworkPanel` where useful) rather than introducing new styling systems.
-5. Add three balanced journey cards: Newcomer, Operator, and Community, each with one primary action and 2-3 supporting links.
-6. Route newcomer links to `/guides/getting-started`, `/guides/radio-settings`, and `/guides/naming-standard`; operator links to `/tools`, `/map`, and `/guides/repeater-setup`; community links to `/about`, Discord, `/why-meshcore`, `/use-cases`, or `/blog` as appropriate.
-7. Update homepage CTAs so the main first-step path uses `/start`/`Get Started` while keeping Live Map and Tools highly visible.
-8. Update homepage journey card metadata so audience labels are not all rendered as `Operator`; use `Newcomer`, `Operator`, and `Community` or equivalent.
-9. Remove “Quick Start” wording for `/start` if it appears in touched cross-links; use `Get Started` consistently.
-10. Expand Playwright smoke coverage for `/start` and the journey paths without asserting fragile visual layout details.
+1. Import generated recommended settings/provenance in `settings.ts`, map snake_case fields to `MeshCoreRadioSettings`, and expose provenance with submodule path/SHA.
+2. Import generated regions in `regions.ts`, map only upstream `airports` to local region codes/labels, and keep sorting/case behavior stable.
+3. Import generated serial command profile in `serial-commands.ts` and add a narrow adapter for serial config, line endings, actions, send steps, and wait steps.
+4. Preserve local safety overrides in the adapter, including confirmation on region management if upstream data marks it non-confirmed.
+5. Add tests proving local settings/regions align with generated upstream artifacts and provenance includes the generated upstream SHA/source.
+6. Add tests proving the default serial command profile is generated-backed, line endings are mapped, generated actions are present, and state-changing/destructive actions remain confirmation-gated.
+7. Rerun utilities check, targeted unit tests, typecheck, and lint.
 
 ## Interfaces and Data Contracts
-- `/start` remains an internal public route and must no longer call `redirect()`.
-- Visible onboarding terminology is `Get Started`.
-- Public route URLs remain unchanged.
-- External Discord links must keep `target="_blank"` and `rel="noopener noreferrer"`.
-- The hub must not add legal, safety, radio, privacy, or licensing disclaimers beyond existing site copy.
-- The hub must not add node submission, repeater submission, account, or update workflows.
-- Tests should assert accessible headings/links and route reachability, not CSS classes or visual positioning.
+- `COLORADO_MESH_RADIO_SETTINGS` remains a `MeshCoreRadioSettings` constant with camelCase fields.
+- `buildRadioSettingsJson()` still returns snake_case upstream-compatible radio settings.
+- `COLORADO_MESH_REGIONS`, `COLORADO_MESH_REGION_CODES`, and `isColoradoMeshRegionCode()` keep their public behavior.
+- `DEFAULT_SERIAL_COMMAND_PROFILE` remains a local `SerialCommandProfile`; it is adapted from generated upstream JSON and must not expose raw upstream JSON shapes to components.
+- Serial line ending mapping: `CRLF -> '\r\n'`, `CR -> '\r'`, `LF -> '\n'`, `NONE -> ''`.
 
 ## Verification Plan
-- Automated: `npm run test:e2e -- tests/e2e/smoke.spec.ts`
-- Automated: `npm run test:a11y`
-- Automated: `npm run build`
-- Manual/browser: start a production server and check `/` and `/start` at desktop and mobile widths; verify the hero CTAs, three journey cards, supporting links, and no console errors.
-- Regression: confirm top navigation still marks `Get Started` active on `/start`, Live Map/Tools/Guides/Learn active states still work, and `/map`/`/tools` still load.
+- Automated: `npm run utilities:check`; `npm run test:unit -- --run src/lib/meshcore-tools/__tests__/config-export.test.ts src/lib/meshcore-tools/__tests__/serial-settings.test.ts src/lib/parity/__tests__/manifest.test.ts`; `npm run typecheck`; `npm run lint`.
+- Manual: inspect imports to confirm runtime code imports only generated artifacts, not `vendor/`.
+- Regression: serial settings JSON apply remains confirmation-gated and private/secret/password blocking remains unchanged.
 
 ## Stop Conditions
-- Stop and ask before adding any new route, dependency, form, submission/update workflow, or disclaimer.
-- Stop and update the master plan before changing the approved top-nav labels or public URL structure.
-- Stop if Opus UI changes unrelated visual design beyond the Step 3 page/journey scope.
-- Stop if verification reveals a failure requiring broad map/tool/client-component rewrites outside the Step 3 journey work.
+- Pause if generated airport regions do not preserve the existing local region code set.
+- Pause if adapting upstream serial commands would require enabling destructive commands without confirmation.
+- Pause if generated data shape forces broad UI or component API changes.
+- Pause if any runtime code would need direct `vendor/` filesystem imports.

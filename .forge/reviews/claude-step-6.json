@@ -1,64 +1,38 @@
 {
   "verdict": "APPROVED",
   "blocking_issues": 0,
-  "findings": [],
-  "required_changes": [],
   "reviewed_files": [
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/PLAN.md",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-6-plan.md",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/reviews/claude-step-6.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/prefix-matrix/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/components/PrefixMatrix.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/sample-data.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/__tests__/prefixes.test.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/prefixes.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts"
+    "src/app/tools/page.tsx",
+    "src/components/tools/SerialUsbTool.tsx",
+    "src/components/tools/ToolShell.tsx"
   ],
-  "diff_basis": "staged",
-  "plan_section": "Step 6: Full 4-character PrefixMatrix parity and reserved/collision logic",
+  "diff_basis": "provided_list",
+  "plan_section": "Step 6: Delegate the utilities visual redesign and interaction polish to native Opus UI",
   "dimensions": {
     "plan_alignment": {
       "score": "PASS",
-      "notes": "The staged changes implement shared 4-character prefix analysis, reserved/collision logic, deterministic suggestions, snapshot-hook integration, NamingWizard conflict checks, parity manifest updates, and requested test coverage."
+      "notes": "Changes are visual/component markup polish in the planned files and preserve the tools hub, shared shell, generated provenance, and serial safety contracts. Verification documents the required co-ui delegation."
     },
     "correctness_safety": {
       "score": "PASS",
-      "notes": "The reserved-in-use free-count bug is fixed by direct free-cell counting, and added tests cover the corrected edge case."
+      "notes": "Serial disabled states, preview/apply gating, confirmation flow, unsupported-browser banner, and critical test IDs remain intact. No iframe/proxy behavior or runtime vendor reads were introduced."
     },
     "code_quality": {
       "score": "PASS",
-      "notes": "The helper remains typed and pure, UI state is contained, and the components use the shared analysis instead of duplicating prefix logic."
+      "notes": "The refactor consolidates repeated hub section headings with a local SectionHeader helper and keeps component structure readable. Styling remains consistent with existing design-system classes."
     },
     "completeness": {
       "score": "PASS",
-      "notes": "The previous missing Playwright collision/reserved assertions were added, and unit coverage now includes reserved-in-use counting."
+      "notes": "Automated verification covers typecheck, lint, unit, build, targeted e2e, and a11y. Manual validation covered the tools hub, serial unsupported/no-connection behavior, and redirect rendering."
     },
     "patterns": {
       "score": "PASS",
-      "notes": "The implementation follows existing component/test patterns and keeps map data behind useMapSnapshot."
+      "notes": "Implementation follows existing HeroPanel, SectionEyebrow, ToolCard, panel, and button patterns while preserving public route and generated provenance usage."
     },
     "integration": {
       "score": "PASS",
-      "notes": "Imports, sample data, PrefixMatrix, NamingWizard, parity manifest, and smoke tests integrate cleanly with the staged Step 6 scope."
+      "notes": "Imports and component usage are consistent. Staged files match the provided review scope, and the shared ToolShell polish should integrate cleanly with existing tool pages."
     }
   },
-  "flags": [
-    {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/prefixes.ts",
-      "line": 308,
-      "note": "Primary cells expose reserved=true when any 4-character subcell is reserved; this is acceptable for this step but could be separated later if UI copy needs to distinguish whole-prefix reservations from reserved subcells."
-    }
-  ],
-  "verification_notes": [
-    "Implementer reported npm run test:unit passed, 6 files / 40 tests.",
-    "Implementer reported npm run build passed.",
-    "Implementer reported scoped Playwright prefix-matrix smoke passed.",
-    "Implementer reported npm run lint passed.",
-    "Implementer reported npm run typecheck passed.",
-    "Implementer reported critical page smoke passed, 5 tests.",
-    "Full npm run test:e2e was not reported as passing due to the previously noted out-of-scope /map axe issue."
-  ]
+  "flags": []
 }

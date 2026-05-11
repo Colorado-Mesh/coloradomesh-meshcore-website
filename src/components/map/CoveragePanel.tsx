@@ -83,8 +83,9 @@ export default function CoveragePanel({ features }: CoveragePanelProps) {
 
       {!armed ? (
         <p className="cm-panel__hint">
-          Tap probe to fetch upstream coverage data through the local <code>/api/live-map/coverage</code> proxy.
-          The probe is not automatic to avoid pulling large payloads on every load.
+          Tap probe to fetch coverage data through the local <code>/api/live-map/coverage</code> route.
+          Local live-map coverage fallback data may be used when upstream coverage is unavailable. The
+          probe is not automatic to avoid pulling large payloads on every load.
         </p>
       ) : error ? (
         <p className="cm-panel__error" role="status">
@@ -117,8 +118,9 @@ export default function CoveragePanel({ features }: CoveragePanelProps) {
             )}
           </dl>
           <p className="cm-panel__sub">
-            Coverage rendering on the Leaflet canvas is on the roadmap. The proxy returns upstream data
-            so operator tools can validate availability.
+            Coverage rendering on the Leaflet canvas is on the roadmap. The route returns upstream data
+            when available and falls back to local live-map coverage so operator tools can validate
+            availability.
           </p>
           {lastUpdated && (
             <p className="cm-panel__sub">Probed {formatRelativeTime(lastUpdated.toISOString())}</p>

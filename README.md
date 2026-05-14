@@ -4,7 +4,7 @@ Colorado MeshCore is the public website for Colorado Mesh's MeshCore community. 
 
 ## Features
 
-- **Live network map** — Map and summary views backed by the Docker-primary map runtime.
+- **Live network map** — CoreScope served directly at `/map` from the same Docker container, with a Colorado Mesh minimal live-map shell and full analyzer access.
 - **MeshCore tools** — Repeater naming, companion naming, PrefixMatrix, and serial USB helpers.
 - **Guides and use cases** — Community onboarding, repeater setup, emergency communication, and related MeshCore content.
 - **Colorado Mesh branding** — Site copy and assets aligned with the Colorado MeshCore network.
@@ -15,9 +15,9 @@ Colorado MeshCore is the public website for Colorado Mesh's MeshCore community. 
 |-------|------------|---------|
 | Web app | Next.js 16, React 19 | App Router pages and API routes |
 | Styling | Tailwind CSS 4 | Utility-first styling |
-| Maps | Leaflet, react-leaflet | Interactive network visualization |
+| Maps | CoreScope, Leaflet | Docker-served live network analyzer at `/map` |
 | Content | MDX | Blog and guide content |
-| Runtime | Node.js 24, Docker | Development and production server |
+| Runtime | Node.js 24, Go 1.22, nginx, supervisord, Docker | One-container Next + CoreScope production runtime |
 
 ## Quick Start
 
@@ -59,67 +59,115 @@ cp .env.example .env
 docker compose up --build
 ```
 
-To consume the optional private live-map sidecar instead of the public analyzer, provide MQTT subscriber credentials in `.env` and run:
+Production uses one container. nginx listens on public port `3000`, sends the normal site to the Next standalone server on `127.0.0.1:3001`, and sends `/map`, CoreScope assets, CoreScope APIs, and WebSocket upgrades to CoreScope on `127.0.0.1:3002`. `supervisord` runs nginx, Next, CoreScope server, and the optional CoreScope ingestor. CoreScope stores SQLite data in `/app/corescope/data`, mounted by Compose as the `corescope-data` volume.
+
+`/map` is Docker-owned CoreScope, not the old in-app React map. Loading `/map` defaults to `/map#/live` and applies the local `corescope-overlay/` shell during the Docker build. The minimal Colorado Mesh live-map view hides CoreScope chrome by default, while the **Full analyzer** control exposes the stock CoreScope routes such as `#/packets`, `#/nodes`, `#/channels`, `#/analytics`, and `#/perf`.
+
+CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
+
+Run the container smoke test after building an image:
 
 ```bash
-COMPOSE_PROFILES=live-map docker compose -f compose.yaml -f compose.live-map.yaml up --build
+npm run docker:smoke -- --image colorado-meshcore-site:local
 ```
 
-The container listens on port `3000`, defaults to the public Colorado Mesh analyzer node API, and shows no fake nodes by default. Set `MESHCORE_LIVE_MAP_API_URL` to override the live feed with another compatible `/api/nodes` endpoint. Direct MQTT remains available for JSON-compatible map payloads, and the optional Compose `live-map` profile can run a private sidecar against the Colorado Mesh MQTT broker when subscriber credentials are available. Runtime settings are provided through environment variables; secrets should stay in `.env` or the deployment environment, not in the image.
+The smoke test starts a temporary container, verifies the Next site, CoreScope `/map`, overlay asset injection, CoreScope health/config/stats/node/packet endpoints, preserved Next `/api/map/*` compatibility endpoints, and the root WebSocket route.
 
 ## Runtime Environment
 
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `NEXT_PUBLIC_SITE_URL` | No | Public site URL for metadata and canonical links. |
-| `NEXT_PUBLIC_MAP_TILE_URL` | No | Leaflet tile URL template. |
-| `MESHCORE_MAP_SAMPLE_DATA` | No | Use bundled sample nodes only for intentional demos; defaults to `false`. |
-| `MESHCORE_LIVE_MAP_API_URL` | No | Preferred live source; defaults to `https://analyzer.meshcore.coloradomesh.org/api/nodes`; use `http://live-map:8080/api/nodes` with the sidecar override. |
-| `MESHCORE_LIVE_MAP_API_TOKEN` | No | Optional server-side token for protected live-map API instances. |
-| `MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS` | No | Explicitly allow trusted private/internal live-map URLs, required for sidecars and localhost-only deployments; defaults to `false`. |
-| `MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED` | No | Allow proxied operator endpoints to use `MESHCORE_LIVE_MAP_API_TOKEN`; set only when that token may be used by public site visitors. |
-| `MESHCORE_LIVE_MAP_API_REFRESH_SECONDS` | No | Minimum refresh interval for polling the live-map API; defaults to `30`. |
-| `LIVE_MAP_MQTT_HOST` | No | Compose sidecar MQTT host; defaults to `mqtt.meshcore.coloradomesh.org`. |
-| `LIVE_MAP_MQTT_PORT` | No | Compose sidecar MQTT port; defaults to `1883`. |
-| `LIVE_MAP_MQTT_TRANSPORT` | No | Compose sidecar MQTT transport; defaults to `websockets`. |
-| `LIVE_MAP_MQTT_WS_PATH` | No | Compose sidecar MQTT WebSocket path; defaults to `/ws`. |
-| `LIVE_MAP_MQTT_TLS` | No | Compose sidecar MQTT TLS flag; defaults to `true`. |
-| `LIVE_MAP_MQTT_USERNAME` | Yes for sidecar live data | Read-only subscriber username for the Colorado Mesh MQTT broker. |
-| `LIVE_MAP_MQTT_PASSWORD` | Yes for sidecar live data | Read-only subscriber password/token for the Colorado Mesh MQTT broker. |
-| `MESHCORE_MQTT_URL` | No | Optional MQTT broker URL for JSON-compatible map payloads. |
-| `MESHCORE_MQTT_USERNAME` | No | Optional MQTT username. |
-| `MESHCORE_MQTT_PASSWORD` | No | Optional MQTT password. |
-| `MESHCORE_MQTT_TOPIC` | No | MQTT topic filter; defaults to `meshcore/#`. |
-| `MESHCORE_MQTT_CLIENT_ID` | No | MQTT client ID. |
-| `MESHCORE_MAP_HISTORY_ENABLED` | No | Reserved flag for future map history support. |
+| `WEB_PORT` | No | Compose host port mapped to container port `3000`; defaults to `3000`. |
+| `CORESCOPE_ENABLE_INGESTOR` | No | Start CoreScope's ingestor when usable MQTT credentials are configured; defaults to `auto`. |
+| `CORESCOPE_API_KEY` | No | Optional CoreScope API key, stored only in generated container config. |
+| `CORESCOPE_BRAND_SITE_NAME` | No | CoreScope brand name; defaults to `Colorado Mesh CoreScope`. |
+| `CORESCOPE_BRAND_TAGLINE` | No | CoreScope brand tagline. |
+| `CORESCOPE_DEFAULT_REGION` | No | Default CoreScope region key; defaults to `CO`. |
+| `CORESCOPE_REGIONS_JSON` | No | JSON object of CoreScope region labels; defaults to `{"CO":"Colorado, US"}`. |
+| `CORESCOPE_MAP_CENTER_LAT` / `CORESCOPE_MAP_CENTER_LON` | No | CoreScope map center; defaults to Colorado. |
+| `CORESCOPE_MAP_ZOOM` | No | CoreScope map zoom; defaults to `7`. |
+| `CORESCOPE_TILE_URL` | No | CoreScope tile URL template. |
+| `CORESCOPE_MQTT_BROKER` | Yes for live ingest | Full CoreScope MQTT broker URL; overrides server/port/transport when set. |
+| `CORESCOPE_MQTT_SERVER` / `CORESCOPE_MQTT_PORT` | Yes for live ingest | MQTT broker host and port; defaults to the Colorado Mesh broker on `8883`. |
+| `CORESCOPE_MQTT_TRANSPORT` / `CORESCOPE_MQTT_TLS_ENABLED` | No | Broker transport and TLS mode; defaults to secure websockets. |
+| `CORESCOPE_MQTT_TOPICS` | Yes for live ingest | Comma-separated MQTT topics; defaults to `meshcore/#`. |
+| `CORESCOPE_MQTT_USERNAME` / `CORESCOPE_MQTT_PASSWORD` | Yes for authenticated live ingest | CoreScope MQTT credentials. Prefer runtime env or mount the password at `CORESCOPE_MQTT_PASSWORD_FILE` (image default: `/run/secrets/corescope_mqtt_password`); do not bake secrets into the image. |
+| `CORESCOPE_MQTT_SOURCE_NAME` | No | Name for the default MQTT source; defaults to `coloradomesh`. |
+| `CORESCOPE_MQTT_REGION` | No | Region tag for the default MQTT source; defaults to `CO`. |
+| `CORESCOPE_MQTT_IATA_FILTER` | No | Optional observer IATA filter for the default MQTT source. |
+| `CORESCOPE_MQTT_REJECT_UNAUTHORIZED` | No | TLS certificate validation flag; defaults to `true`. |
+| `CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC` | No | MQTT connect timeout; defaults to `45`. |
+| `CORESCOPE_MQTT_SOURCES_JSON` | No | Advanced JSON array override for multiple CoreScope MQTT sources. |
+| `CORESCOPE_CHANNEL_KEYS_JSON` | No | Optional channel-key JSON object; defaults to `{}`. |
+| `CORESCOPE_HASH_CHANNELS` | No | Optional CoreScope hash-channel list. |
+| `CORESCOPE_OBSERVER_IATA_WHITELIST` | No | Optional observer whitelist. |
+| `CORESCOPE_NODE_BLACKLIST` | No | Optional node blacklist. |
+| `CORESCOPE_OBSERVER_BLACKLIST` | No | Optional observer blacklist. |
+| `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows. |
+| `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits. |
+| `MESHCORE_MAP_TILE_URL` / `MESHCORE_MAP_TILE_ATTRIBUTION` | No | Legacy Next `/api/map/runtime` tile values for compatibility endpoints. |
+| `MESHCORE_MAP_SAMPLE_DATA` / `MESHCORE_MAP_DEMO_MODE` | No | Legacy Next map demo flags; defaults to `false`. |
+| `MESHCORE_LIVE_MAP_API_URL` | No | Legacy Next `/api/map/*` compatibility source; defaults to the same-container CoreScope `/api/nodes`. |
+| `MESHCORE_LIVE_MAP_API_TOKEN` | No | Optional server-side token for protected compatibility API sources. |
+| `MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS` | No | Required for trusted internal compatibility API URLs; Compose defaults to `true`. |
+| `MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED` | No | Allow public compatibility proxy endpoints to use the API token; defaults to `false`. |
+| `MESHCORE_LIVE_MAP_API_REFRESH_SECONDS` | No | Minimum compatibility API refresh interval; defaults to `30`. |
+| `MESHCORE_MAP_HISTORY_ENABLED` | No | Reserved for future map history support. |
 
 ## API Overview
 
-The supported public live-data endpoints are:
+Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`, `/api/health*`, `/api/stats`, `/api/nodes*`, `/api/packets*`, `/api/channels*`, `/api/analytics/*`, `/api/audio-lab/*`, `/api/observers*`, `/api/traces/*`, `/api/perf*`, `/api/admin/*`, and `/api/debug/*`. Existing Next compatibility APIs stay available under `/api/map/*` and `/api/live-map/*` for tools that still call them.
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/map/nodes` | GET | Current map node snapshot |
-| `/api/map/stats` | GET | Current map-derived network summary |
+| Endpoint | Owner | Method | Description |
+|----------|-------|--------|-------------|
+| `/map` | CoreScope | GET | Same-origin CoreScope app, defaulting to the live map. |
+| `/ws` and root WebSocket upgrades | CoreScope | WS | CoreScope live updates. |
+| `/api/healthz` | CoreScope | GET | CoreScope readiness. |
+| `/api/config/map` | CoreScope | GET | CoreScope map defaults. |
+| `/api/stats` | CoreScope | GET | CoreScope network counters. |
+| `/api/map/nodes` | Next compatibility | GET | Current map node snapshot for older site tooling. |
+| `/api/map/stats` | Next compatibility | GET | Current map-derived network summary for older site tooling. |
 
-Legacy observer, health, stats, node-list, cleanup, and Discord webhook APIs have been removed. Removed routes intentionally return 404 instead of redirecting.
+Legacy observer, cleanup, and Discord webhook APIs have been removed. Removed routes intentionally return 404 instead of redirecting.
+
+## CoreScope Update Workflow
+
+CoreScope lives in `vendor/CoreScope` as a git submodule. Dependabot can open submodule update PRs; validate them without editing upstream files directly:
+
+```bash
+git submodule update --init --recursive
+npm run corescope:check-submodule
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run build
+docker build -t colorado-meshcore-site:corescope-check .
+npm run docker:smoke -- --image colorado-meshcore-site:corescope-check
+```
+
+Then browser-test `/map` in Docker. Confirm `/map` redirects to `/map#/live`, the Colorado Mesh minimal shell hides the stock feed/legend by default, **Full analyzer** exposes CoreScope's native routes, **Minimal map** returns to the clean live-map view, and browser console/network output does not show missing assets or broken CoreScope APIs.
 
 ## Project Structure
 
 ```text
 coloradomesh-meshcore/
 ├── content/                    # MDX blog and guide content
+├── corescope-overlay/          # Local CoreScope shell assets injected at Docker build time
+├── docker/                     # nginx, supervisord, and container startup config
 ├── public/                     # Static assets
+├── scripts/                    # Verification and CoreScope config/overlay helpers
 ├── src/
 │   ├── app/                    # Next.js App Router pages and API routes
-│   │   ├── api/map/            # Supported live map API routes
-│   │   ├── map/                # Interactive map page
+│   │   ├── api/map/            # Preserved compatibility API routes
+│   │   ├── map/                # Non-Docker fallback page; Docker /map is CoreScope
 │   │   ├── tools/              # MeshCore utility pages
 │   │   └── page.tsx            # Home page
 │   ├── components/             # React components
 │   ├── hooks/                  # Custom React hooks
 │   └── lib/                    # Shared constants, map contracts, and utilities
-├── compose.yaml                # Local Docker Compose service
+├── vendor/CoreScope            # CoreScope git submodule
+├── compose.yaml                # One-container Docker Compose service
 ├── Dockerfile                  # Production standalone image
 ├── next.config.js
 └── package.json

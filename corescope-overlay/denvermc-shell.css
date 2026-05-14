@@ -1,0 +1,542 @@
+/* denvermc-shell.css — Colorado Mesh overlay on top of CoreScope.
+ *
+ * Adds a polished minimal / fullscreen-focus live-map shell while
+ * preserving full access to the upstream CoreScope analyzer routes.
+ * Lives in /corescope-overlay and is copied + injected at Docker
+ * build time. Never edits vendor files.
+ *
+ * Body modes (set by denvermc-shell.js):
+ *   body.denvermc-shell      : any /map view
+ *   body.denvermc-minimal    : minimal-map shell (default on /live)
+ *   body.denvermc-analyzer   : full CoreScope analyzer chrome visible
+ *   body.denvermc-focus      : zero-distraction map+nodes only
+ */
+
+:root {
+  --denvermc-bg: rgba(8, 16, 26, 0.86);
+  --denvermc-bg-strong: rgba(8, 16, 26, 0.94);
+  --denvermc-border: rgba(110, 175, 220, 0.22);
+  --denvermc-border-soft: rgba(110, 175, 220, 0.12);
+  --denvermc-text: #f1f5fb;
+  --denvermc-text-muted: #9fb1c8;
+  --denvermc-accent: #00d4aa;
+  --denvermc-accent-soft: rgba(0, 212, 170, 0.14);
+  --denvermc-accent-deep: rgba(0, 212, 170, 0.45);
+  --denvermc-warn: #f48c06;
+  --denvermc-warn-soft: rgba(244, 140, 6, 0.18);
+  --denvermc-topbar-h: 56px;
+  --denvermc-topbar-h-mobile: 56px;
+  --denvermc-shadow: 0 10px 30px -16px rgba(0, 0, 0, 0.85);
+  --denvermc-shadow-soft: 0 8px 28px -18px rgba(0, 0, 0, 0.7);
+  --denvermc-radius: 9px;
+}
+
+body.denvermc-shell .skip-link { z-index: 2000; }
+
+/* ---------- Colorado Mesh top bar ---------- */
+.denvermc-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--denvermc-topbar-h);
+  z-index: 1400;
+  display: none;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
+  background: linear-gradient(180deg, var(--denvermc-bg-strong) 0%, var(--denvermc-bg) 100%);
+  border-bottom: 1px solid var(--denvermc-border);
+  box-shadow: var(--denvermc-shadow);
+  color: var(--denvermc-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+
+body.denvermc-minimal .denvermc-topbar { display: flex; }
+
+.denvermc-topbar__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+  padding: 6px 8px;
+  margin-left: -8px;
+  border-radius: 10px;
+  outline: none;
+  transition: background 140ms ease, transform 140ms ease;
+}
+.denvermc-topbar__brand:hover { background: rgba(255, 255, 255, 0.045); }
+.denvermc-topbar__brand:hover .denvermc-topbar__mark { transform: scale(1.04); }
+.denvermc-topbar__brand:focus-visible {
+  outline: 2px solid var(--denvermc-accent);
+  outline-offset: 2px;
+}
+
+.denvermc-topbar__mark {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: #0a1420;
+  border: 1px solid var(--denvermc-border);
+  box-shadow:
+    0 0 0 1px rgba(0, 212, 170, 0.08) inset,
+    0 4px 12px -6px rgba(0, 0, 0, 0.6);
+  transition: transform 140ms ease;
+}
+.denvermc-topbar__mark-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
+  /* Subtle lift so the embedded brand circle reads cleanly on the dark
+     bar without losing colour fidelity. */
+  filter: saturate(1.04) contrast(1.02);
+}
+/* Fallback if the logo image fails — restores the radial-gradient mark
+   that shipped before this revision so the brand never breaks. */
+.denvermc-topbar__mark--fallback {
+  background:
+    radial-gradient(circle at 30% 30%, #00d4aa 0%, rgba(0, 212, 170, 0.0) 65%),
+    radial-gradient(circle at 70% 70%, #f48c06 0%, rgba(244, 140, 6, 0.0) 70%),
+    #0a1420;
+  box-shadow: inset 0 0 8px rgba(0, 212, 170, 0.18);
+}
+
+.denvermc-topbar__title {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
+}
+.denvermc-topbar__title-main {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--denvermc-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.denvermc-topbar__title-sub {
+  font-size: 10.5px;
+  font-weight: 500;
+  color: var(--denvermc-text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.denvermc-topbar__spacer { flex: 1 1 auto; }
+
+.denvermc-topbar__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.denvermc-topbar__divider {
+  width: 1px;
+  height: 22px;
+  background: var(--denvermc-border-soft);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.denvermc-btn {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  min-height: 34px;
+  min-width: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--denvermc-border);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--denvermc-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 80ms ease;
+  white-space: nowrap;
+}
+.denvermc-btn:hover {
+  background: rgba(0, 212, 170, 0.10);
+  border-color: rgba(0, 212, 170, 0.45);
+  color: #ffffff;
+}
+.denvermc-btn:active { transform: translateY(1px); }
+.denvermc-btn:focus-visible {
+  outline: 2px solid var(--denvermc-accent);
+  outline-offset: 2px;
+}
+.denvermc-btn[aria-pressed="true"] {
+  background: var(--denvermc-accent-soft);
+  border-color: var(--denvermc-accent);
+  color: #ffffff;
+}
+.denvermc-btn[hidden] { display: none !important; }
+
+.denvermc-btn--ghost {
+  background: transparent;
+  border-color: var(--denvermc-border-soft);
+  color: var(--denvermc-text-muted);
+}
+.denvermc-btn--ghost:hover {
+  color: #ffffff;
+  border-color: var(--denvermc-border);
+}
+
+.denvermc-btn--primary {
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.20) 0%, rgba(0, 212, 170, 0.09) 100%);
+  border-color: rgba(0, 212, 170, 0.55);
+  color: #ffffff;
+}
+.denvermc-btn--primary:hover {
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.32) 0%, rgba(0, 212, 170, 0.16) 100%);
+  border-color: rgba(0, 212, 170, 0.85);
+}
+
+.denvermc-btn--warn {
+  background: var(--denvermc-warn-soft);
+  border-color: rgba(244, 140, 6, 0.55);
+  color: #ffd9a3;
+}
+.denvermc-btn--warn:hover {
+  background: rgba(244, 140, 6, 0.28);
+  border-color: rgba(244, 140, 6, 0.85);
+  color: #ffffff;
+}
+
+.denvermc-btn__icon {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.denvermc-btn__label { white-space: nowrap; }
+
+/* Icon-only collapse helper for the Focus button at very narrow widths */
+.denvermc-btn--icon-only-sm { padding: 0 10px; }
+
+/* Live status pill in the top bar */
+.denvermc-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--denvermc-border);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--denvermc-text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.denvermc-status__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--denvermc-text-muted);
+  box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.0);
+  flex-shrink: 0;
+}
+.denvermc-status[data-state="connected"] { color: #d6fff3; border-color: rgba(0, 212, 170, 0.45); background: rgba(0, 212, 170, 0.08); }
+.denvermc-status[data-state="connected"] .denvermc-status__dot {
+  background: var(--denvermc-accent);
+  animation: denvermcPulse 1.6s ease-in-out infinite;
+}
+.denvermc-status[data-state="disconnected"] { color: #ffd0d0; border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.08); }
+.denvermc-status[data-state="disconnected"] .denvermc-status__dot { background: #ef4444; }
+.denvermc-status[data-state="pending"] { color: var(--denvermc-text-muted); }
+
+@keyframes denvermcPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 212, 170, 0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(0, 212, 170, 0); }
+}
+
+/* ---------- Minimal mode: collapse upstream chrome ---------- */
+/* Hide upstream top-nav and bottom-nav so our overlay can own chrome */
+body.denvermc-minimal .top-nav,
+body.denvermc-minimal .bottom-nav,
+body.denvermc-minimal .bottom-nav-sheet,
+body.denvermc-minimal .nav-drawer,
+body.denvermc-minimal .nav-drawer-backdrop {
+  display: none !important;
+}
+
+/* Bottom-nav.css reserves 56px+safe-area at ≤768; cancel that in minimal */
+body.denvermc-minimal { padding-bottom: 0 !important; }
+body.denvermc-minimal { --bottom-nav-reserve: 0px; --bottom-nav-height: 0px; }
+
+/* CoreScope's resize handler hard-sets `.live-page` and `#app` to
+ * `window.innerHeight`, which clobbers any CSS height calc we set here.
+ * Let the map fill the full viewport and float our topbar above with a
+ * higher z-index. Push upstream chrome that lives along the top edge
+ * (live-header, leaflet zoom controls, node detail) down by the topbar
+ * height so nothing is occluded by our overlay. */
+body.denvermc-minimal .live-header {
+  top: calc(var(--denvermc-topbar-h) + 14px + env(safe-area-inset-top, 0px));
+  left: 14px;
+  right: auto;
+  max-width: calc(100vw - 28px);
+}
+body.denvermc-minimal .live-page .leaflet-top.leaflet-right {
+  top: calc(var(--denvermc-topbar-h) + 14px + env(safe-area-inset-top, 0px));
+}
+body.denvermc-minimal .live-node-detail {
+  top: calc(var(--denvermc-topbar-h) + 14px + env(safe-area-inset-top, 0px));
+}
+
+/* In minimal mode, force the upstream live-header into its compact
+ * "critical-only" state at all viewports: only the beacon + pkt count
+ * + 📊 toggle are visible. The operator expands for full stats. */
+body.denvermc-minimal .live-header { gap: 8px !important; padding: 4px 6px !important; max-height: none !important; }
+body.denvermc-minimal .live-header .live-header-toggle { display: inline-flex !important; }
+body.denvermc-minimal .live-header:not(.is-expanded) .live-header-body { display: none !important; }
+
+body.denvermc-minimal .live-header-toggle,
+body.denvermc-minimal .live-controls-toggle {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  padding: 6px !important;
+  font-size: 15px !important;
+}
+
+/* Live-controls cluster: collapse to a single ⚙ toggle in minimal at all
+ * viewports, expand on operator click. The toggle sits flush to the
+ * bottom-right edge with the legend button just above it. */
+body.denvermc-minimal .live-controls {
+  padding: 6px !important;
+  max-width: none !important;
+  bottom: calc(80px + env(safe-area-inset-bottom, 0px)) !important;
+  right: 14px !important;
+  gap: 0 !important;
+}
+body.denvermc-minimal .live-controls .live-controls-toggle { display: inline-flex !important; }
+body.denvermc-minimal .live-controls:not(.is-expanded) .live-controls-body { display: none !important; }
+body.denvermc-minimal .live-controls.is-expanded { padding: 8px 12px !important; gap: 8px !important; }
+body.denvermc-minimal .live-controls.is-expanded .live-controls-body { display: flex !important; }
+
+body.denvermc-minimal .legend-toggle-btn { right: 14px; bottom: 130px; }
+body.denvermc-minimal .feed-show-btn { left: 14px; }
+
+/* Hide upstream's auto-hide nav effects in minimal — we own the bar */
+body.denvermc-minimal .nav-autohide { display: none !important; }
+
+/* ---------- Floating FAB shown in full-analyzer mode ---------- *
+ * Anchored bottom-center so it never collides with CoreScope's top-nav
+ * dropdowns (favorites, "More ▾", hamburger) on the right edge, nor
+ * with the bottom-right live-controls cluster or bottom-left live-feed
+ * panel on the live route. Bottom-center has the dual benefit of being
+ * unambiguous AND staying clear of every other floating element across
+ * every analyzer route. */
+.denvermc-fab {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(20px + var(--bottom-nav-reserve, 0px) + env(safe-area-inset-bottom, 0px));
+  z-index: 1500;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 212, 170, 0.55);
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.22) 0%, rgba(0, 212, 170, 0.08) 100%), var(--denvermc-bg-strong);
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow:
+    var(--denvermc-shadow),
+    0 0 0 4px rgba(8, 16, 26, 0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: background 140ms ease, border-color 140ms ease, transform 100ms ease;
+}
+.denvermc-fab:hover {
+  color: #ffffff;
+  border-color: rgba(0, 212, 170, 0.85);
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.32) 0%, rgba(0, 212, 170, 0.16) 100%), var(--denvermc-bg-strong);
+  transform: translateX(-50%) translateY(-1px);
+}
+.denvermc-fab:active { transform: translateX(-50%) translateY(0); }
+.denvermc-fab:focus-visible { outline: 2px solid var(--denvermc-accent); outline-offset: 3px; }
+.denvermc-fab[hidden] { display: none !important; }
+body.denvermc-analyzer .denvermc-fab { display: inline-flex; }
+.denvermc-fab__label { white-space: nowrap; }
+
+/* ---------- Focus mode: zero-distraction map + nodes ---------- *
+ * Hide every overlay panel, header, control, and chrome element so
+ * only the Leaflet map (and its node markers / popups) remain. Leaves
+ * the leaflet zoom controls *visually* available but pushed to a less
+ * insistent corner — operators can still pan/zoom with wheel + drag.
+ * Provides a single Exit-Focus pill (top-right) plus ESC handling so
+ * exit is always reachable from keyboard or pointer. */
+body.denvermc-focus {
+  padding-bottom: 0 !important;
+  --bottom-nav-reserve: 0px;
+  --bottom-nav-height: 0px;
+}
+
+body.denvermc-focus .top-nav,
+body.denvermc-focus .bottom-nav,
+body.denvermc-focus .bottom-nav-sheet,
+body.denvermc-focus .nav-drawer,
+body.denvermc-focus .nav-drawer-backdrop,
+body.denvermc-focus .live-header,
+body.denvermc-focus .live-controls,
+body.denvermc-focus .live-feed,
+body.denvermc-focus .live-legend,
+body.denvermc-focus .feed-show-btn,
+body.denvermc-focus .legend-toggle-btn,
+body.denvermc-focus .vcr-bar,
+body.denvermc-focus .nav-autohide,
+body.denvermc-focus .denvermc-topbar,
+body.denvermc-focus .denvermc-fab {
+  display: none !important;
+}
+
+/* Leave node-detail addressable when a user explicitly clicks a node in
+ * focus mode — that's a deliberate interaction, not chrome. */
+body.denvermc-focus .live-node-detail.hidden { display: none !important; }
+body.denvermc-focus .live-node-detail {
+  top: 14px;
+  right: 14px;
+}
+
+/* Push Leaflet zoom controls into the bottom-right corner so the
+ * map takes the entire viewport visually while still being navigable
+ * by keyboard / on-screen control if needed. */
+body.denvermc-focus .live-page .leaflet-top.leaflet-right {
+  top: auto;
+  right: 14px;
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:hover,
+body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:focus-within {
+  opacity: 1;
+}
+
+/* Focus-exit pill — only affordance shown in focus mode. Anchored
+ * top-right with a soft accent ring so it reads as an interactive
+ * element without competing with the map. */
+.denvermc-focus-exit {
+  position: fixed;
+  top: calc(14px + env(safe-area-inset-top, 0px));
+  right: 14px;
+  z-index: 1600;
+  display: none;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--denvermc-border);
+  background: var(--denvermc-bg-strong);
+  color: var(--denvermc-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  box-shadow: var(--denvermc-shadow);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  opacity: 0.78;
+  transition: opacity 160ms ease, border-color 160ms ease, background 160ms ease, transform 100ms ease;
+}
+.denvermc-focus-exit:hover {
+  opacity: 1;
+  border-color: rgba(0, 212, 170, 0.6);
+  background: linear-gradient(180deg, rgba(0, 212, 170, 0.18) 0%, rgba(0, 212, 170, 0.06) 100%), var(--denvermc-bg-strong);
+}
+.denvermc-focus-exit:active { transform: translateY(1px); }
+.denvermc-focus-exit:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--denvermc-accent);
+  outline-offset: 3px;
+}
+.denvermc-focus-exit[hidden] { display: none !important; }
+body.denvermc-focus .denvermc-focus-exit { display: inline-flex; }
+.denvermc-focus-exit__label { white-space: nowrap; }
+.denvermc-focus-exit .denvermc-btn__icon { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ---------- Mobile tuning ---------- */
+@media (max-width: 768px) {
+  :root { --denvermc-topbar-h: var(--denvermc-topbar-h-mobile); }
+  .denvermc-topbar { gap: 8px; padding: 0 10px; }
+  .denvermc-topbar__divider { display: none; }
+  .denvermc-topbar__title-sub { display: none; }
+  .denvermc-btn { padding: 0 10px; font-size: 12px; }
+  .denvermc-btn__label--sm-hide { display: none; }
+  .denvermc-fab { height: 40px; padding: 0 18px; font-size: 12.5px; }
+  .denvermc-focus-exit { height: 40px; padding: 0 14px; }
+}
+
+@media (max-width: 640px) {
+  .denvermc-status { display: none; }
+  .denvermc-topbar__brand { gap: 9px; margin-left: -6px; }
+  .denvermc-topbar__mark { width: 30px; height: 30px; border-radius: 9px; }
+  .denvermc-topbar__title-main { font-size: 12.5px; }
+  /* Tap target floor: enlarge buttons in the topbar to satisfy AGENTS
+   * touch-target rule on phones (≥44×44). */
+  .denvermc-btn { height: 40px; min-height: 40px; }
+  /* Hide the focus-exit label on phones — icon alone is unambiguous and
+   * frees corner space for one-handed reach. */
+  .denvermc-focus-exit__label { display: none; }
+  .denvermc-focus-exit { width: 40px; padding: 0; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .denvermc-btn,
+  .denvermc-fab,
+  .denvermc-focus-exit,
+  .denvermc-topbar__brand,
+  .denvermc-topbar__mark,
+  .denvermc-status__dot {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Print: assume operators don't print the live map; hide overlay chrome. */
+@media print {
+  .denvermc-topbar,
+  .denvermc-fab,
+  .denvermc-focus-exit { display: none !important; }
+}

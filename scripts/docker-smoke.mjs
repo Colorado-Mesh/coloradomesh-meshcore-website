@@ -46,13 +46,47 @@ async function expectOk(path) {
   return response;
 }
 
-async function expectApiSuccess(path) {
+async function expectTextIncludes(path, expected) {
   const response = await expectOk(path);
-  const body = await response.json();
+  const body = await response.text();
+  if (!body.includes(expected)) {
+    throw new Error(`${path} did not include expected text: ${expected}`);
+  }
+  return body;
+}
+
+async function expectJson(path) {
+  const response = await expectOk(path);
+  return response.json();
+}
+
+async function expectApiSuccess(path) {
+  const body = await expectJson(path);
   if (body?.success !== true || body.data === undefined) {
     throw new Error(`${path} did not return ApiResponse success data`);
   }
   return body.data;
+}
+
+async function expectWebSocket(path) {
+  const url = `${baseUrl}${path}`.replace(/^http:/, 'ws:');
+  await new Promise((resolve, reject) => {
+    const ws = new WebSocket(url);
+    const timer = setTimeout(() => {
+      ws.close();
+      reject(new Error(`${path} WebSocket did not open`));
+    }, 5_000);
+
+    ws.addEventListener('open', () => {
+      clearTimeout(timer);
+      ws.close();
+      resolve();
+    });
+    ws.addEventListener('error', () => {
+      clearTimeout(timer);
+      reject(new Error(`${path} WebSocket failed to connect`));
+    });
+  });
 }
 
 function hasWarning(warnings, id) {
@@ -87,12 +121,24 @@ try {
   }
 
   await waitFor(`${baseUrl}/api/map/runtime`);
-  await expectOk('/');
+  await expectTextIncludes('/', 'Colorado MeshCore');
+  const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
+  for (const expected of ['denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc']) {
+    if (!mapHtml.includes(expected)) {
+      throw new Error(`/map did not include expected CoreScope overlay asset: ${expected}`);
+    }
+  }
+
   const runtime = await expectApiSuccess('/api/map/runtime');
   const snapshot = await expectApiSuccess('/api/map/snapshot');
+  const nextNodes = await expectApiSuccess('/api/map/nodes');
 
   if (!Array.isArray(snapshot.nodes)) {
     throw new Error('/api/map/snapshot data.nodes is not an array');
+  }
+
+  if (!Array.isArray(nextNodes)) {
+    throw new Error('/api/map/nodes data is not an array');
   }
 
   if (runtime.sampleData !== true || runtime.demoMode !== true) {
@@ -122,6 +168,36 @@ try {
   if (hasWarning(snapshot.warnings, 'map-production-sample-data')) {
     throw new Error('/api/map/snapshot included a production sample-data warning while demo mode is enabled');
   }
+
+  const health = await expectJson('/api/healthz');
+  if (health.ready !== true) {
+    throw new Error('/api/healthz did not report ready=true');
+  }
+
+  const mapConfig = await expectJson('/api/config/map');
+  if (!Array.isArray(mapConfig.center) || mapConfig.center[0] !== 39.5501 || mapConfig.center[1] !== -105.7821) {
+    throw new Error('/api/config/map did not report Colorado defaults');
+  }
+  if (mapConfig.zoom !== 7) {
+    throw new Error('/api/config/map did not report zoom=7');
+  }
+
+  const stats = await expectJson('/api/stats');
+  if (typeof stats.totalNodes !== 'number' || typeof stats.totalPackets !== 'number') {
+    throw new Error('/api/stats did not include CoreScope numeric counters');
+  }
+
+  const coreNodes = await expectJson('/api/nodes');
+  if (!Array.isArray(coreNodes.nodes)) {
+    throw new Error('/api/nodes did not return a CoreScope nodes array');
+  }
+
+  const packets = await expectJson('/api/packets?limit=1');
+  if (!Array.isArray(packets.packets)) {
+    throw new Error('/api/packets?limit=1 did not return a CoreScope packets array');
+  }
+
+  await expectWebSocket('/');
 
   console.log(`Docker smoke passed for ${image} on ${baseUrl}`);
 } finally {

@@ -1,46 +1,42 @@
-# Step 1 Execution Plan: Add the upstream utilities submodule and submodule health checks
+# Step 1 Execution Plan: Add and verify the CoreScope submodule
 
 ## Goal
-Add `Colorado-Mesh/meshcore-utilities-site` as a read-only submodule at `vendor/meshcore-utilities-site`, add a local health-check script, and update CI checkout so submodule-backed future steps do not fail from missing upstream files.
+Vendor CoreScope as a pinned git submodule and add an early verification script so Docker/runtime work fails clearly when the submodule is missing or structurally incompatible.
 
 ## Current Code Observations
-- `.github/workflows/ci.yml` uses `actions/checkout@v4` in five jobs and none currently specify `submodules: recursive`.
-- `package.json` has build/test/map verification scripts but no utilities/submodule scripts.
-- `Dockerfile` builder stage copies the whole repository and runs `npm run build`; final runtime stage copies only `public`, `.next/standalone`, and `.next/static`, so runtime should remain independent from `vendor/`.
-- `.gitignore` does not ignore `vendor/`, so a submodule gitlink can be tracked normally.
-- No `vendor` directory or `meshcore-utilities-site` path currently exists.
+- `.gitmodules` currently contains `vendor/meshcore-utilities-site` only.
+- `.github/dependabot.yml` already has a weekly `gitsubmodule` update entry for the repository root, so a new submodule should be covered automatically.
+- `scripts/check-utilities-submodule.mjs` provides a good pattern: resolve repo root, check required upstream files, verify `git rev-parse HEAD`, and print a clear recovery command.
+- `package.json` already has utility submodule scripts and can add a parallel `corescope:check-submodule` script.
+- CoreScope upstream has the required runtime/build files: `Dockerfile`, `config.example.json`, `cmd/server/go.mod`, `cmd/ingestor/go.mod`, `public/index.html`, `public/live.js`, `public/app.js`, and `LICENSE`.
 
 ## Files to Change
-- `.gitmodules` — add the upstream submodule metadata.
-- `vendor/meshcore-utilities-site` — add the submodule gitlink.
-- `scripts/check-utilities-submodule.mjs` — add a Node health check for expected upstream files and pinned SHA.
-- `package.json` — add `utilities:check-submodule`.
-- `eslint.config.mjs` — ignore `vendor/**` so host lint does not lint upstream submodule JavaScript.
-- `.github/workflows/ci.yml` — make checkout recursive and run the submodule check in the quality job.
+- `.gitmodules` — add the CoreScope submodule entry.
+- `vendor/CoreScope` — gitlink to the pinned upstream commit.
+- `scripts/check-corescope-submodule.mjs` — new submodule structure checker.
+- `package.json` — add the `corescope:check-submodule` script.
+- `.forge/steps/step-1-plan.md` — this execution plan.
 
 ## Ordered Implementation Checklist
-1. Add the submodule with `git submodule add https://github.com/Colorado-Mesh/meshcore-utilities-site vendor/meshcore-utilities-site`.
-2. Inspect the upstream tree after checkout to identify stable required files for the health check.
-3. Write `scripts/check-utilities-submodule.mjs` using Node built-ins only so it can run immediately after `npm ci` or without extra dependencies.
-4. Add `utilities:check-submodule` to `package.json`.
-5. Add `vendor/**` to ESLint global ignores so the upstream submodule remains read-only source material.
-6. Add `submodules: recursive` to every CI checkout step in `.github/workflows/ci.yml`.
-7. Add a `Check utilities submodule` step in the CI quality job after dependency install and before lint/type/test/build.
-8. Run submodule status, submodule health check, typecheck, and lint.
-9. Ensure `git status` does not show modified files inside `vendor/meshcore-utilities-site`.
+1. Add CoreScope as a submodule at `vendor/CoreScope` from `https://github.com/Kpa-clawbot/CoreScope`.
+2. Create `scripts/check-corescope-submodule.mjs` modeled after `scripts/check-utilities-submodule.mjs`.
+3. Require CoreScope files that future Docker/runtime steps depend on.
+4. Add `corescope:check-submodule` to `package.json` without changing existing scripts.
+5. Run the new checker and `git submodule status vendor/CoreScope`.
+6. Stage only Step 1 files for Forge review.
+7. Save the Claude review JSON to `.forge/reviews/claude-step-1.json` after review.
 
 ## Interfaces and Data Contracts
-- Submodule path: `vendor/meshcore-utilities-site`.
-- Script command: `npm run utilities:check-submodule`.
-- Health-check output must include the upstream commit SHA on success and actionable initialization guidance on failure.
-- Required file list will be based on actual upstream files present after checkout.
+- `npm run corescope:check-submodule` must exit `0` when `vendor/CoreScope` is initialized at a readable git commit.
+- On failure, the checker must print `git submodule update --init --recursive vendor/CoreScope`.
+- The checker validates only source structure; it does not build CoreScope or inspect credentials.
 
 ## Verification Plan
-- Automated: `git submodule status`; `npm run utilities:check-submodule`; `npm run typecheck`; `npm run lint`.
-- Manual: inspect `.gitmodules` URL/path and confirm Docker final stage still does not copy `vendor/`.
-- Regression: CI still runs existing lint, typecheck, unit tests, and build in the same order after checkout/dependency setup.
+- Automated: `npm run corescope:check-submodule`
+- Automated: `git submodule status vendor/CoreScope`
+- Regression: ensure existing `utilities:check-submodule` remains unchanged and package scripts still parse as JSON.
 
 ## Stop Conditions
-- Pause if the upstream repository cannot be cloned.
-- Pause if the upstream tree lacks stable source/data files for a meaningful health check.
-- Pause if adding the submodule modifies unrelated tracked files or creates dirty changes inside the submodule.
+- Pause if `git submodule add` fails because `vendor/CoreScope` already exists with unexpected content.
+- Pause if CoreScope upstream does not expose the required files at the pinned commit.
+- Pause if adding the submodule would require overwriting existing tracked files.

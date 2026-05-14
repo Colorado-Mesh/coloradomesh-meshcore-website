@@ -1,229 +1,219 @@
 # Research Synthesis
 
 ## Status
-- Files synthesized: stack.md, pitfalls.md, architecture.md, prior-art.md, PROJECT.md
-- Files missing: codex-analysis.md
+- Files synthesized: stack.md, pitfalls.md, architecture.md, prior-art.md, codex-analysis.md, PROJECT.md
+- Files missing: none
 - Overall confidence: HIGH
 
 ## Executive Summary
-This is a brownfield integration of the authoritative Colorado MeshCore utilities into an existing Next.js 16 / React 19 / Tailwind 4 public site. The proven path is not to run or embed the upstream Flask/Jinja app, but to add it as a pinned Git submodule, treat it as upstream source material, and keep the public experience route-native in the existing `/tools` area with local branded shells and focused client-side tool islands.
+This is a brownfield replacement of the Denver MeshCore site's current Next.js/React Leaflet `/map` experience with CoreScope, a standalone MeshCore analyzer application. The proven implementation path is not to port CoreScope into React, but to vendor it as a pinned git submodule for provenance/review and run it as a separate CoreScope service/container that owns MQTT ingestion, SQLite persistence, REST APIs, WebSockets, and its vanilla JavaScript analyzer UI.
 
-The recommended technical approach is a submodule plus adapter/generator architecture: place `Colorado-Mesh/meshcore-utilities-site` under `vendor/meshcore-utilities-site`, ingest selected upstream JSON/schemas/fixtures at build or update time, validate them with TypeScript/Zod, emit typed local artifacts, and enforce behavior parity through Vitest/Playwright/a11y/Lighthouse gates. Runtime pages should import local generated artifacts and local utility logic, not read from the submodule or depend on Python/Flask in production.
+The recommended technical approach is to keep the existing Denver site stack unchanged: Next.js 16, React 19, TypeScript, Node 24, npm, Docker, Vitest, and Playwright. Add CoreScope under `vendor/corescope` or `vendor/CoreScope`, pin the reviewed upstream release commit, deploy a pinned CoreScope GHCR image by tag and preferably digest unless a source build is explicitly required, mount durable `/app/data`, provide a Denver-specific CoreScope config, and route users from `/map` to CoreScope. The strongest routing recommendation is a dedicated CoreScope host/subdomain because CoreScope assumes ownership of root-relative `/api/*`, static assets, and `/ws`; if the product insists on same-origin `/map`, a real reverse proxy must handle assets, REST, WebSocket upgrades, and route collisions deliberately.
 
-The top risks are submodule initialization failures in CI/deploy, parity drift after upstream changes, unsafe serial/device operations, CSP/style regressions from proxying or copying upstream UI, and licensing uncertainty if substantial upstream code is copied. Mitigate these with recursive checkout in CI, explicit submodule bump scripts, parity manifests and reports, guarded serial workflows, native design-system implementation, route-specific security review, and an upstream license clarification before copying implementation code.
+Top risks are routing CoreScope under `/map` while its root-relative assets and APIs collide with the Next app, losing WebSocket upgrades through the proxy, publishing more packet/channel/operator data than the current marker map exposes, ignoring the CoreScope license mismatch, and leaving submodule/image versions floating. Prior art strongly supports using CoreScope itself as the canonical runtime, while reusing only operational lessons from Denver's current live map and community MQTT bridge tooling. Adjacent tools such as yellowcooln/meshcore-mqtt-live-map, official MeshCore Map, MeshExplorer, meshcoretomqtt, and triangulation utilities are useful references or feeders, not replacements for CoreScope in this project.
 
 ## Key Decisions (resolved by research)
-
-1. Keep the host application stack as Next.js 16 App Router, React 19, TypeScript strict, Tailwind CSS 4, Node 24, and existing standalone/Docker/Netlify deployment paths. Source refs: ITEM-stack-1, ITEM-stack-2, ITEM-stack-6, ITEM-stack-10.
-2. Add the upstream repo as a Git submodule under `vendor/meshcore-utilities-site` tracking `main`; do not use subtree/vendor-copy or npm workspaces initially. Source refs: ITEM-stack-4, ITEM-architecture-1, ITEM-prior-art-3, ITEM-prior-art-8.
-3. Treat upstream Flask/Python/Jinja/static assets as source-of-truth reference material, not as the production runtime or primary UI. Source refs: ITEM-stack-5, ITEM-architecture-1, ITEM-pitfalls-3, ITEM-prior-art-1.
-4. Preserve existing `/tools` routes as canonical and use redirects/aliases only for upstream Flask route compatibility if needed. Source refs: ITEM-architecture-4, ITEM-prior-art-2.
-5. Use Server Component page shells for metadata, SEO, breadcrumbs, JSON-LD, and layout, with focused Client Components for interactive/browser-only workflows. Source refs: ITEM-stack-1, ITEM-stack-2, ITEM-architecture-5, ITEM-architecture-6.
-6. Prefer build/update-time generated typed artifacts over runtime filesystem reads from the submodule. Source refs: ITEM-stack-7, ITEM-architecture-3, ITEM-architecture-10.
-7. Keep Web Serial browser-native, client-only, feature-detected, and guarded; do not introduce a backend serial proxy or Electron/local daemon. Source refs: ITEM-stack-9, ITEM-pitfalls-5, ITEM-pitfalls-6, ITEM-architecture-6.
-8. Keep the existing quality stack: lint, typecheck, Vitest, Playwright, axe/Playwright, Lighthouse CI, plus new parity checks. Source refs: ITEM-stack-8, ITEM-pitfalls-8, ITEM-architecture-9.
-9. Use local design-system primitives and delegate final visual implementation to `co-ui`/native Opus UI; do not import upstream CSS/templates wholesale. Source refs: ITEM-stack-6, ITEM-architecture-8, ITEM-pitfalls-4.
-10. Use Dependabot `gitsubmodule` updates or an equivalent scheduled PR workflow, but require CI/parity gates before merging pointer bumps. Source refs: ITEM-prior-art-4, ITEM-pitfalls-8, ITEM-architecture-9.
+- Keep the Denver site on its current Next.js 16, React 19, TypeScript, Node 24, npm, Docker, Vitest, and Playwright stack; do not re-platform for this work. Source refs: ITEM-stack-1.
+- Treat CoreScope as a standalone sidecar analyzer service, not a React component library and not code copied into `src/components/NetworkMap.tsx`. Source refs: ITEM-stack-2, ITEM-architecture-1, ITEM-pitfalls-1, ITEM-prior-art-1.
+- Add CoreScope as a pinned git submodule under `vendor/corescope` or `vendor/CoreScope`; do not vendor a tarball or track a moving branch. Source refs: ITEM-stack-3, ITEM-architecture-8, ITEM-pitfalls-2, ITEM-prior-art-6.
+- Prefer a pinned CoreScope GHCR release image, ideally digest-pinned, for production deployment unless source-build requirements are explicit. Source refs: ITEM-stack-3, ITEM-stack-11, ITEM-pitfalls-3.
+- Let CoreScope own live-map/analyzer data storage and APIs through MQTT ingestion, SQLite, REST, and WebSockets; retire the current Next map data path from the canonical UI. Source refs: ITEM-stack-4, ITEM-stack-6, ITEM-architecture-6, ITEM-pitfalls-9.
+- Docker/Compose is the canonical production runtime for CoreScope; Netlify previews should redirect or show a fallback rather than trying to run CoreScope. Source refs: ITEM-stack-10, ITEM-architecture-4.
+- Do not use iframe embedding as the primary integration path. Source refs: ITEM-stack-2, ITEM-architecture-1, ITEM-pitfalls-6.
+- Treat CoreScope as GPL-3.0 until upstream resolves conflicting license metadata. Source refs: ITEM-stack-9, ITEM-pitfalls-4, ITEM-architecture-10, ITEM-prior-art-1.
+- Use CoreScope's own configuration/theme hooks for branding and Denver defaults; do not add new map UI libraries to Denver for this replacement. Source refs: ITEM-stack-7, ITEM-architecture-7.
+- Verification must cover both the Next site and the CoreScope service: submodule presence, Compose config, CoreScope health/stats/config, route handoff, WebSocket connectivity, and existing npm gates. Source refs: ITEM-stack-8, ITEM-architecture-11, ITEM-pitfalls-8, ITEM-pitfalls-14.
 
 ## Questions for User
 
-### Q-1: Which upstream utilities must be in scope for the first integration release?
+### Q-1: Should CoreScope be public, member-only, or partially restricted?
 
 - **Category:** scope
-- **Why it matters:** The upstream app includes repeater config, companion config, prefix matrix, serial USB, contacts export, Docker/runtime pieces, and route-level APIs. The local site already has several tool pages, but scope needs to decide whether this release is parity for existing pages only or includes additional upstream capabilities.
-- **Default recommendation:** Integrate and parity-check the existing local public tools first: repeater naming/config, companion naming/config, prefix matrix, and serial USB. Leave contacts export and Flask deployment internals out of scope unless explicitly requested.
-- **Source refs:** ITEM-prior-art-1, ITEM-prior-art-2, ITEM-pitfalls-10, ITEM-architecture-4
+- **Why it matters:** CoreScope exposes more than the current marker map, including packets, channels, observer health, route traces, analytics, and possibly exact coordinates or decrypted channel content.
+- **Default recommendation:** Launch with public map/analyzer views only after a privacy/security review, deny public admin/write/debug endpoints, and avoid configuring channel keys unless operator consent is explicit.
+- **Source refs:** ITEM-pitfalls-11, ITEM-pitfalls-12, ITEM-architecture-7
 - **Priority:** HIGH
 
-### Q-2: Should the upstream Flask route names be supported as public compatibility redirects?
-
-- **Category:** ux
-- **Why it matters:** Canonical IA should remain `/tools/*`, but operators or old documentation may reference upstream paths such as `/repeater_name_tool`. Redirects improve discoverability but add maintenance and SEO decisions.
-- **Default recommendation:** Keep `/tools/*` canonical and add a small set of permanent redirects only for known upstream paths that have real users or documentation references.
-- **Source refs:** ITEM-architecture-4, ITEM-prior-art-1, ITEM-prior-art-2
-- **Priority:** MEDIUM
-
-### Q-3: Where should the submodule live, and should `vendor/meshcore-utilities-site` be considered final?
+### Q-2: What should be the canonical public URL: `/map` on the Denver site, a dedicated CoreScope subdomain, or both?
 
 - **Category:** technical
-- **Why it matters:** Submodule path affects developer mental model, CI scripts, generator paths, Docker contexts, and future automation. Research converges on a non-routable path, but the exact directory is a project convention decision.
-- **Default recommendation:** Use `vendor/meshcore-utilities-site` and treat it as read-only upstream source material.
-- **Source refs:** ITEM-stack-4, ITEM-architecture-1, ITEM-prior-art-3, ITEM-pitfalls-11
+- **Why it matters:** CoreScope assumes origin-root ownership of `/api/*`, static assets, and `/ws`, while the Denver Next app already owns `/map` and several `/api/*` routes.
+- **Default recommendation:** Use a dedicated CoreScope host/subdomain and make Denver `/map` a clear redirect or handoff route to CoreScope's `/#/map` or `/#/live` view.
+- **Source refs:** ITEM-architecture-2, ITEM-architecture-3, ITEM-stack-5, ITEM-pitfalls-5
 - **Priority:** HIGH
 
-### Q-4: Should generated submodule-derived artifacts be committed, or regenerated only in CI/build?
+### Q-3: Which MQTT broker, topics, credentials, and observer sources should feed CoreScope?
 
 - **Category:** technical
-- **Why it matters:** Committed generated artifacts make upstream diffs reviewable and keep runtime independent of the submodule, but they add generated-file churn. CI-only generation reduces repo churn but can hide changes and make local builds depend on submodule availability.
-- **Default recommendation:** Commit narrow generated typed data/manifest artifacts and fail CI when they are stale, while avoiding large wholesale snapshots.
-- **Source refs:** ITEM-stack-7, ITEM-architecture-2, ITEM-architecture-3, ITEM-pitfalls-1, ITEM-pitfalls-8
+- **Why it matters:** CoreScope's value depends on raw MeshCore packets, not just Denver's existing normalized `/api/nodes` snapshot.
+- **Default recommendation:** Configure CoreScope `mqttSources` against the Colorado MeshCore broker/feed with server-side credentials and topics matching `meshcore/+/+/packets`; do not expose broker credentials to the browser.
+- **Source refs:** ITEM-stack-6, ITEM-pitfalls-9, ITEM-prior-art-7, ITEM-architecture-7
 - **Priority:** HIGH
 
-### Q-5: What parity level is required for each utility: exact behavior, compatible output, or improved local behavior?
+### Q-4: Should CoreScope run from the pinned GHCR image or be built from the submodule in Denver CI/deployment?
 
-- **Category:** scope
-- **Why it matters:** Some upstream behaviors may be canonical, while others may need safer local handling, better UX, or different live-data inputs. The plan needs per-tool parity contracts to avoid ambiguity.
-- **Default recommendation:** Require exact parity for deterministic data transforms and config output formats; allow intentionally documented divergence for safety, accessibility, browser support, and live-map source integration.
-- **Source refs:** ITEM-pitfalls-8, ITEM-pitfalls-5, ITEM-pitfalls-10, ITEM-architecture-2
+- **Category:** technical
+- **Why it matters:** Images are upstream-supported and avoid adding Go/Mosquitto/Caddy build complexity, while source builds increase control but also toolchain and maintenance risk.
+- **Default recommendation:** Use the pinned GHCR release image by tag and digest for production, while keeping the submodule for source review, GPL source availability, config reference, and future source-build fallback.
+- **Source refs:** ITEM-stack-3, ITEM-stack-11, ITEM-stack-12, ITEM-architecture-4
 - **Priority:** HIGH
 
-### Q-6: How conservative should the serial USB tool be when upstream supports destructive or sensitive commands?
+### Q-5: Which CoreScope release/commit should be pinned for the first launch?
 
-- **Category:** risk
-- **Why it matters:** Serial commands can alter physical MeshCore devices, erase settings, write private keys, change passwords, or reboot nodes. Full parity can conflict with public-site safety expectations.
-- **Default recommendation:** Keep the current guarded model: preview commands, block private/secret/password fields by default, require explicit confirmation, and make unsupported/destructive flows manual or expert-only.
-- **Source refs:** ITEM-pitfalls-5, ITEM-architecture-6, ITEM-stack-9
+- **Category:** constraints
+- **Why it matters:** Floating `latest` or tracking `master` can silently change production behavior; submodule and image pins must match the reviewed version.
+- **Default recommendation:** Pin CoreScope v3.7.2 or the newest reviewed release available at implementation time, record the submodule SHA and image digest, and require smoke tests for upgrades.
+- **Source refs:** ITEM-stack-3, ITEM-pitfalls-3, ITEM-architecture-8
 - **Priority:** HIGH
 
-### Q-7: Should browser unsupported states for Web Serial be a prominent UX feature or a secondary notice?
+### Q-6: What Denver/Colorado map defaults and ingestion filters should be configured?
 
 - **Category:** ux
-- **Why it matters:** Web Serial is unavailable in Safari/iOS/Firefox stable and requires HTTPS plus user activation. Poor messaging will make users blame hardware or the site.
-- **Default recommendation:** Make unsupported-state detection prominent on `/tools/serial-usb`, with clear browser/HTTPS requirements and non-serial fallback instructions.
-- **Source refs:** ITEM-stack-9, ITEM-pitfalls-6
-- **Priority:** MEDIUM
-
-### Q-8: Should the site expose any upstream `/contacts`-style data endpoint?
-
-- **Category:** scope
-- **Why it matters:** Upstream includes a `/contacts` data endpoint, while local research warns duplicate live-data/API paths can create inconsistent operator decisions and privacy/rate-limit questions.
-- **Default recommendation:** Do not expose a contacts export in this integration. Use the existing local `/api/map/snapshot` contract as the single browser-facing live-data source unless contacts export is separately scoped and reviewed.
-- **Source refs:** ITEM-prior-art-1, ITEM-pitfalls-10, ITEM-architecture-7
+- **Why it matters:** CoreScope examples are Bay Area/SJC-oriented and may default to the wrong center, region names, IATA filters, or geofilter behavior.
+- **Default recommendation:** Configure Colorado map center `39.5501,-105.7821`, zoom around `7`, Denver/Colorado branding, reviewed regions, and no restrictive IATA/geofilter until live Colorado packet ingestion is proven.
+- **Source refs:** ITEM-architecture-7, ITEM-pitfalls-10, ITEM-stack-7
 - **Priority:** HIGH
 
-### Q-9: Should Dependabot manage submodule pointer updates automatically via pull requests?
+### Q-7: What tile provider and attribution policy should CoreScope use?
 
 - **Category:** constraints
-- **Why it matters:** The project goal is to keep receiving upstream updates, but silent tracking of upstream HEAD is unsafe. Dependabot can raise reviewable PRs but requires reliable CI/parity gates.
-- **Default recommendation:** Configure weekly Dependabot `gitsubmodule` PRs after the generator/parity checks exist; do not auto-merge pointer bumps.
-- **Source refs:** ITEM-prior-art-4, ITEM-architecture-9, ITEM-pitfalls-2, ITEM-pitfalls-8
+- **Why it matters:** Tile providers impose usage limits, attribution requirements, API key handling, and policy constraints that can break or block the public map if ignored.
+- **Default recommendation:** Start with CoreScope's supported CARTO/OSM-style configuration only if attribution is visible and expected traffic is modest; otherwise use a paid/self-hosted provider configured through CoreScope, not hard-coded in Denver.
+- **Source refs:** ITEM-pitfalls-15, ITEM-stack-7, ITEM-codex supplemental lines 143-145
 - **Priority:** MEDIUM
 
-### Q-10: What upstream license/permission posture should be required before copying source code or static assets?
+### Q-8: How long should packets, nodes, traces, and analytics be retained?
 
 - **Category:** risk
-- **Why it matters:** The upstream repository has no detected license metadata. A submodule reference preserves provenance, but copying implementation code, templates, CSS, or substantial static assets may create unclear redistribution rights.
-- **Default recommendation:** Ask upstream maintainers to add an explicit compatible license before copying substantial code/assets. Until then, reimplement behavior locally from requirements/tests and use the submodule primarily for reference, fixtures, and provenance.
-- **Source refs:** ITEM-pitfalls-9, ITEM-prior-art-1, ITEM-prior-art-2
-- **Priority:** HIGH
-
-### Q-11: Should any upstream Flask UI be temporarily proxied or linked as a fallback during migration?
-
-- **Category:** prior-art
-- **Why it matters:** Proxying or iframe embedding can preserve immediate upstream freshness, but it conflicts with CSP, routing, styling, deployment, and security headers. A plain external reference link is safer but less integrated.
-- **Default recommendation:** Do not proxy or iframe the upstream UI for the main experience. Include a clearly marked upstream reference/provenance link if useful for maintainers.
-- **Source refs:** ITEM-prior-art-6, ITEM-pitfalls-7, ITEM-stack-5, ITEM-architecture-1
+- **Why it matters:** Retention affects SQLite growth, privacy exposure, backup requirements, stale-map behavior, and operational readiness checks.
+- **Default recommendation:** Use conservative CoreScope retention initially, back up `/app/data`, show data age, and tune retention only after observing packet volume and operator privacy expectations.
+- **Source refs:** ITEM-stack-4, ITEM-pitfalls-14, ITEM-pitfalls-11
 - **Priority:** MEDIUM
 
-### Q-12: How much UI redesign should be delegated to `co-ui`/native Opus UI versus implemented in ordinary code steps?
+### Q-9: Which old Denver live-map endpoints or compatibility paths must remain after launch?
+
+- **Category:** scope
+- **Why it matters:** Existing users or integrations may depend on `/api/map/*`, `/api/live-map/*`, metadata, sitemap entries, or links to `/map`.
+- **Default recommendation:** Preserve `/map` as the stable human-facing entry point, deprecate old data endpoints only after checking consumers, and update sitemap/metadata/attribution rather than keeping the old React Leaflet map public.
+- **Source refs:** ITEM-architecture-6, ITEM-pitfalls-17, ITEM-prior-art-3
+- **Priority:** MEDIUM
+
+### Q-10: Should Netlify previews link to production CoreScope, show a fallback page, or disable the live analyzer preview entirely?
 
 - **Category:** constraints
-- **Why it matters:** The project constraint says frontend visual implementation must be delegated in the Codex-backed session. Planning must separate data/contracts/logic from final visual polish.
-- **Default recommendation:** Have implementation steps create stable data contracts, component boundaries, tests, and minimal integration scaffolds; delegate polished visual work for tool forms, panels, and interaction states to `co-ui`/native Opus UI.
-- **Source refs:** PROJECT.md, ITEM-stack-6, ITEM-architecture-8
-- **Priority:** HIGH
+- **Why it matters:** CoreScope requires a long-running service, MQTT, SQLite, WebSockets, and persistent volumes that do not fit Netlify's preview model.
+- **Default recommendation:** For previews, make `/map` show a clear fallback/handoff to the deployed analyzer host; do not attempt to run CoreScope on Netlify functions.
+- **Source refs:** ITEM-stack-10, ITEM-pitfalls-2
+- **Priority:** MEDIUM
 
-### Q-13: What CI environments must be supported for submodule initialization and parity checks?
-
-- **Category:** constraints
-- **Why it matters:** GitHub Actions currently needs recursive checkout updates, while Docker/Netlify/local builds may have different submodule behavior. The plan must update every relevant build entry point.
-- **Default recommendation:** Support GitHub Actions, local npm scripts, Docker builds, and Netlify builds explicitly. Add early failure checks for missing/uninitialized submodule content.
-- **Source refs:** ITEM-pitfalls-1, ITEM-architecture-10, ITEM-stack-10
-- **Priority:** HIGH
-
-### Q-14: Should future upstream cooperation aim for a shared JS/TS core package?
+### Q-11: Are local CoreScope patches acceptable, or must all changes be upstreamed?
 
 - **Category:** prior-art
-- **Why it matters:** A shared package could reduce reimplementation and parity burden, but upstream is currently Flask/Python with no package.json. Premature workspace conversion would add complexity without value.
-- **Default recommendation:** Do not block this project on upstream packaging. Document it as a future enhancement: propose a `meshcore-utilities-core` JS/TS package only if upstream maintainers are interested.
-- **Source refs:** ITEM-prior-art-5, ITEM-stack-4, ITEM-pitfalls-3
-- **Priority:** LOW
+- **Why it matters:** Local submodule edits complicate updates, GPL/source provenance, and release verification; some fixes such as CSP asset vendoring or path-prefix support may require upstream changes if demanded.
+- **Default recommendation:** Avoid local patches for initial launch; configure CoreScope externally and open upstream issues/PRs for reusable changes.
+- **Source refs:** ITEM-prior-art-6, ITEM-pitfalls-2, ITEM-pitfalls-18
+- **Priority:** MEDIUM
+
+### Q-12: Should CoreScope be allowed to load third-party browser assets from CDNs, or should those assets be vendored?
+
+- **Category:** risk
+- **Why it matters:** Denver's current CSP is strict, and CoreScope uses third-party assets such as Leaflet, leaflet-heat, Chart.js, and Swagger UI from CDN paths.
+- **Default recommendation:** Prefer vendoring third-party browser assets inside the CoreScope image/submodule for production; if CDN use remains, add narrowly scoped CSP allowances and SRI checks.
+- **Source refs:** ITEM-pitfalls-7, ITEM-stack-12
+- **Priority:** HIGH
+
+### Q-13: What reverse proxy stack will terminate TLS and route WebSockets to CoreScope?
+
+- **Category:** technical
+- **Why it matters:** WebSocket failures are likely if `Upgrade`/`Connection` headers, host/path preservation, HTTP/1.1, and timeouts are not configured correctly.
+- **Default recommendation:** Use a deployment-level Caddy/nginx/Traefik route to the CoreScope service with explicit WebSocket support, and run CoreScope with bundled Caddy disabled if the outer proxy owns TLS.
+- **Source refs:** ITEM-stack-5, ITEM-architecture-5, ITEM-architecture-9, ITEM-pitfalls-8
+- **Priority:** HIGH
+
+### Q-14: What exact data should be redacted, blacklisted, or consent-gated before public launch?
+
+- **Category:** risk
+- **Why it matters:** The move from a marker map to a full analyzer may expose exact coordinates, observer IDs, channel messages, traces, and operational internals.
+- **Default recommendation:** Define node/observer blacklist policy, avoid public channel keys, review `geo_filter`, and update privacy copy before switching navigation to CoreScope.
+- **Source refs:** ITEM-pitfalls-11, ITEM-pitfalls-12, ITEM-architecture-7
+- **Priority:** HIGH
+
+### Q-15: Who will own CoreScope operational maintenance after launch?
+
+- **Category:** constraints
+- **Why it matters:** CoreScope introduces a stateful service with image/submodule upgrades, SQLite backups, broker credentials, health checks, retention tuning, and incident response.
+- **Default recommendation:** Assign an operator role and document a release-update workflow with digest pinning, smoke tests, backups, and rollback steps.
+- **Source refs:** ITEM-stack-8, ITEM-stack-12, ITEM-pitfalls-14, ITEM-architecture-11
+- **Priority:** MEDIUM
 
 ## Technical Direction
 
 ### Stack
-
-Use the existing host stack without introducing a second production runtime:
-
-- Next.js 16 App Router on Node 24/npm with `output: 'standalone'`.
-- React 19 Client Components for interactive utility islands.
-- Strict TypeScript for host logic, generated types, and adapters.
-- Zod validation for imported upstream JSON/config/schema files before generation.
-- Tailwind CSS 4 and existing local design tokens/components for UI, with final visual implementation delegated to `co-ui`/native Opus UI.
-- Vitest for deterministic utility/parity tests, Playwright for route and interaction tests, axe/Playwright for accessibility, Lighthouse CI for public-site regression gates.
-- Native Web Serial in client components only; no backend serial bridge.
-- Existing Next standalone/Docker/Netlify-compatible deployment, with submodule initialization only needed for build/update/parity phases.
+- Keep the current Denver stack: Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Node `>=24 <26`, npm, Docker standalone output, Vitest, Playwright, Lighthouse/CI smoke patterns. Do not switch to Codex-suggested Node 22, pnpm, Vite, or React assumptions for this repo.
+- Add CoreScope as a pinned public HTTPS git submodule under `vendor/corescope` or `vendor/CoreScope`. Use the existing utilities submodule pattern as the model for verification.
+- Deploy CoreScope as a separate service/container. Prefer `ghcr.io/kpa-clawbot/corescope:<reviewed-version>@<digest>` for production; use source builds from the submodule only if required and only after reviewing the Go toolchain and upstream build files.
+- Use CoreScope's SQLite data layer with durable `/app/data`; the Denver Next app should remain stateless for this feature except for route handoff, metadata, navigation, and documentation.
+- Feed CoreScope raw MeshCore MQTT packets via server-side config. Do not use browser MQTT or the old normalized snapshot as the canonical source.
+- Use CoreScope configuration/theme files for Denver branding, map defaults, regions, broker settings, retention, blacklists, and tile settings. Do not add new Denver-side map libraries for this replacement.
 
 ### Architecture
-
-The architecture should have four explicit layers:
-
-1. **Pinned upstream source:** `vendor/meshcore-utilities-site` as a Git submodule tracking upstream `main`. Treat this path as read-only and non-routable.
-2. **Adapter/generator boundary:** scripts and local libraries that read selected upstream files, validate schemas, produce typed local artifacts, and update a provenance/parity manifest containing upstream commit SHA and covered capabilities.
-3. **Local domain/tool logic:** TypeScript modules under existing areas such as `src/lib/meshcore-tools`, `src/lib/meshcore-data`, `src/lib/parity`, and a possible `src/lib/upstream-utilities` adapter namespace. These modules should not depend on runtime reads from `vendor/`.
-4. **Route-native UX:** existing `/tools` App Router pages with Server Component shells and focused Client Components for interactivity. Use local `ToolShell`, `ToolCard`, `HeroPanel`, forms, panels, and design tokens; do not import Flask templates or CSS.
-
-Route Handlers should be used only for bounded server responsibilities such as existing map/geocode APIs, compatibility redirects, validated public data with explicit cache headers, or rate-limited external mediation. Do not recreate the upstream Flask blueprint surface unless a client workflow truly needs server mediation.
+- Boundary: Denver Next.js owns the site shell, navigation, SEO/metadata, sitemap, redirects/handoff, and general deployment docs. CoreScope owns analyzer UI, live map UI, MQTT ingestion, decode/storage, APIs, WebSocket broadcast, analytics, and SQLite persistence.
+- Runtime: Compose should define a separate CoreScope service, durable data volume, Denver-specific config mount, secrets injection for broker/API keys, and health checks. Avoid merging CoreScope into the existing Next Docker image.
+- Routing: Prefer host/subdomain routing so CoreScope can own `/`, `/api/*`, `/ws`, and static assets. Make Denver `/map` a redirect or lightweight handoff to CoreScope. If same-origin path routing is required, plan explicit reverse-proxy rules for root-relative assets, API namespace collisions, WebSocket upgrades, and CSP/header differences.
+- Proxy: Use a real outer proxy such as Caddy/nginx/Traefik or the existing deployment proxy. Disable CoreScope's bundled Caddy when the outer proxy terminates TLS. Disable bundled Mosquitto only if an external broker/source is configured.
+- Migration: Retire `NetworkMapWrapper` and the old Next data path from the public canonical experience after CoreScope launch. Keep compatibility endpoints/status checks only if known consumers require them.
 
 ### Prior Art to Leverage
-
-- **Upstream Flask app:** Use it as the behavior/data/schema/source-of-truth reference for repeater and companion config, prefix data, serial command schema/default commands, and route/API contracts. Do not use it as a drop-in UI or runtime. Source refs: ITEM-prior-art-1.
-- **Existing local tools:** Preserve current `/tools` pages, `ToolShell`, `src/lib/meshcore-tools`, `src/lib/meshcore-data`, and `src/lib/parity` as the core integration surface. Source refs: ITEM-prior-art-2.
-- **Git submodules:** Use exact upstream commit pinning and deliberate pointer bumps. Source refs: ITEM-prior-art-3.
-- **Dependabot `gitsubmodule`:** Use for reviewable upstream update PRs once parity gates exist. Source refs: ITEM-prior-art-4.
-- **Next `transpilePackages` / workspaces:** Keep as future-only if upstream eventually provides a JS/TS package; do not force the current Flask repo into npm workspaces. Source refs: ITEM-prior-art-5.
-- **Next Multi-Zones / proxying:** Keep as an escape hatch only if native porting proves impossible for a specific tool; not the default. Source refs: ITEM-prior-art-6.
-- **Sanity-style route boundary pattern:** Borrow the concept of a stable host-owned route boundary and explicit base path if a future React-compatible wrapper exists. Source refs: ITEM-prior-art-7.
-- **Subtree/vendor copy:** Reject as primary model because the project requires a submodule, but borrow its onboarding lesson by making submodule setup easy and checked. Source refs: ITEM-prior-art-8.
-- **Module Federation:** Reject for this project; it is disproportionate and does not help with Flask/Jinja upstream code. Source refs: ITEM-prior-art-9.
+- CoreScope itself is the canonical replacement: use its upstream runtime, API, WebSocket model, Docker image, and OpenAPI spec rather than rebuilding its UI.
+- Denver's current live map should provide hardening lessons: SSRF/private address protections, response limits, diagnostics thinking, env-based config, and attribution discipline. Its React Leaflet UI should be retired as the canonical product.
+- The existing `vendor/meshcore-utilities-site` submodule and `scripts/check-utilities-submodule.mjs` pattern should be copied for CoreScope with a dedicated checker.
+- `meshcoretomqtt` and `meshcore-packet-capture` are the appropriate observer/feed layer; document compatibility rather than building capture into the Denver site.
+- `yellowcooln/meshcore-mqtt-live-map` remains useful for migration/endpoint comparison but should not remain the canonical runtime.
+- Official MeshCore Map and uploader tooling should remain external ecosystem links or separate operational tasks, not the Denver live analyzer replacement.
+- Triangulation tools and MeshExplorer are future/adjacent references only, not first-launch scope.
 
 ## Detailed Planning Implications
-
-1. **Submodule setup must happen first.** Add `.gitmodules` and `vendor/meshcore-utilities-site`, update CI checkout to use recursive submodules, and add a local verification script that fails if expected upstream files are absent.
-2. **Avoid touching upstream files.** Plan steps should never edit inside `vendor/meshcore-utilities-site`; upstream fixes should be made upstream, then the submodule pointer bumped.
-3. **Create a provenance manifest early.** Record upstream SHA, source file paths, generated artifact paths, and parity coverage per capability.
-4. **Add generator scripts before UI changes.** The plan should first define which upstream files are imported, validate them, and emit small typed artifacts. UI steps should consume stable local modules.
-5. **Define file boundaries.** Likely new/updated areas: `scripts/` for submodule/generation checks, `src/lib/upstream-utilities/` for adapter code, `src/lib/meshcore-tools/generated/` or `src/lib/meshcore-data/generated/` for outputs, `src/lib/parity/` for manifests/tests, and existing `src/app/tools/*` and `src/components/tools/*` for UX.
-6. **Sequence by risk.** First solve CI/submodule reliability; second solve generator/parity; third wire low-risk deterministic tools; fourth handle serial USB safety and unsupported-browser UX; fifth do visual redesign/polish through `co-ui`/Opus UI; sixth add Dependabot submodule PR automation.
-7. **Establish per-tool contracts.** Each utility should have a contract covering inputs, outputs, upstream source files, generated artifacts, safety divergences, tests, route(s), and UX states.
-8. **Keep runtime independent of `vendor/`.** Build artifacts should not require the submodule directory in the final standalone runtime/Docker image. If any runtime file tracing is introduced, add a Docker smoke test.
-9. **Use local live-data contracts.** Prefix matrix and conflict checks should use the existing `/api/map/snapshot` normalization rather than adding upstream `/contacts` duplication.
-10. **Plan explicit verification gates.** For each implementation phase, run at least `npm run lint`, `npm run typecheck`, targeted Vitest parity tests, targeted Playwright tests, and build. Serial pages also need unsupported-browser coverage and safety tests.
-11. **Isolate security header decisions.** Do not weaken global CSP/frame policies. If compatibility redirects or special route handlers are added, test headers for affected routes.
-12. **Separate data/logic from visual delivery.** Because visual implementation is constrained to `co-ui`/native Opus UI, implementation plans should provide stable props, state machines, fixtures, and tests that UI specialists can build against.
-13. **Do not commit `.forge` artifacts unless explicitly directed.** Planning and research outputs should remain process artifacts per project constraint.
+- Sequence the implementation as infrastructure-first: submodule + checker, configuration template, Compose service, proxy/handoff route, security/privacy hardening, verification gates, then cleanup of old map UI.
+- File boundaries should likely include: `.gitmodules`, `vendor/corescope` or `vendor/CoreScope`, `scripts/check-corescope-submodule.mjs`, `package.json` script additions, a CoreScope Compose override such as `compose.corescope.yaml` or changes to existing Compose files, a Denver-specific CoreScope config template under a non-secret config path, `.env.example` additions, `/map` page/handoff changes, navigation/sitemap/metadata updates, and Playwright or smoke-test additions.
+- Do not hand-code a visual CoreScope UI in the current session. If the `/map` handoff shell needs new visual design, delegate it to `co-ui`/native Opus UI per project constraints.
+- Add a submodule verification contract: path exists, not empty, expected files exist (`Dockerfile`, `config.example.json`, `cmd/server`, `cmd/ingestor`, `public`, `LICENSE`), gitlink resolves, and the SHA is recorded.
+- Add deployment verification contracts: `docker compose config` renders, CoreScope starts, `/api/healthz` is ready, `/api/config/map` returns Denver config, `/api/stats` has plausible counts, `/api/spec` is reachable, and `wss://<host>/ws` connects.
+- Add browser verification: Denver navigation reaches CoreScope, `/map` handoff works on desktop/mobile, CoreScope `/#/map` and `/#/live` render, map tiles and attribution appear, and live updates work.
+- Add security gates: admin/write/debug endpoints are protected or denied at the proxy, strong API keys are server-side only, CORS is not broadened unnecessarily, CSP is compatible with CoreScope assets/WebSockets, and privacy copy is updated.
+- Preserve release hygiene: pin image tag and digest, pin submodule SHA, do not use `latest`, require release notes and smoke tests for updates, and avoid local submodule edits unless intentionally upstreamed.
+- Treat Netlify as preview-only: implement redirect/fallback behavior rather than trying to run the analyzer there.
+- Plan rollback: keep old map code available until CoreScope route, data ingest, and privacy checks are verified; after launch, remove or hide the old UI deliberately.
 
 ## Risk Register
-
-| Priority | Risk | Severity | Mitigation | Source refs |
-|----------|------|----------|------------|-------------|
-| 1 | CI/deploy/Docker builds omit submodule contents. | CRITICAL | Use recursive checkout/update in CI, local setup docs/scripts, early missing-submodule checks, and runtime independence from `vendor/`. | ITEM-pitfalls-1, ITEM-architecture-10 |
-| 2 | Whole upstream Flask app is imported/proxied, fighting Next architecture. | CRITICAL | Treat upstream as source material only; build native Next routes and local adapters. | ITEM-pitfalls-3, ITEM-stack-5, ITEM-architecture-1 |
-| 3 | Serial tooling sends destructive or sensitive commands to real devices. | CRITICAL | Keep guarded command preview, block secret/private/password fields by default, explicit confirmations, expert-only expansion if needed, and no third-party scripts on serial page. | ITEM-pitfalls-5, ITEM-architecture-6 |
-| 4 | Iframe/proxy integration conflicts with CSP/security headers. | CRITICAL | Avoid iframe/proxy for main experience; do native pages; if temporary proxy is unavoidable, isolate route-specific headers. | ITEM-pitfalls-7, ITEM-prior-art-6 |
-| 5 | Parity tests lag upstream behavior changes. | CRITICAL | Make parity manifest/checks first-class CI gates; require parity reports on submodule bump PRs; use Dependabot only with tests. | ITEM-pitfalls-8, ITEM-architecture-9, ITEM-prior-art-4 |
-| 6 | Submodule pointer updates drift or land dirty gitlinks. | MODERATE | Treat updates as explicit dependency bumps; do not edit inside submodule; script SHA reporting and stale artifact checks. | ITEM-pitfalls-2, ITEM-prior-art-3 |
-| 7 | Tailwind/design regressions from copying upstream CSS/classes. | MODERATE | Rebuild with local design primitives; avoid importing upstream CSS; use narrow `@source` only if absolutely necessary. | ITEM-pitfalls-4, ITEM-stack-6, ITEM-architecture-8 |
-| 8 | Web Serial is over-promised on unsupported browsers. | MODERATE | Feature-detect `navigator.serial` and secure context; provide clear unsupported-browser and fallback messaging; test unsupported state. | ITEM-pitfalls-6, ITEM-stack-9 |
-| 9 | Unlicensed upstream code/assets are copied into parent repo. | MODERATE | Clarify upstream license before copying substantial code/assets; reimplement from requirements/tests meanwhile. | ITEM-pitfalls-9, ITEM-prior-art-1 |
-| 10 | Duplicate live-data/API paths create inconsistent operator decisions. | MODERATE | Use local `/api/map/snapshot` as canonical browser-facing data source; avoid contacts export unless re-scoped. | ITEM-pitfalls-10, ITEM-architecture-7 |
-| 11 | Upstream static/env/config files leak assumptions or trigger scans. | MODERATE | Keep submodule in scoped `vendor/`; exclude from runtime image; add secret/forbidden-file checks; avoid copying env files. | ITEM-pitfalls-11 |
+- **CRITICAL — Wrong integration model:** Importing or copying CoreScope into the Next React map will break runtime assumptions and create a fork. Mitigation: sidecar service and route handoff only. Source refs: ITEM-pitfalls-1, ITEM-stack-2, ITEM-architecture-1.
+- **CRITICAL — Missing submodule in CI/deploy:** Submodule path can be empty unless initialized. Mitigation: public HTTPS submodule, explicit init in CI/build, dedicated checker. Source refs: ITEM-pitfalls-2, ITEM-architecture-8, ITEM-prior-art-6.
+- **CRITICAL — Route/API/asset collisions:** CoreScope root-relative assets and `/api/*` calls can hit the Next app instead. Mitigation: dedicated host/subdomain or carefully designed edge proxy, not simple `/map` rewrite. Source refs: ITEM-pitfalls-5, ITEM-architecture-3.
+- **CRITICAL — CSP blocks CoreScope:** CDN scripts/styles or WebSockets can be blocked. Mitigation: vendor assets or add narrowly scoped CSP/SRI and WebSocket allowances. Source refs: ITEM-pitfalls-7.
+- **CRITICAL — WebSocket upgrade failure:** Live updates may silently fail behind proxy. Mitigation: explicit proxy upgrade headers/timeouts and `wss://.../ws` smoke test. Source refs: ITEM-pitfalls-8, ITEM-stack-5.
+- **CRITICAL — Empty/misleading Denver map:** CoreScope may ingest no Colorado packets or wrong data if broker/topics/defaults are misconfigured. Mitigation: configure MQTT sources, map defaults, region/geofilter, and verify `/api/stats` plus marker counts. Source refs: ITEM-pitfalls-9, ITEM-pitfalls-10, ITEM-stack-6.
+- **CRITICAL — Overexposure of analyzer data:** Public CoreScope may expose channels, traces, observers, coordinates, or admin surfaces beyond current expectations. Mitigation: product/privacy review, blacklists, no public channel keys, proxy denies for admin/write/debug endpoints. Source refs: ITEM-pitfalls-11, ITEM-pitfalls-12.
+- **CRITICAL — License mismatch mishandled:** README/package license conflicts with repository `LICENSE`. Mitigation: treat as GPL-3.0, preserve attribution/source links, ask upstream for clarification if permissive use matters. Source refs: ITEM-pitfalls-4, ITEM-stack-9.
+- **CRITICAL — Single-container bloat/state loss:** Combining Next and CoreScope in one image risks process supervision and persistence failures. Mitigation: separate CoreScope service and durable volume. Source refs: ITEM-pitfalls-13, ITEM-architecture-4.
+- **MODERATE — Floating release/image:** `latest` or moving branch changes production unexpectedly. Mitigation: pin submodule SHA and image digest; update via PR with smoke tests. Source refs: ITEM-pitfalls-3, ITEM-stack-12.
+- **MODERATE — Shallow health checks:** HTTP 200 can hide disconnected MQTT or empty DB. Mitigation: readiness plus stats/freshness smoke checks and backups/retention policy. Source refs: ITEM-pitfalls-14.
+- **MODERATE — Tile policy/attribution problems:** Missing attribution or excess public tile usage can violate policies. Mitigation: explicit tile config, visible attribution, paid/self-hosted provider if needed. Source refs: ITEM-pitfalls-15.
+- **MINOR — SEO/link/attribution regressions:** Existing `/map` metadata and links can become stale. Mitigation: update metadata, sitemap, navigation, and attribution during launch. Source refs: ITEM-pitfalls-17, ITEM-architecture-10.
+- **MINOR — macOS case collision in submodule docs:** CoreScope docs can collide on case-insensitive filesystems. Mitigation: do not edit upstream docs locally; rely on Linux CI/GitHub raw URLs for release verification. Source refs: ITEM-pitfalls-18.
 
 ## Conflicts & Tradeoffs
-
-1. **Upstream freshness vs. unified public-site UX.** Proxying or multi-zone routing could keep the upstream Flask experience closer to live, but it conflicts with design, CSP, deployment simplicity, and security. Native Next wrappers require translation work but preserve the host site's UX and quality gates. Side A refs: ITEM-prior-art-6, ITEM-prior-art-1. Side B refs: ITEM-stack-5, ITEM-architecture-8, ITEM-pitfalls-7.
-2. **Exact upstream parity vs. serial/device safety.** Full parity with upstream serial setup flows may include destructive or secret-sensitive commands, while the public site should default to conservative safeguards. Side A refs: ITEM-prior-art-1, ITEM-pitfalls-5. Side B refs: ITEM-architecture-6, ITEM-pitfalls-5, ITEM-stack-9.
-3. **Committed generated artifacts vs. clean repository diffs.** Committing generated artifacts improves reviewability and runtime independence, but creates churn. Regenerating only in CI reduces churn but increases reliance on submodule availability and hides behavior changes. Side A refs: ITEM-stack-7, ITEM-architecture-3, ITEM-pitfalls-8. Side B refs: ITEM-pitfalls-1, ITEM-architecture-10.
-4. **Dependabot automation vs. human review.** Dependabot submodule PRs help keep updates flowing, but cannot update wrappers or prove behavior compatibility. Side A refs: ITEM-prior-art-4. Side B refs: ITEM-pitfalls-8, ITEM-architecture-9.
-5. **Copying upstream source for speed vs. license/provenance caution.** Copying code could accelerate parity but the upstream license is unclear and direct CSS/templates could harm design consistency. Side A refs: ITEM-prior-art-1. Side B refs: ITEM-pitfalls-9, ITEM-pitfalls-4, ITEM-architecture-8.
-6. **Shared JS package future vs. current submodule adapter approach.** A future upstream JS/TS package could reduce adapter work, but the current upstream is Flask/Python and forcing workspaces now is premature. Side A refs: ITEM-prior-art-5. Side B refs: ITEM-stack-4, ITEM-pitfalls-3.
+- **Canonical `/map` vs CoreScope origin-root assumptions:** The project wants CoreScope to replace the Denver `/map`, but CoreScope is easiest and safest on a dedicated host because it owns `/api/*`, root static assets, and `/ws`. Tradeoff: a subdomain is operationally clean but less seamless; path-prefix/same-origin routing preserves URL shape but requires complex proxying and testing. Source refs: ITEM-architecture-2, ITEM-architecture-3, ITEM-stack-5, ITEM-pitfalls-5.
+- **Submodule source availability vs production image deployment:** User preference and GPL/source review favor a submodule, while production reliability favors a pinned upstream GHCR image. Resolution: do both; submodule for provenance/review/source, image digest for runtime. Source refs: ITEM-stack-3, ITEM-stack-11, ITEM-architecture-4, ITEM-pitfalls-3.
+- **Full analyzer replacement vs privacy-minimized live map:** CoreScope's strength is a rich analyzer surface, but the current map is primarily markers plus warnings. User must decide exposure level before launch. Source refs: ITEM-pitfalls-11, ITEM-prior-art-1, ITEM-prior-art-3.
+- **Strict Denver security headers vs CoreScope upstream browser dependencies:** Denver CSP and X-Frame-Options are strict; CoreScope may rely on CDN assets and WebSockets. Resolution: avoid iframe, prefer asset vendoring or scoped route/host headers. Source refs: ITEM-pitfalls-6, ITEM-pitfalls-7, ITEM-stack-7.
+- **Docker production parity vs Netlify preview expectations:** CoreScope requires persistent server runtime; Netlify previews cannot provide full parity. Resolution: Docker is canonical; previews redirect or fallback. Source refs: ITEM-stack-10, ITEM-pitfalls-2.
+- **Supplemental Codex static-artifact suggestion vs Claude research service-boundary conclusion:** Codex suggested building/copying CoreScope static output into the site if appropriate, but primary research shows CoreScope's UI depends on its Go APIs, SQLite, MQTT, and WebSocket server. Resolution: do not copy static files into Next `public/`; run CoreScope as a service. Source refs: codex-analysis.md lines 51-65, ITEM-architecture-4, ITEM-stack-2.
+- **Supplemental Codex stack suggestions vs local repo reality:** Codex suggested Node 22, pnpm, Vite, and React if applicable; local research confirms the repo is Node 24/npm/Next 16 and CoreScope is Go/vanilla JS. Resolution: keep local repo stack and CoreScope native stack. Source refs: codex-analysis.md lines 49-55, ITEM-stack-1, ITEM-stack-2.
 
 ## Confidence Assessment
-
 | Dimension | Status | Confidence | Notes |
 |-----------|--------|------------|-------|
-| stack | complete | HIGH | Clear consensus to keep existing Next.js 16 / React 19 / Tailwind 4 / TypeScript / Node 24 stack and avoid Flask in production. |
-| pitfalls | complete | HIGH | Strong risk coverage across CI/submodules, parity drift, serial safety, CSP, licensing, live data, and Docker/deploy. |
-| architecture | complete | HIGH | Clear architecture: submodule as pinned source, adapter/generator boundary, local typed artifacts, route-native UX, runtime independence. |
-| prior-art | complete | HIGH | Strong prior art from upstream app, existing local tools, official submodule/Dependabot/Next docs, and rejected alternatives. |
-| codex-analysis | missing | LOW | Optional supplemental research only; absence does not block synthesis because all four Claude research tracks are complete. |
+| stack | complete | HIGH | Strong local repo and upstream evidence; only route/proxy details need deployment-specific confirmation. |
+| pitfalls | complete | HIGH | Comprehensive critical risks identified across routing, security, data, license, CI, and operations. |
+| architecture | complete | HIGH | Clear service-boundary recommendation; host/subdomain routing is strongly supported. |
+| prior-art | complete | HIGH | CoreScope is the right canonical target; adjacent tools are useful feeders or references only. |
+| codex-analysis | complete | MEDIUM | Supplemental only; useful for broad questions but conflicts with primary evidence on stack/static artifact assumptions. |

@@ -1,39 +1,24 @@
 {
   "verdict": "APPROVED",
-  "blocking_issues": 0,
-  "reviewed_files": [
-    "/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts"
+  "blocking_issues": [],
+  "non_blocking_notes": [
+    "scripts/apply-corescope-overlay.mjs defaults to /app/corescope/public, which is Docker-oriented; Docker passes explicit paths and local verification also passes explicit paths.",
+    "Root-path WebSocket upgrades are routed to CoreScope to match its client behavior; revisit if the Next app later introduces production WebSockets at /."
   ],
-  "diff_basis": "provided_list",
-  "plan_section": "Step 4: Add route compatibility, provenance surfaces, and smoke coverage",
-  "dimensions": {
-    "plan_alignment": {
-      "score": "PASS",
-      "notes": "Implements exact public upstream utility redirects, adds generated provenance copy on /tools, updates parity coverage, and adds smoke checks as required by the step plan."
-    },
-    "correctness_safety": {
-      "score": "PASS",
-      "notes": "Redirects are limited to known GET utility page paths and do not include contacts, POST submit endpoints, static paths, or APIs. Existing CSP and X-Frame-Options headers remain intact."
-    },
-    "code_quality": {
-      "score": "PASS",
-      "notes": "Changes are small, readable, and consistent with existing Next config, page markup, manifest, and Playwright patterns."
-    },
-    "completeness": {
-      "score": "PASS",
-      "notes": "Acceptance criteria are covered: canonical routes remain unchanged, route compatibility is tested, provenance messaging is visible and linked safely, and verification commands were reported passing after a fresh production build."
-    },
-    "patterns": {
-      "score": "PASS",
-      "notes": "Uses generated local provenance via @/lib/upstream-utilities and avoids runtime vendor imports, proxying, iframes, or upstream API recreation."
-    },
-    "integration": {
-      "score": "PASS",
-      "notes": "Redirects integrate cleanly with Next config without changing global headers, and smoke tests exercise the canonical route outcomes and tools hub provenance."
-    }
-  },
-  "flags": []
+  "verification": [
+    "npm run typecheck",
+    "npm run build",
+    "docker compose config",
+    "docker run --rm -v $PWD/docker/nginx.conf:/etc/nginx/nginx.conf:ro nginx:1.27-alpine nginx -t",
+    "npm run corescope:check-submodule",
+    "npm run corescope:apply-overlay -- <tmp CoreScope public copy> corescope-overlay",
+    "docker build -t colorado-meshcore-site:corescope-step4 .",
+    "Docker smoke: / returns Next site",
+    "Docker smoke: /map returns CoreScope HTML with denvermc-default-route.js overlay",
+    "Docker smoke: /denvermc-default-route.js?v=denvermc returns overlay script containing #/live",
+    "Docker smoke: /api/config/map returns CoreScope map defaults",
+    "Docker smoke: /api/packets?limit=1 and /api/packets/timestamps?since=2020-01-01 route to CoreScope without nginx slash redirects",
+    "Docker smoke: /api/map/runtime remains served by Next compatibility API"
+  ],
+  "review_summary": "Step 4 routes /map to same-origin CoreScope, preserves Next compatibility APIs, injects a local non-submodule overlay to default /map to #/live, and replaces the non-Docker fallback copy without correctness blockers."
 }

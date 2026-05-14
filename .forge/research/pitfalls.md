@@ -1,142 +1,224 @@
-# Pitfalls Research: Submodule Utilities Integration
+# Pitfalls Research: Replacing Denver MeshCore live map with CoreScope
 
-Project: integrate `https://github.com/Colorado-Mesh/meshcore-utilities-site` as a git submodule into the existing Colorado MeshCore Next.js 16 / React 19 / Tailwind 4 public site, while redesigning the utilities experience in the local design system and keeping upstream changes pullable.
+Checked: 2026-05-13
 
-## Findings
+### ITEM-pitfalls-1: Treating CoreScope as a drop-in React component
 
-### ITEM-pitfalls-1: CI, deploy, and Docker builds silently omit submodule contents
-
-- **What goes wrong:** Local development works after adding the utilities repo, but CI, Netlify/Vercel-like builds, GitHub Actions, or Docker image builds fail because the submodule directory is empty or pinned to an unexpected commit. This repo now uses `actions/checkout@v4` with `submodules: recursive`; keep that setting in every CI job that needs generated utility parity checks.
-- **Root cause:** Git stores a submodule as a gitlink pointer plus `.gitmodules`; clone/checkout does not automatically populate submodule working trees unless configured. Docker builds also only see what is present in the build context at build time.
-- **Prevention:** Update every build entry point that needs the submodule to run recursive submodule checkout/update. In GitHub Actions, use `actions/checkout` with `submodules: recursive`; for local onboarding document `git submodule update --init --recursive`; for Docker, verify the submodule is populated before `docker build` or avoid build-time dependency on submodule contents by generating tracked fixtures/contracts.
+- **What goes wrong:** The replacement starts by importing CoreScope files into `src/components/NetworkMap.tsx` or copying CoreScope `public/*.js` into the Next.js bundle, then build/runtime breaks because CoreScope is a standalone vanilla-JS SPA backed by a Go API and WebSocket server, not a React component library.
+- **Root cause:** The current Denver site is a Next.js App Router app with a React Leaflet component under `/map`; CoreScope serves its own `public/index.html`, hash router (`#/map`, `#/live`, etc.), REST endpoints under `/api/*`, and WebSocket connections from its Go server.
+- **Prevention:** Integrate CoreScope as a sidecar application and route `/map` (or a scoped prefix) to that running service. Keep the submodule as source provenance and deployment input; do not port the UI by hand unless a separate UI implementation is delegated.
 - **Severity:** CRITICAL
-- **Phase relevance:** Phase 1 submodule setup and CI wiring; re-check before any phase that imports upstream fixtures/code at build time.
+- **Phase relevance:** Architecture and implementation planning
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase — https://github.com/actions/checkout; `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml`
-- **Checked:** 2026-05-10
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`, `/tmp/CoreScope/README.md`, `/tmp/CoreScope/public/index.html`, `/tmp/CoreScope/cmd/server/main.go`
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-2: Submodule update workflow drifts or lands dirty gitlinks
+### ITEM-pitfalls-2: Submodule exists locally but is empty in CI, Docker, or Netlify
 
-- **What goes wrong:** Developers pull upstream utility changes, see a detached HEAD inside the submodule, test against one commit, but forget to commit the updated gitlink in the parent repo. Another developer or CI then runs an older utilities revision, or the parent repo gets a dirty submodule state that is hard to review.
-- **Root cause:** `git submodule update` checks out the exact commit recorded by the superproject and commonly leaves the submodule in detached HEAD. The parent repository only tracks the submodule commit pointer, not the submodule branch state or uncommitted upstream changes.
-- **Prevention:** Treat submodule updates as explicit dependency bumps: sync, update, run parity tests, commit only the gitlink pointer and associated integration changes. Do not make local edits inside the submodule for this project; if upstream needs fixes, land them upstream first, then bump the pointer. Add a short script/check that prints the pinned upstream SHA and fails CI if required parity fixtures were not refreshed.
-- **Severity:** MODERATE
-- **Phase relevance:** Phase 1 setup, ongoing maintenance, release process.
-- **Confidence:** HIGH
-- **Source:** Official docs — https://git-scm.com/book/en/v2/Git-Tools-Submodules
-- **Checked:** 2026-05-10
-
-### ITEM-pitfalls-3: Importing the upstream app wholesale fights the Next.js architecture
-
-- **What goes wrong:** The integration tries to mount or import the upstream utilities site directly, then hits incompatible assumptions: upstream is a Flask/Jinja/static JS app (`app.py`, `templates`, `static`, Python `requirements.txt`) running on port 50000, while the target site is a Next.js App Router public site with React components, strict TypeScript, standalone output, and a local design system.
-- **Root cause:** A submodule is a source relationship, not an application integration boundary. The upstream repo is not packaged as React components or an npm workspace package; it is a standalone Python web app with its own templates, CSS, static JavaScript, endpoints, and Docker workflow.
-- **Prevention:** Use the submodule as the upstream source of truth for fixtures, algorithms, copy, schemas, and parity tests; implement the public UX natively in the Next.js app using local components and delegated `co-ui`/Opus UI for visual work. If any code is imported from outside the app root, explicitly handle Next.js `transpilePackages`/output tracing, but prefer extracting small typed local modules instead of importing app code from the submodule.
+- **What goes wrong:** Local builds work after cloning CoreScope manually, but CI/deploy builds fail or deploy an empty `/vendor/CoreScope` because the parent repository only records a gitlink and the build environment never initializes submodules.
+- **Root cause:** Git submodules are pinned commit references; normal clones can leave submodule directories empty unless `--recurse-submodules` or `git submodule update --init --recursive` is run. Docker builds copy only the initialized build context; Netlify supports submodules but has caveats around private/SSH and nested submodules.
+- **Prevention:** Add CoreScope with a public HTTPS submodule URL under `vendor/corescope`, pin a release commit, and make verification explicit: `git submodule update --init --recursive` before `npm run build` and before `docker build`. Add a repo script similar to `utilities:check-submodule` that fails when the CoreScope path is missing or detached at an unexpected SHA.
 - **Severity:** CRITICAL
-- **Phase relevance:** Architecture/design implementation before any UI porting.
+- **Phase relevance:** Repository setup, CI, deployment
 - **Confidence:** HIGH
-- **Source:** Upstream inspection + official docs — https://github.com/Colorado-Mesh/meshcore-utilities-site; https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages
-- **Checked:** 2026-05-10
+- **Source:** Official docs — https://git-scm.com/book/en/v2/Git-Tools-Submodules; https://docs.netlify.com/build/git-workflows/repo-permissions-linking/
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-4: Tailwind/design-system regressions from copying upstream CSS/classes
+### ITEM-pitfalls-3: Floating `latest` image or moving branch silently changes the map
 
-- **What goes wrong:** Utilities pages visually diverge from the Colorado MeshCore operations-console design, or styles fail in production because Tailwind v4 does not detect classes sitting inside an ignored/external submodule path. Copying upstream `static/css/*.css` can also leak global form/table/button rules that collide with the site's `globals.css` tokens and components.
-- **Root cause:** The upstream site owns its own CSS and static HTML; the target site uses a Tailwind 4 CSS-first design system with custom tokens such as `--mesh-accent`, `.panel`, `.btn-primary`, and `ToolShell`. Tailwind v4 automatic source detection intentionally ignores many external/ignored locations unless explicitly added with `@source`.
-- **Prevention:** Do not import upstream CSS wholesale. Rebuild utilities with local primitives (`ToolShell`, `ToolCard`, `HeroPanel`, `.panel`, `.card-mesh`, button classes) and use the submodule for behavior/data parity only. If a shared UI package or generated code under the submodule must provide class names, add a narrow `@source` directive and test production build/Lighthouse, but keep the default path as native local styling.
+- **What goes wrong:** Production behavior changes after a redeploy because the compose file pulls `ghcr.io/kpa-clawbot/corescope:latest` or a submodule update tracks `master` rather than a reviewed commit/release.
+- **Root cause:** CoreScope is actively releasing; GitHub showed `v3.7.2` as latest on 2026-05-06, with recent map/runtime changes. Submodules pin commits, but container tags like `latest` move.
+- **Prevention:** Pin both the submodule SHA and the runtime image tag/digest. Prefer a release tag such as `v3.7.2` after smoke testing, and update via an explicit PR that includes CoreScope release notes, API smoke tests, and map route verification.
 - **Severity:** MODERATE
-- **Phase relevance:** UI redesign and visual QA.
+- **Phase relevance:** Deployment and release management
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase — https://tailwindcss.com/docs/detecting-classes-in-source-files; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css`
-- **Checked:** 2026-05-10
+- **Source:** WebFetch — https://github.com/Kpa-clawbot/CoreScope/releases
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-5: Serial tooling can become a hardware-safety/security issue
+### ITEM-pitfalls-4: License metadata mismatch is ignored
 
-- **What goes wrong:** A well-intended parity port sends destructive or sensitive commands to real MeshCore devices: upstream serial code can generate commands such as `erase`, `set prv.key ...`, password changes, region writes, and reboot. A compromised page or XSS bug could turn browser device access into device misconfiguration. Users may not understand that one click can alter a physical node.
-- **Root cause:** Web Serial exposes an opaque byte stream to hardware, and the browser cannot determine whether a command is safe. The upstream utility's richer apply-settings path includes private-key/password fields and destructive setup flows. Public-site trust boundaries are stricter than a local bench utility.
-- **Prevention:** Keep the local guarded model already present in `src/lib/meshcore-tools/serial-settings.ts`: block private/secret/password keys by default, preview exact commands, require an explicit confirmation, apply only locally verified commands, and show unsupported fields for manual review. If full upstream parity is requested later, make it an expert-only flow with stronger warnings, audit tests, and no third-party scripts on the serial page.
+- **What goes wrong:** The site updates attribution from the old `meshcore-mqtt-live-map` GPL notice to “CoreScope MIT/ISC” based on README/package metadata, then later discovers the repository `LICENSE` is GPL-3.0.
+- **Root cause:** CoreScope has conflicting license signals: the GitHub repo and root `LICENSE` indicate GPL-3.0, while `package.json` says ISC and the README says MIT. The authoritative repository license file is GPL-3.0 unless clarified upstream.
+- **Prevention:** Treat CoreScope as GPL-3.0 for compliance until upstream clarifies. Preserve notices, publish source/submodule commit references, and avoid copying CoreScope code into proprietary/non-GPL components. Ask upstream to resolve README/package metadata before relying on a permissive interpretation.
 - **Severity:** CRITICAL
-- **Phase relevance:** Serial USB tool parity and any settings-apply work.
+- **Phase relevance:** Legal/review gate before implementation
 - **Confidence:** HIGH
-- **Source:** Upstream code + local code + spec — https://wicg.github.io/serial/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts`
-- **Checked:** 2026-05-10
+- **Source:** WebFetch — https://github.com/Kpa-clawbot/CoreScope; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/LICENSE; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/package.json
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-6: Web Serial availability is over-promised
+### ITEM-pitfalls-5: Routing CoreScope at `/map` without accounting for root-relative assets and APIs
 
-- **What goes wrong:** Operators arrive on iOS Safari, desktop Safari, Firefox stable, an insecure preview URL, or an embedded context and the serial console simply cannot connect. If this is not framed clearly, users blame the device or the Colorado MeshCore site rather than browser capability/permissions.
-- **Root cause:** Web Serial is a limited-availability powerful web API. It requires a secure context, feature detection, transient user activation for `requestPort()`, and can be blocked by Permissions Policy. Browser support is still uneven.
-- **Prevention:** Keep serial features on a dedicated client component with `typeof window`/`navigator.serial` detection, HTTPS messaging, user-gesture-only connection, clear unsupported-browser copy, and non-serial fallback content. Add/verify Playwright coverage for unsupported state and confirm that any future `Permissions-Policy` changes do not accidentally set `serial=()` on `/tools/serial-usb`.
-- **Severity:** MODERATE
-- **Phase relevance:** Serial USB UX, QA, deployment headers.
-- **Confidence:** HIGH
-- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API
-- **Checked:** 2026-05-10
-
-### ITEM-pitfalls-7: Direct iframe/proxy embedding conflicts with current security headers and CSP
-
-- **What goes wrong:** A quick integration tries to iframe `https://tools.meshcore.coloradomesh.org` or reverse-proxy the Flask app under `/tools`, then pages fail because the target site sets `X-Frame-Options: DENY` and `Content-Security-Policy: frame-ancestors 'none'` globally. Inline scripts/styles, static assets, or new network calls can also be blocked or force weakening CSP across the whole public site.
-- **Root cause:** This repo's `next.config.js` defines global hardening headers. The upstream Flask/static app expects its own root/static paths and script execution environment; embedding/proxying it changes origin, path prefix, CSP, cookies, cache, and asset assumptions.
-- **Prevention:** Avoid iframe/proxy integration for the main utilities experience. Build native routes in Next.js and only link to upstream for provenance/debug if needed. If a temporary proxy is unavoidable, isolate it under a clearly marked path with route-specific headers and never weaken the global CSP/`frame-ancestors` policy for the entire site.
+- **What goes wrong:** `/map` loads a blank page or partially styled shell because CoreScope’s HTML requests `/style.css`, `/app.js`, `/api/config/map`, `/api/nodes`, and `ws(s)://host/` from the origin root, colliding with the Denver Next app and its existing `/api/*` routes.
+- **Root cause:** CoreScope is designed to own the origin root; it uses root-relative assets/API calls and a hash router. The Denver site already uses `/map` and `/api/map/*`/`/api/live-map/*` under the same origin.
+- **Prevention:** Prefer a reverse-proxy mount on a dedicated subdomain (`map.denvermeshcore...` or `corescope...`) or run CoreScope at the site root for `/map` only with carefully rewritten asset/API/WebSocket paths. Do not proxy only `/map` and assume assets follow; test every CoreScope tab and `/api/docs` under the final URL.
 - **Severity:** CRITICAL
-- **Phase relevance:** Routing/integration design before implementation.
+- **Phase relevance:** Routing and deployment design
 - **Confidence:** HIGH
-- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; https://nextjs.org/docs/app/guides/content-security-policy
-- **Checked:** 2026-05-10
+- **Source:** Local code — `/tmp/CoreScope/public/index.html`, `/tmp/CoreScope/public/app.js`, `/tmp/CoreScope/cmd/server/routes.go`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/*`
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-8: Parity tests lag upstream behavior changes
+### ITEM-pitfalls-6: Existing security headers block iframe-based embedding
 
-- **What goes wrong:** The UI looks integrated, but upstream changes to naming rules, region lists, recommended settings, public-key collision logic, or serial command schemas are not reflected. Operators then generate names/configs that differ from the canonical utility site, and the submodule exists in the repo without actually preserving updateability.
-- **Root cause:** A submodule pointer alone does not create behavioral parity. The current repo has a useful `PARITY_MANIFEST`, unit tests, and e2e coverage, but no automated guarantee that every upstream bump refreshes local fixtures and compares expected outputs against the newly pinned upstream commit.
-- **Prevention:** Promote parity to a first-class quality gate: maintain a manifest entry per upstream capability, import or snapshot upstream static data (`recommended_settings.json`, `regions.json`, `default_serial_commands.json`, schemas), write golden tests for naming/config/prefix behavior, and require a parity report in every submodule bump PR. Use Dependabot's `gitsubmodule` ecosystem or a scheduled workflow to open reviewable pointer bumps instead of silent manual updates.
+- **What goes wrong:** A quick integration uses `<iframe src="...CoreScope...">`, but the frame is blocked by `X-Frame-Options: DENY` or by CSP `frame-ancestors 'none'`; if the iframe points cross-origin, additional CSP and cookie/origin problems appear.
+- **Root cause:** The Denver Next config and Netlify config intentionally deny framing for every path. CoreScope itself is a full application, not a widget.
+- **Prevention:** Do not use iframe embedding as the primary replacement. Use reverse proxy/routing so CoreScope is the page response for the canonical map route, or explicitly scope header exceptions only if a temporary iframe is unavoidable and reviewed.
+- **Severity:** MODERATE
+- **Phase relevance:** UX/routing implementation
+- **Confidence:** HIGH
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-7: Content Security Policy blocks CoreScope’s CDN dependencies and WebSocket
+
+- **What goes wrong:** CoreScope’s map page renders without Leaflet, heatmap, Chart.js, Swagger UI, or live updates because Denver’s CSP currently allows scripts from `'self'` only and connect hosts are limited to known analyzer/map sources.
+- **Root cause:** CoreScope `public/index.html` loads Leaflet, `leaflet-heat`, Chart.js, and Swagger UI from `unpkg.com`; its client opens a WebSocket to the same host, and map tiles come from CARTO. The current site CSP does not include `https://unpkg.com` in `script-src`/`style-src`.
+- **Prevention:** Prefer vendoring CoreScope’s third-party browser assets into the CoreScope image/submodule so production CSP can remain mostly `self`. If using CDN assets, explicitly add pinned CDN hosts plus SRI verification and add `wss:`/same-origin WebSocket allowance for the CoreScope route.
 - **Severity:** CRITICAL
-- **Phase relevance:** Test strategy and maintenance workflow.
+- **Phase relevance:** Security headers and deployment verification
 - **Confidence:** HIGH
-- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories
-- **Checked:** 2026-05-10
+- **Source:** Local code and official docs — `/tmp/CoreScope/public/index.html`; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy; https://leafletjs.com/download.html
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-9: Unlicensed upstream code gets copied into the public site
+### ITEM-pitfalls-8: WebSocket upgrade is lost through the reverse proxy
 
-- **What goes wrong:** The team copies substantial upstream JavaScript/Python/CSS/templates into the Next.js app, then later discovers the upstream repo has no visible license metadata. This creates unclear redistribution/derivative-work rights for the public site even if both repos are under related community ownership.
-- **Root cause:** GitHub reports no license for `Colorado-Mesh/meshcore-utilities-site`, and no visible `LICENSE` file appeared in repository inspection. A submodule link preserves provenance, but copying code into the parent repo is a different legal/compliance posture.
-- **Prevention:** Before copying substantial implementation code, ask upstream maintainers to add an explicit license compatible with this repo. Until then, treat the submodule as a referenced upstream artifact: link to it, read fixtures for parity if project governance allows, and reimplement behavior locally from requirements/tests rather than wholesale copying source.
-- **Severity:** MODERATE
-- **Phase relevance:** Before code porting and PR review.
+- **What goes wrong:** CoreScope loads initially but the live packet feed, nav pulse, and map refresh never update; browser console shows WebSocket close/reconnect loops.
+- **Root cause:** CoreScope opens `new WebSocket(`${proto}//${location.host}`)` and its Go server upgrades WebSocket requests at `/ws` and also any static path with `Upgrade: websocket`. Reverse proxies must forward `Upgrade` and `Connection` headers and preserve the expected path/host.
+- **Prevention:** Configure the deployment proxy with HTTP/1.1 WebSocket upgrade headers and long timeouts. Smoke test `wss://<final-host>/ws` and browser live updates, not just HTTP `/api/stats`.
+- **Severity:** CRITICAL
+- **Phase relevance:** Deployment and operations
 - **Confidence:** HIGH
-- **Source:** Upstream repository metadata — https://github.com/Colorado-Mesh/meshcore-utilities-site
-- **Checked:** 2026-05-10
+- **Source:** Local code and CoreScope docs — `/tmp/CoreScope/public/app.js`, `/tmp/CoreScope/cmd/server/main.go`, `/tmp/CoreScope/cmd/server/websocket.go`, `/tmp/CoreScope/docs/deployment.md`
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-10: Duplicate live-data/API paths create inconsistent operator decisions
+### ITEM-pitfalls-9: Data compatibility assumptions produce an empty or misleading map
 
-- **What goes wrong:** Prefix suggestions, matrix occupancy, repeater conflicts, and stats disagree between `/map`, `/tools/prefix-matrix`, and any proxied upstream utility because each path fetches or normalizes network data differently. Operators may pick a prefix that appears free in one tool but occupied in another.
-- **Root cause:** The upstream Flask app calls `coloradomesh.meshcore.services.nodes.get_colorado_nodes()` server-side and exposes a `/contacts` export; the local site already has canonical live-map snapshot/client code, map normalization, rate limiting, diagnostics, and a decision to keep contacts export out-of-scope. Running both data paths in the same public site duplicates freshness, cache, auth/rate-limit, and privacy decisions.
-- **Prevention:** Use the local `/api/map/snapshot` contract as the single browser-facing source for prefix matrix and conflict checks. If upstream algorithms are needed, port them to operate on the local normalized snapshot types. Keep contacts export out unless explicitly re-scoped with privacy/rate-limit review.
-- **Severity:** MODERATE
-- **Phase relevance:** Prefix matrix, naming conflict checks, API integration.
+- **What goes wrong:** The replacement is deployed but shows no Denver nodes, stale Bay Area defaults, or only packet analytics without the expected current map markers.
+- **Root cause:** The Denver map currently consumes normalized node snapshots from `MESHCORE_LIVE_MAP_API_URL` (defaulting to the Colorado analyzer `/api/nodes`). CoreScope expects to ingest MeshCore packets from MQTT topics such as `meshcore/+/+/packets`, stores SQLite state, and exposes its own `/api/nodes` contract. Node fields are similar but not identical.
+- **Prevention:** Decide explicitly whether CoreScope will ingest Denver MQTT directly or be adapted to the existing Colorado analyzer feed. Configure MQTT sources, topics, region/default center, and geofilter for Colorado before routing users. Verify with CoreScope `/api/stats`, `/api/nodes?limit=...`, and visible marker counts.
+- **Severity:** CRITICAL
+- **Phase relevance:** Data integration and acceptance testing
 - **Confidence:** HIGH
-- **Source:** Upstream code + codebase — https://github.com/Colorado-Mesh/meshcore-utilities-site; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`
-- **Checked:** 2026-05-10
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`, `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/docs/api-spec.md`
+- **Checked:** 2026-05-13
 
-### ITEM-pitfalls-11: Upstream static assets/config leak secrets or environment assumptions
+### ITEM-pitfalls-10: Region/geofilter defaults leak Bay Area assumptions into Denver
 
-- **What goes wrong:** Adding the upstream repo as a submodule accidentally introduces files such as `.env`, Docker Compose settings, or service configuration into build contexts, scans, or review diffs. Even if the current upstream `.env` is benign, reviewers now have to reason about a nested repository with separate ignore rules and deployment assumptions.
-- **Root cause:** Upstream's tree includes `.env`, Dockerfile/Compose, Flask runtime files, static data, and Python dependencies. A submodule preserves upstream contents exactly; the parent repo's `.gitignore` and npm audit do not automatically govern the nested project in the same way they govern local app code.
-- **Prevention:** Place the submodule in a clearly scoped path such as `vendor/meshcore-utilities-site` or `upstream/meshcore-utilities-site`, exclude it from Docker COPY/build steps unless required, and add explicit CI checks for forbidden files/secrets in both parent and submodule. Do not commit generated `.forge` artifacts or copied upstream env files as part of the implementation.
+- **What goes wrong:** Jump buttons, map center, filters, or geo filtering default to SJC/SFO/OAK/MRY and Bay Area coordinates, confusing Denver users or dropping/flagging Colorado packets as foreign.
+- **Root cause:** CoreScope’s example config and README are Bay Area/SJC-oriented. Its `defaultRegion`, `regions`, `mapDefaults`, `observerIATAWhitelist`, `iataFilter`, and optional `geo_filter` all influence ingestion and UI.
+- **Prevention:** Create a Denver-specific `/app/data/config.json` with Colorado map center/zoom, Denver/Colorado region labels, correct MQTT IATA filters (or none if not used), and reviewed geo-filter behavior. Include a test fixture or live smoke check proving Colorado nodes survive ingestion.
 - **Severity:** MODERATE
-- **Phase relevance:** Submodule placement, Docker/deploy, security review.
-- **Confidence:** MEDIUM
-- **Source:** Upstream inspection + codebase — https://github.com/Colorado-Mesh/meshcore-utilities-site; `/Users/cjvana/Documents/GitHub/denvermc-org/.gitignore`
-- **Checked:** 2026-05-10
+- **Phase relevance:** Configuration and UX acceptance
+- **Confidence:** HIGH
+- **Source:** Local code — `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/cmd/server/config.go`, `/tmp/CoreScope/public/map.js`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-11: Public analyzer exposes more sensitive data than the current live map
+
+- **What goes wrong:** Replacing the map unintentionally publishes packet feeds, channel messages, observer health, route traces, node analytics, exact coordinates, and possibly decrypted group chat beyond what users expected from the existing marker map.
+- **Root cause:** CoreScope is a full packet/network analyzer with channels, packet feed, observers, traces, live route visualization, and channel decryption features. The current `/map` page primarily warns about exact marker coordinates, not full packet analytics exposure.
+- **Prevention:** Make a product/security decision before launch: either expose the full analyzer intentionally, limit routing/navigation to map-only surfaces, or deploy CoreScope behind access controls. Configure `nodeBlacklist`, `observerBlacklist`, channel keys, and write/admin API keys carefully; update privacy copy and operator consent language.
+- **Severity:** CRITICAL
+- **Phase relevance:** Scope, security review, launch readiness
+- **Confidence:** HIGH
+- **Source:** CoreScope README and local config — `/tmp/CoreScope/README.md`, `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/docs/api-spec.md`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-12: Write/admin endpoints are accidentally exposed
+
+- **What goes wrong:** Public users can post packets, hit debug/admin endpoints, or infer operational internals; alternatively, legitimate ingestion fails because the API key is left as the weak example value and is rejected/unsafe.
+- **Root cause:** CoreScope has public read endpoints plus API-key-protected write/admin routes such as `POST /api/packets`, `/api/perf/reset`, `/api/admin/prune`, `/api/debug/affinity`, and `/api/backup`. Its config rejects weak default keys, but proxy routing can still expose endpoints broadly.
+- **Prevention:** Set a strong API key if any write/admin route is needed, keep it server-side only, and consider reverse-proxy rules that deny public access to admin/debug/write endpoints. Avoid enabling broad CORS; default CoreScope CORS is same-origin unless configured.
+- **Severity:** CRITICAL
+- **Phase relevance:** Security review and deployment
+- **Confidence:** HIGH
+- **Source:** Local code — `/tmp/CoreScope/cmd/server/routes.go`, `/tmp/CoreScope/cmd/server/config.go`, `/tmp/CoreScope/cmd/server/cors.go`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-13: Collapsing CoreScope into the existing Next Docker image bloats or breaks deployment
+
+- **What goes wrong:** The existing `node:24-alpine` Next standalone Dockerfile is modified to build Go, run Mosquitto, Caddy, SQLite, and Next in one container, causing image bloat, process supervision issues, or missing persistent state.
+- **Root cause:** Denver’s current Dockerfile is a single Next.js standalone runtime. CoreScope’s image is a multi-stage Go build with an Alpine runtime that includes Mosquitto, Caddy, supervisor, SQLite persistence under `/app/data`, and exposed ports 80/443/1883.
+- **Prevention:** Run CoreScope as a separate service/container and route to it from the edge/reverse proxy. Preserve a persistent volume for `/app/data`; do not make SQLite ephemeral inside the web image.
+- **Severity:** CRITICAL
+- **Phase relevance:** Deployment architecture
+- **Confidence:** HIGH
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`, `/tmp/CoreScope/Dockerfile`, `/tmp/CoreScope/docs/deployment.md`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-14: Health check only verifies HTTP, not readiness or data freshness
+
+- **What goes wrong:** Deploy marks CoreScope healthy while the in-memory packet store is still warming, MQTT is disconnected, or the DB is empty/locked; users see stale or empty map data.
+- **Root cause:** CoreScope has `/api/healthz` gated on background initialization and `/api/stats` for counts; its deployment docs mention health checks, but a shallow HTTP 200 check can miss ingestion and data freshness problems. SQLite can also lock or grow with retention settings.
+- **Prevention:** Use `/api/healthz` for readiness, `/api/stats` for runtime counts, and an operator smoke test that checks recent packets/nodes for the Colorado source. Configure retention, memory limits, DB backups, and single-writer deployment.
+- **Severity:** MODERATE
+- **Phase relevance:** Observability and operations
+- **Confidence:** HIGH
+- **Source:** Local code and docs — `/tmp/CoreScope/cmd/server/healthz.go`, `/tmp/CoreScope/docs/deployment.md`, `/tmp/CoreScope/config.example.json`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-15: Map tile provider policy and attribution are treated as cosmetic
+
+- **What goes wrong:** The public map violates tile service policy, gets blocked, or ships missing/incorrect attribution after replacing Denver’s existing tile config with CoreScope defaults.
+- **Root cause:** Denver currently normalizes tile URL/attribution via runtime env. CoreScope defaults to CARTO basemaps and OSM attribution strings; OSM tile policy requires visible attribution, valid Referer/User-Agent behavior, caching, and prohibits bulk/pre-seeded/offline tile downloading.
+- **Prevention:** Keep tile provider configuration explicit in CoreScope config, preserve attribution in the map UI, avoid tile proxying unless headers/caching identify the app correctly, and use a commercial/self-hosted provider if expected traffic exceeds public tile norms.
+- **Severity:** MODERATE
+- **Phase relevance:** Deployment, UX, compliance
+- **Confidence:** HIGH
+- **Source:** Official docs and local code — https://operations.osmfoundation.org/policies/tiles/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`; `/tmp/CoreScope/public/roles.js`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-16: SSR/browser-only map code is reintroduced during any partial port
+
+- **What goes wrong:** A partial “native Next” port of CoreScope’s map code fails with `window is not defined`, Leaflet DOM access errors, hydration mismatch, or broken marker assets.
+- **Root cause:** Leaflet and React Leaflet are browser/DOM-dependent. The current Denver map avoids SSR problems by using a client wrapper and dynamic import; CoreScope is plain browser JavaScript loaded by an HTML page.
+- **Prevention:** If any native Next integration remains, keep map code behind a Client Component with `next/dynamic(..., { ssr: false })` inside a client file, or avoid porting and proxy the CoreScope SPA. Do not import Leaflet/CoreScope browser modules from Server Components.
+- **Severity:** MODERATE
+- **Phase relevance:** Frontend implementation
+- **Confidence:** HIGH
+- **Source:** Official docs and local code — https://nextjs.org/docs/app/guides/lazy-loading; https://react-leaflet.js.org/docs/start-introduction/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMapWrapper.tsx`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-17: Existing `/map` SEO, metadata, and compatibility links disappear without redirects/attribution updates
+
+- **What goes wrong:** External links to `/map`, metadata, JSON-LD license attribution, sitemap coverage, and current copy all become stale or inconsistent after swapping in CoreScope.
+- **Root cause:** The current `/map` page is a Next route with metadata, schema, breadcrumbs, source attribution for the old GPL live-map upstream, and explanatory operator content. A reverse-proxied CoreScope SPA will bypass most of that page shell.
+- **Prevention:** Preserve `/map` as the canonical URL but update metadata/sitemap/attribution at the edge or via a lightweight landing wrapper if needed. Replace old `meshcore-mqtt-live-map` attribution with CoreScope provenance and provide source links to this repository plus the submodule commit.
+- **Severity:** MINOR
+- **Phase relevance:** Launch polish and compliance
+- **Confidence:** HIGH
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/sitemap.ts`
+- **Checked:** 2026-05-13
+
+### ITEM-pitfalls-18: Case-insensitive filesystem collisions in the CoreScope submodule are missed
+
+- **What goes wrong:** macOS developers see warnings or missing docs because CoreScope currently contains case-colliding paths (`docs/DEPLOYMENT.md` and `docs/deployment.md`), which can lead to confusing diffs or incomplete local inspection on case-insensitive filesystems.
+- **Root cause:** Git can track case-distinct filenames, but default macOS filesystems cannot materialize both in the working tree. The local clone produced a collision warning.
+- **Prevention:** Avoid editing CoreScope docs from this repository and perform release verification in Linux CI. If docs must be referenced, use GitHub/raw URLs rather than relying on both files existing locally on macOS.
+- **Severity:** MINOR
+- **Phase relevance:** Developer workflow and review
+- **Confidence:** HIGH
+- **Source:** Local clone observation — `git clone https://github.com/Kpa-clawbot/CoreScope.git /tmp/CoreScope` warning on 2026-05-13
+- **Checked:** 2026-05-13
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-pitfalls-1 | HIGH | Official docs + codebase | https://github.com/actions/checkout; `/Users/cjvana/Documents/GitHub/denvermc-org/.github/workflows/ci.yml` |
-| ITEM-pitfalls-2 | HIGH | Official docs | https://git-scm.com/book/en/v2/Git-Tools-Submodules |
-| ITEM-pitfalls-3 | HIGH | Upstream inspection + official docs | https://github.com/Colorado-Mesh/meshcore-utilities-site; https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages |
-| ITEM-pitfalls-4 | HIGH | Official docs + codebase | https://tailwindcss.com/docs/detecting-classes-in-source-files; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css` |
-| ITEM-pitfalls-5 | HIGH | Upstream code + local code + spec | https://wicg.github.io/serial/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts` |
-| ITEM-pitfalls-6 | HIGH | Official docs | https://developer.mozilla.org/en-US/docs/Web/API/Web_Serial_API |
-| ITEM-pitfalls-7 | HIGH | Codebase + official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; https://nextjs.org/docs/app/guides/content-security-policy |
-| ITEM-pitfalls-8 | HIGH | Codebase + official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories |
-| ITEM-pitfalls-9 | HIGH | Upstream repository metadata | https://github.com/Colorado-Mesh/meshcore-utilities-site |
-| ITEM-pitfalls-10 | HIGH | Upstream code + codebase | https://github.com/Colorado-Mesh/meshcore-utilities-site; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts` |
-| ITEM-pitfalls-11 | MEDIUM | Upstream inspection + codebase | https://github.com/Colorado-Mesh/meshcore-utilities-site; `/Users/cjvana/Documents/GitHub/denvermc-org/.gitignore` |
+| ITEM-pitfalls-1 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`; `/tmp/CoreScope/README.md`; `/tmp/CoreScope/public/index.html` |
+| ITEM-pitfalls-2 | HIGH | Official docs | https://git-scm.com/book/en/v2/Git-Tools-Submodules; https://docs.netlify.com/build/git-workflows/repo-permissions-linking/ |
+| ITEM-pitfalls-3 | HIGH | WebFetch | https://github.com/Kpa-clawbot/CoreScope/releases |
+| ITEM-pitfalls-4 | HIGH | WebFetch | https://github.com/Kpa-clawbot/CoreScope; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/LICENSE; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/package.json |
+| ITEM-pitfalls-5 | HIGH | Local code | `/tmp/CoreScope/public/index.html`; `/tmp/CoreScope/public/app.js`; `/tmp/CoreScope/cmd/server/routes.go` |
+| ITEM-pitfalls-6 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml` |
+| ITEM-pitfalls-7 | HIGH | Official docs + local code | https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy; https://leafletjs.com/download.html; `/tmp/CoreScope/public/index.html` |
+| ITEM-pitfalls-8 | HIGH | Local code + docs | `/tmp/CoreScope/public/app.js`; `/tmp/CoreScope/cmd/server/websocket.go`; `/tmp/CoreScope/docs/deployment.md` |
+| ITEM-pitfalls-9 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; `/tmp/CoreScope/docs/api-spec.md` |
+| ITEM-pitfalls-10 | HIGH | Local code | `/tmp/CoreScope/config.example.json`; `/tmp/CoreScope/cmd/server/config.go`; `/tmp/CoreScope/public/map.js` |
+| ITEM-pitfalls-11 | HIGH | Local code + README | `/tmp/CoreScope/README.md`; `/tmp/CoreScope/config.example.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx` |
+| ITEM-pitfalls-12 | HIGH | Local code | `/tmp/CoreScope/cmd/server/routes.go`; `/tmp/CoreScope/cmd/server/config.go`; `/tmp/CoreScope/cmd/server/cors.go` |
+| ITEM-pitfalls-13 | HIGH | Local code + docs | `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`; `/tmp/CoreScope/Dockerfile`; `/tmp/CoreScope/docs/deployment.md` |
+| ITEM-pitfalls-14 | HIGH | Local code + docs | `/tmp/CoreScope/cmd/server/healthz.go`; `/tmp/CoreScope/docs/deployment.md`; `/tmp/CoreScope/config.example.json` |
+| ITEM-pitfalls-15 | HIGH | Official docs + local code | https://operations.osmfoundation.org/policies/tiles/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`; `/tmp/CoreScope/public/roles.js` |
+| ITEM-pitfalls-16 | HIGH | Official docs + local code | https://nextjs.org/docs/app/guides/lazy-loading; https://react-leaflet.js.org/docs/start-introduction/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMapWrapper.tsx` |
+| ITEM-pitfalls-17 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/sitemap.ts` |
+| ITEM-pitfalls-18 | HIGH | Local clone observation | `/tmp/CoreScope` clone warning |

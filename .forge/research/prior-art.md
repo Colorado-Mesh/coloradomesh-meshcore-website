@@ -1,116 +1,140 @@
-# Prior Art Research: Submodule-backed Utility Suite Integration
+# Prior Art Research: CoreScope Live Map Replacement
 
-Project context: integrate `https://github.com/Colorado-Mesh/meshcore-utilities-site` into the existing Colorado MeshCore Next.js public site while preserving upstream update flow, the current design system, and public-site quality standards.
+Project: Replace the Denver MeshCore site's current live map experience with CoreScope, preferably as a git submodule under `vendor/` and integrated into the existing brownfield deployment.
 
-### ITEM-prior-art-1: Upstream `Colorado-Mesh/meshcore-utilities-site` Flask utility app
+### ITEM-prior-art-1: CoreScope upstream is the strongest canonical replacement
 
-- **URL:** https://github.com/Colorado-Mesh/meshcore-utilities-site
-- **What it does well:** Provides the authoritative upstream utilities as a small Flask app with clear feature boundaries: repeater configuration generator, companion configuration generator, prefix matrix browser, serial USB command console, `/contacts` data endpoint, Docker support, and route-level organization under `backend/api/routes/*`. It already supports reverse-proxy deployment concerns through `ProxyFix`, `APPLICATION_ROOT`, `PREFERRED_URL_SCHEME`, and `SERVER_NAME`, which makes path-prefix hosting more feasible than a static-only legacy app.
-- **What it lacks:** It is not a React/Next package and does not expose components or TypeScript modules that can be directly rendered inside the brownfield Next.js app. The UI is server-rendered Jinja templates plus static CSS/JS, has no declared license in GitHub metadata, includes a committed `.env` path in the repository tree, and uses Python dependencies (`Flask==3.1.2`, `pydantic==2.12.5`, `objectrest==2.0.0`, `coloradomesh==0.11.1`) that would add a second runtime if proxied rather than ported.
-- **What we can learn:** Treat this repo as the upstream source-of-truth for behavior, data files, command schemas, and API contracts, not as a drop-in UI. The safest integration is to add it as a submodule under a vendor/upstream path, create thin Next.js-native wrappers that preserve the site design, and add parity checks/scripts that compare the Next implementation against upstream routes/data/assets. Avoid directly iframe-embedding the Flask UI unless update speed is more important than brand/a11y quality.
-- **License:** No license detected in GitHub repository metadata; clarify before copying code/data beyond submodule reference.
+- **URL:** https://github.com/Kpa-clawbot/CoreScope
+- **What it does well:** CoreScope is an actively maintained, self-hosted MeshCore analyzer with MQTT ingestion, real-time packet decoding, live packet feed, map/live views, channel chat, packet tracing, node analytics, observers, OpenAPI docs, and prebuilt GHCR Docker images for amd64/arm64. Its architecture is purpose-built for an analyzer replacement: Go ingestor + Go HTTP server + SQLite persistence + in-memory indexed packet store + vanilla JS frontend.
+- **What it lacks:** It is a full standalone application, not a drop-in React/Next component. Submodule integration should therefore treat it as an upstream service/artifact, not code to inline into the Next.js app. License metadata conflicts in upstream docs: GitHub metadata and `LICENSE` are GPL-3.0, while README currently says MIT; treat it as GPL-3.0 until upstream clarifies.
+- **What we can learn:** Use CoreScope as the canonical analyzer/live-map runtime, preferably mounted as `vendor/CoreScope` and deployed as a sidecar/service behind the Denver site or reverse proxy. Avoid porting its UI into the Next app by hand; link, proxy, iframe, or route traffic to the CoreScope service and keep Denver-specific shell work minimal.
+- **License:** GPL-3.0 based on GitHub license metadata and repository `LICENSE`; README has contradictory MIT text.
 - **Confidence:** HIGH
-- **Source:** GitHub CLI — https://github.com/Colorado-Mesh/meshcore-utilities-site
-- **Checked:** 2026-05-10
+- **Source:** GitHub CLI + README/LICENSE — https://github.com/Kpa-clawbot/CoreScope
+- **Checked:** 2026-05-13
 
-### ITEM-prior-art-2: Existing `denvermc-org` Next.js tool implementation
+### ITEM-prior-art-2: CoreScope public instance and OpenAPI spec provide a live contract to integrate against
 
-- **URL:** file:///Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx
-- **What it does well:** The current site already has branded, route-native tool pages (`/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, `/tools/serial-usb`) and a shared `ToolShell` that gives consistent hero, breadcrumbs, panels, aside content, and navigation. Supporting libraries already exist under `src/lib/meshcore-tools`, `src/lib/meshcore-data`, and `src/lib/parity`, which is strong prior art for an adapter/parity approach instead of replacing the UX wholesale.
-- **What it lacks:** The existing implementation is not yet connected to a live upstream submodule, so future upstream Flask/data/tool changes can drift unless there is an explicit update workflow, provenance manifest, and failing parity tests. It also cannot automatically absorb upstream Jinja/JS behavior without deliberate translation or adapter generation.
-- **What we can learn:** Preserve the existing Next.js routes and design system as the user-facing surface. Add the submodule as a versioned upstream input and make synchronization observable: a manifest showing upstream commit, copied/generated assets, and parity coverage. This fits the brownfield constraint better than routing users to a separate Flask UI.
-- **License:** Existing site license is repository-local; upstream utility license still needs clarification.
-- **Confidence:** HIGH
-- **Source:** Codebase Read — /Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx and /Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/ToolShell.tsx
-- **Checked:** 2026-05-10
-
-### ITEM-prior-art-3: Git submodule as pinned upstream source
-
-- **URL:** https://git-scm.com/docs/git-submodule.html
-- **What it does well:** Git submodules are the native Git mechanism for keeping an external repository inside a superproject while pinning it to an exact commit. `.gitmodules` records path and URL; `git submodule update --init --recursive` clones and checks out the commit expected by the parent repo; `git submodule update --remote` can intentionally advance to the configured upstream branch; `git submodule status` exposes drift.
-- **What it lacks:** Submodules are not automatically updated by normal pulls unless developers remember submodule commands or clone with recursion. They usually check out a detached HEAD, are easy to leave uninitialized in local/CI environments, and do not solve UI adaptation by themselves.
-- **What we can learn:** Use a submodule because the project explicitly requires upstream pull-forward behavior and exact provenance. Put it in an obviously non-app path such as `vendor/meshcore-utilities-site` or `upstream/meshcore-utilities-site`; never import it as if it were first-party Next code. Add README/script guidance and CI checks that fail when the submodule is uninitialized or the parity manifest does not match the submodule commit.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** Official docs — https://git-scm.com/docs/git-submodule.html
-- **Checked:** 2026-05-10
-
-### ITEM-prior-art-4: Dependabot `gitsubmodule` updates
-
-- **URL:** https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories
-- **What it does well:** GitHub Dependabot supports the `gitsubmodule` package ecosystem. A scheduled `dependabot.yml` entry can raise pull requests when the submodule has upstream commits, which is the cleanest low-maintenance mechanism for “keep receiving updates” without silently changing production behavior.
-- **What it lacks:** Dependabot can advance the submodule pointer, but it cannot rewrite the Next.js wrappers, resolve behavior changes, or prove parity. It also needs CI coverage to tell maintainers whether a generated update is safe.
-- **What we can learn:** Configure weekly or manual Dependabot submodule PRs and require the site’s lint/typecheck/test/parity checks on those PRs. Prefer PR-based updates over automatic branch tracking in production so upstream utility changes are reviewed before release.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** Official docs — https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories and https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-- **Checked:** 2026-05-10
-
-### ITEM-prior-art-5: Next.js `transpilePackages` plus npm workspaces/package extraction
-
-- **URL:** https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages
-- **What it does well:** Next.js 16 documentation states `transpilePackages` can automatically transpile and bundle dependencies from local packages, monorepos, or external dependencies, replacing `next-transpile-modules`. npm workspaces can symlink local packages into root `node_modules` and run scripts across workspaces. This is strong prior art if upstream eventually exposes a JS/TS package of shared utility logic or data.
-- **What it lacks:** The current upstream is a Flask/Jinja/static-JS app, not an npm workspace package. Converting it into a package would require upstream cooperation or a fork/adapter layer, and it may weaken the required submodule relationship if treated as a normal dependency.
-- **What we can learn:** Do not start by forcing the Flask app into a workspace. Instead, make the submodule the upstream input and optionally add an internal package later only for generated/extracted data or pure logic. If upstream maintainers are willing, propose a future `packages/meshcore-utilities-core` JS/TS package; then consume it with `transpilePackages` while preserving branded Next pages.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** Official docs — https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages and https://docs.npmjs.com/cli/v11/using-npm/workspaces
-- **Checked:** 2026-05-10
-
-### ITEM-prior-art-6: Next.js Multi-Zones for independently deployed apps
-
-- **URL:** https://nextjs.org/docs/app/guides/multi-zones
-- **What it does well:** Next.js Multi-Zones are an official micro-frontend pattern for serving multiple independently developed/deployed apps under one domain and path space. They use rewrites/proxy routing, unique path ownership, and `assetPrefix` to avoid `_next` asset conflicts. Next.js docs explicitly note that zones can use their own framework choices and that cross-zone links should use normal `<a>` tags because soft navigation does not work across zones.
-- **What it lacks:** Multi-Zones are optimized for multiple Next.js apps, not directly for a Flask/Jinja utility app embedded in a single Next build. Cross-zone navigation is a hard navigation, design consistency is not automatic, and deployment must operate two services if the Flask app remains live.
-- **What we can learn:** Keep this as the fallback architecture if immediate upstream freshness beats unified UX: deploy the Flask utilities separately and rewrite `/tools/upstream/*` to it. For the stated project, prefer a native Next wrapper fed by the submodule; Multi-Zones/proxying should be an escape hatch for tools that cannot be ported safely, not the default.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** Official docs — https://nextjs.org/docs/app/guides/multi-zones
-- **Checked:** 2026-05-10
-
-### ITEM-prior-art-7: Sanity Studio embedded in Next.js as a route-wrapped client app
-
-- **URL:** https://www.sanity.io/docs/nextjs/embedding-sanity-studio-in-nextjs
-- **What it does well:** Sanity’s documented Next.js integration embeds a separately maintained React app inside an App Router route using a catch-all route (`src/app/studio/[[...tool]]/page.tsx`), a client boundary config with a matching `basePath`, exported metadata/viewport, and a wrapper component (`<NextStudio config={studioConfig} />`). It demonstrates a clean shell route boundary for a complex tool while keeping it under the host app’s routing.
-- **What it lacks:** This works because Sanity provides a React/Next-compatible wrapper. The MeshCore utilities repo does not currently publish an equivalent React wrapper, so this pattern cannot be applied literally without creating and maintaining that adapter.
-- **What we can learn:** If we build a wrapper, use this shape: a stable `/tools/...` route boundary, explicit base path, clear metadata, and a host-owned shell. The utility implementation should be mounted inside branded page chrome, but data fetching/side effects should remain localized to the tool boundary.
-- **License:** N/A
+- **URL:** https://analyzer.00id.net/api/docs
+- **What it does well:** The public instance exposes product navigation for Map, Live, Packets, Channels, Nodes, Traces, Observers, Analytics, and Perf. Its OpenAPI spec documents REST endpoint groups for stats, health, nodes, observers, packets, traces, channels, analytics, config, cache, theme, and region data.
+- **What it lacks:** The fetched OpenAPI paths did not expose a WebSocket/SSE endpoint, so REST docs alone are not enough to implement real-time push integration. CoreScope's README claims WebSocket broadcast, but consumers should verify the route from source or runtime before proxying it.
+- **What we can learn:** During implementation, use `/api/spec` as the compatibility gate for REST integrations and smoke tests. For the Denver site, REST endpoints can replace or supplement existing `/api/map/*` and `/api/live-map/*` polling paths, while WebSocket routing should be validated separately from CoreScope source/runtime.
+- **License:** N/A for live service; upstream project license applies.
 - **Confidence:** MEDIUM
-- **Source:** Vendor docs — https://www.sanity.io/docs/nextjs/embedding-sanity-studio-in-nextjs
-- **Checked:** 2026-05-10
+- **Source:** WebFetch — https://analyzer.00id.net/api/spec
+- **Checked:** 2026-05-13
 
-### ITEM-prior-art-8: Git subtree/vendor copy as an alternative update model
+### ITEM-prior-art-3: Denver's current live map is a mature local integration but should be retired as UI
 
-- **URL:** https://www.atlassian.com/git/tutorials/git-subtree
-- **What it does well:** Git subtree/vendor-copy approaches keep external code physically present in the main repository so a normal clone has all files without submodule initialization. This can simplify local onboarding and deployment platforms that do not fetch submodules reliably.
-- **What it lacks:** Subtree history and update commands are harder to reason about, upstream provenance can become less obvious, and the project constraint explicitly asks for a submodule-based relationship. A one-time vendor copy also makes future upstream updates easier to forget.
-- **What we can learn:** Reject subtree for this project’s primary integration because it conflicts with the stated submodule constraint. Borrow only the operational lesson: make local/CI setup simple by adding scripts/checks around submodule init so developers do not feel the usual submodule pain.
-- **License:** N/A
+- **URL:** /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx
+- **What it does well:** The existing Denver site already has a brownfield live-map integration: a Next.js `/map` page, `NetworkMap` React/Leaflet UI, `/api/map/*` and `/api/live-map/*` routes, environment-based runtime config, upstream proxy hardening, SSRF/private-address checks, response size/time limits, token handling, diagnostics panels, local fallback behavior, and Docker compose wiring for `yellowcooln/meshcore-mqtt-live-map`.
+- **What it lacks:** It is a custom Next/React map surface rather than the full CoreScope analyzer. It duplicates live-map UI and proxy responsibilities that CoreScope already owns, and it lacks CoreScope's broader packet feed, channel, trace, observer, and analytics experience.
+- **What we can learn:** Preserve the hardening and operational lessons, but do not keep building the custom Leaflet UI as the canonical experience. Replace the public `/map` destination with a CoreScope-backed experience and keep only thin compatibility routes/status checks if needed for SEO, health checks, redirects, or legacy consumers.
+- **License:** Current map attribution states GPL-3.0 derivative of `yellowcooln/meshcore-mqtt-live-map`.
+- **Confidence:** HIGH
+- **Source:** Local repo — /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-4: yellowcooln/meshcore-mqtt-live-map is the current community live-map baseline, not the future target
+
+- **URL:** https://github.com/yellowcooln/meshcore-mqtt-live-map
+- **What it does well:** Provides a live MeshCore traffic map with FastAPI backend, MQTT subscription over TCP/WebSockets/TLS, official MeshCore decoder integration, WebSocket updates, Leaflet UI, route lines, history, peers, coverage, weather, LOS, PWA support, `/snapshot`, `/stats`, `/api/nodes`, `/peers/{id}`, and a Docker image. The Denver repo's current API/proxy shape aligns closely with this project's endpoints.
+- **What it lacks:** It is map-centric and Python/FastAPI-based, not a full analyzer. It does not provide the same breadth of CoreScope packet analytics, channel UI, observer analytics, OpenAPI contract, or Go in-memory packet-store performance model.
+- **What we can learn:** Use this as a compatibility reference for migration, especially for endpoint parity and env var mapping. Do not invest further in this as the canonical runtime if the goal is to replace the map with CoreScope.
+- **License:** GPL-3.0
+- **Confidence:** HIGH
+- **Source:** GitHub CLI README/repo metadata — https://github.com/yellowcooln/meshcore-mqtt-live-map
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-5: Official MeshCore Map is a public registry, not a local live analyzer
+
+- **URL:** https://github.com/meshcore-dev/map.meshcore.io
+- **What it does well:** The official MeshCore Map is a static Vue/Leaflet frontend backed by `https://map.meshcore.io/api/v1/nodes`. The MeshCore blog describes search, filtering, clustering, QR/contact links, shareable URLs, iframe embedding, freshness colors, manual uploads, and an auto-uploader flow for infrastructure nodes.
+- **What it lacks:** It is an internet map/registry with day-scale freshness, not local RF packet monitoring. It does not replace CoreScope-style packet traces, observer health, channel decoding, route replay, or near-real-time local diagnostics.
+- **What we can learn:** Keep official map links as an external ecosystem reference, but do not use it as the Denver live-map replacement. If Denver wants public node registration, use the official uploader path separately from CoreScope.
+- **License:** MIT
+- **Confidence:** HIGH
+- **Source:** GitHub CLI + WebFetch — https://blog.meshcore.io/2026/04/04/meshcore-map
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-6: Existing Denver vendor submodule pattern should be copied for CoreScope
+
+- **URL:** /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules
+- **What it does well:** The repo already vendors `Colorado-Mesh/meshcore-utilities-site` as a submodule under `vendor/meshcore-utilities-site` and has a verification script that checks the submodule exists, is non-empty, contains required upstream files, and resolves to a valid commit SHA.
+- **What it lacks:** The script is specific to utilities and does not yet generalize submodule checks. There is no CoreScope submodule entry or CoreScope readiness check yet.
+- **What we can learn:** Add CoreScope as a pinned submodule under `vendor/corescope` or `vendor/CoreScope`, then add a dedicated `scripts/check-corescope-submodule.mjs` and npm script. Check for upstream files that prove it is usable (`Dockerfile`, `config.example.json`, `cmd/server`, `cmd/ingestor`, `public`, `proto`, `LICENSE`) and record the pinned commit in review notes.
+- **License:** N/A for integration pattern.
+- **Confidence:** HIGH
+- **Source:** Local repo — /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules and /Users/cjvana/Documents/GitHub/denvermc-org/scripts/check-utilities-submodule.mjs
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-7: meshcoretomqtt and meshcore-packet-capture are the right observer ingestion layer
+
+- **URL:** https://github.com/Cisien/meshcoretomqtt
+- **What it does well:** `meshcoretomqtt` is the established Python bridge for Repeaters/RoomServers connected over serial/USB, publishing status/packets/debug topics such as `meshcore/{IATA}/{PUBLIC_KEY}/packets`. `agessaman/meshcore-packet-capture` complements it for Companion radios via BLE/serial/TCP and can publish packet/RF telemetry to MQTT. Both projects support broker credentials, TLS/WebSockets or multi-broker patterns relevant to feeding CoreScope.
+- **What it lacks:** These are capture/bridge tools, not web map replacements. They require operator hardware and firmware/runtime setup outside the Denver website deployment.
+- **What we can learn:** Do not build packet capture into the Denver Next.js site. Document CoreScope's expected MQTT topic/config and rely on these observer tools or existing Colorado Mesh broker feeds to populate CoreScope.
+- **License:** MIT for both `Cisien/meshcoretomqtt` and `agessaman/meshcore-packet-capture`.
+- **Confidence:** HIGH
+- **Source:** GitHub CLI README/repo metadata — https://github.com/Cisien/meshcoretomqtt and https://github.com/agessaman/meshcore-packet-capture
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-8: Community deployments like CT Mesh validate the standalone live-map deployment model
+
+- **URL:** https://meshcore-map.ctmesh.org/
+- **What it does well:** CT Mesh presents a live MeshCore map whose visible UI states that markers update in real time from an MQTT broker. It exposes operator controls for node sizing, dark/topo layers, units, labels, heat/coverage, weather, history, peers, hops, LOS, route details, and propagation estimates.
+- **What it lacks:** It appears to be a deployed map instance rather than a reusable integration package. The page does not by itself answer deployment, license, or API-contract questions.
+- **What we can learn:** Live MeshCore mapping is commonly deployed as a dedicated web app/service fed by MQTT, not embedded as a hand-coded component inside a broader site. Denver should follow that pattern for CoreScope: separate service, clear reverse proxy/subpath, and simple navigation from the main site.
+- **License:** N/A for deployed site.
 - **Confidence:** MEDIUM
-- **Source:** WebSearch / vendor docs — https://www.atlassian.com/git/tutorials/git-subtree and https://devcenter.heroku.com/articles/git-submodules
-- **Checked:** 2026-05-10
+- **Source:** WebFetch — https://meshcore-map.ctmesh.org/
+- **Checked:** 2026-05-13
 
-### ITEM-prior-art-9: Module Federation for runtime micro-frontends
+### ITEM-prior-art-9: MeshExplorer is a possible alternative, but less aligned than CoreScope
 
-- **URL:** https://module-federation.io/guide/start/
-- **What it does well:** Module Federation is built for decentralized JavaScript applications that share code, dependencies, and independently built frontend modules at runtime. It is valuable when multiple teams deploy separate React frontends but still need runtime composition and shared dependencies.
-- **What it lacks:** It adds manifest/runtime/shared-dependency coordination and debugging complexity. It does not help with a Python Flask/Jinja upstream unless that upstream is first converted to a federated JavaScript frontend. It is disproportionate for a small public tools area that already has native Next pages.
-- **What we can learn:** Do not introduce Module Federation here. The cost is unjustified compared with a submodule + native wrapper + parity-test approach. Revisit only if Colorado Mesh eventually splits many independently deployed React tool suites across teams.
-- **License:** N/A
+- **URL:** https://github.com/ajvpot/meshexplorer
+- **What it does well:** MeshExplorer targets real-time maps, chat, and packet analysis for MeshCore and Meshtastic with a modern responsive UI. It is built with Next.js and supports a `NEXT_PUBLIC_API_URL` split between frontend and API, which resembles the Denver site's technology choices.
+- **What it lacks:** It appears less mature for this use case: fewer stars/forks than CoreScope, no license metadata found via GitHub, ClickHouse dependency, and a generic README with limited MeshCore operational detail.
+- **What we can learn:** Borrow the idea of frontend/API separation if needed, but do not choose it over CoreScope for this project. CoreScope is more active, MeshCore-specific, operationally documented, and directly requested as the target.
+- **License:** Unknown/no license metadata found.
 - **Confidence:** MEDIUM
-- **Source:** Official docs — https://module-federation.io/guide/start/
-- **Checked:** 2026-05-10
+- **Source:** GitHub CLI README/repo metadata — https://github.com/ajvpot/meshexplorer
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-10: MeshCore MQTT triangulator is useful adjunct analytics, not part of the first replacement
+
+- **URL:** https://github.com/brad28b/meshcore_mqtt_triangulator
+- **What it does well:** Passively triangulates MeshCore repeaters or advertised nodes from MQTT packet observations using multi-anchor chain-walk, weighted geometric median, optional terrain-aware mode, SQLite collection, and validation tooling. It documents data quality limits around publisher density, GPS correctness, path hash collisions, and sparse edge-of-coverage targets.
+- **What it lacks:** It is a CLI/analytics subsystem, not a live-map UI replacement. It needs accumulated MQTT observations and may introduce privacy concerns if used to infer locations for nodes that do not publish exact GPS.
+- **What we can learn:** Keep triangulation out of the CoreScope replacement scope unless operators explicitly request it. CoreScope already covers the primary analyzer/map need; triangulation can be a later opt-in operator tool with privacy review.
+- **License:** MIT
+- **Confidence:** HIGH
+- **Source:** GitHub CLI README/repo metadata — https://github.com/brad28b/meshcore_mqtt_triangulator
+- **Checked:** 2026-05-13
+
+### ITEM-prior-art-11: MeshCore Map uploader solves official-map publishing, not Denver live-map replacement
+
+- **URL:** https://github.com/recrof/map.meshcore.io-uploader
+- **What it does well:** Automatically uploads repeaters or room servers to the official MeshCore map when a Companion hears adverts. It supports USB or host:port Companion access and containerized deployment.
+- **What it lacks:** It does not provide live packet visualization, local analyzer UI, route tracing, or CoreScope integration. It targets the official internet map's registry/update workflow.
+- **What we can learn:** Treat official-map publishing as a separate operational concern from CoreScope. If Denver wants nodes on map.meshcore.io, use this uploader alongside observer tooling; do not conflate it with replacing `/map`.
+- **License:** MIT
+- **Confidence:** HIGH
+- **Source:** GitHub CLI README/repo metadata — https://github.com/recrof/map.meshcore.io-uploader
+- **Checked:** 2026-05-13
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-prior-art-1 | HIGH | GitHub CLI | https://github.com/Colorado-Mesh/meshcore-utilities-site |
-| ITEM-prior-art-2 | HIGH | Codebase Read | /Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx |
-| ITEM-prior-art-3 | HIGH | Official docs | https://git-scm.com/docs/git-submodule.html |
-| ITEM-prior-art-4 | HIGH | Official docs | https://docs.github.com/en/code-security/reference/supply-chain-security/supported-ecosystems-and-repositories |
-| ITEM-prior-art-5 | HIGH | Official docs | https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages |
-| ITEM-prior-art-6 | HIGH | Official docs | https://nextjs.org/docs/app/guides/multi-zones |
-| ITEM-prior-art-7 | MEDIUM | Vendor docs | https://www.sanity.io/docs/nextjs/embedding-sanity-studio-in-nextjs |
-| ITEM-prior-art-8 | MEDIUM | WebSearch/vendor docs | https://www.atlassian.com/git/tutorials/git-subtree |
-| ITEM-prior-art-9 | MEDIUM | Official docs | https://module-federation.io/guide/start/ |
+| ITEM-prior-art-1 | HIGH | GitHub CLI + README/LICENSE | https://github.com/Kpa-clawbot/CoreScope |
+| ITEM-prior-art-2 | MEDIUM | WebFetch | https://analyzer.00id.net/api/spec |
+| ITEM-prior-art-3 | HIGH | Local repo | /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx |
+| ITEM-prior-art-4 | HIGH | GitHub CLI README/repo metadata | https://github.com/yellowcooln/meshcore-mqtt-live-map |
+| ITEM-prior-art-5 | HIGH | GitHub CLI + WebFetch | https://github.com/meshcore-dev/map.meshcore.io; https://blog.meshcore.io/2026/04/04/meshcore-map |
+| ITEM-prior-art-6 | HIGH | Local repo | /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules; /Users/cjvana/Documents/GitHub/denvermc-org/scripts/check-utilities-submodule.mjs |
+| ITEM-prior-art-7 | HIGH | GitHub CLI README/repo metadata | https://github.com/Cisien/meshcoretomqtt; https://github.com/agessaman/meshcore-packet-capture |
+| ITEM-prior-art-8 | MEDIUM | WebFetch | https://meshcore-map.ctmesh.org/ |
+| ITEM-prior-art-9 | MEDIUM | GitHub CLI README/repo metadata | https://github.com/ajvpot/meshexplorer |
+| ITEM-prior-art-10 | HIGH | GitHub CLI README/repo metadata | https://github.com/brad28b/meshcore_mqtt_triangulator |
+| ITEM-prior-art-11 | HIGH | GitHub CLI README/repo metadata | https://github.com/recrof/map.meshcore.io-uploader |

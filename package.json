@@ -15,6 +15,9 @@
     "test:lighthouse": "lhci autorun",
     "docker:smoke": "node scripts/docker-smoke.mjs",
     "verify:map:real": "node scripts/verify-real-map-data.mjs",
+    "corescope:check-submodule": "node scripts/check-corescope-submodule.mjs",
+    "corescope:render-config": "node scripts/render-corescope-config.mjs",
+    "corescope:apply-overlay": "node scripts/apply-corescope-overlay.mjs",
     "utilities:check-submodule": "node scripts/check-utilities-submodule.mjs",
     "utilities:generate": "node scripts/generate-utilities-artifacts.mjs",
     "utilities:check": "node scripts/generate-utilities-artifacts.mjs --check"

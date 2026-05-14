@@ -2,56 +2,56 @@
   "verdict": "APPROVED",
   "blocking_issues": 0,
   "reviewed_files": [
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/PLAN.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.forge/steps/step-2-plan.md",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/docker/nginx.conf",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/docker/supervisord.conf",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/docker/start.sh",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml",
     "/Users/cjvana/Documents/GitHub/denvermc-org/package.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/generate-utilities-artifacts.mjs",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/provenance.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/recommended-settings.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/regions.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/serial-command-profile.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/generated/serial-command-schema.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/upstream-utilities/index.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/__tests__/config-export.test.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/__tests__/manifest.test.ts",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/provenance.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/default_serial_commands.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/recommended_settings.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/regions.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/fixtures/utilities/serial_commands.schema.json",
-    "/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts"
+    "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/check-corescope-submodule.mjs",
+    "/Users/cjvana/Documents/GitHub/denvermc-org/.dockerignore"
   ],
   "diff_basis": "provided_list",
-  "plan_section": "Step 2: Generate local typed artifacts and provenance from upstream source files",
+  "plan_section": "Step 2: Build and supervise Next + CoreScope in one Docker container",
+  "required_changes": [],
   "dimensions": {
     "plan_alignment": {
       "score": "PASS",
-      "notes": "Implements the Step 2 generator, deterministic stale check, generated local artifacts, stable exports, and manifest/provenance migration to submodule-backed upstream refs."
+      "notes": "Implementation matches Step 2: one image builds Next and CoreScope binaries, supervises nginx/Next/CoreScope server/optional ingestor, keeps public port 3000, and persists CoreScope data."
     },
     "correctness_safety": {
       "score": "PASS",
-      "notes": "Generator validates selected JSON shapes, records the pinned upstream commit, compares generated outputs in check mode without rewriting, and no runtime source imports from vendor paths were found."
+      "notes": "nginx route ordering preserves Next /api/map/* and /api/live-map/* while routing CoreScope APIs, /map, /ws, and root WebSocket upgrades to CoreScope. Default ingestor-disabled startup is safe without MQTT credentials."
     },
     "code_quality": {
       "score": "PASS",
-      "notes": "Implementation is straightforward, uses Node built-ins as specified by the step plan, and keeps generated data isolated behind a typed local export boundary."
+      "notes": "Dockerfile stages, supervisor config, startup script, and nginx routing are readable and consistent with the planned single-container architecture."
     },
     "completeness": {
-      "score": "PASS",
-      "notes": "Acceptance criteria are satisfied: commands are present, generated artifacts/provenance are committed, legacy utility fixtures were removed by move, parity tests use generated data, and reported verification covers check/generate/unit/typecheck/lint."
+      "score": "FLAG",
+      "notes": "Acceptance criteria and reported smoke checks pass. Minor non-blocking operational/asset polish noted below."
     },
     "patterns": {
       "score": "PASS",
-      "notes": "Follows the planned architecture: vendor remains read-only source material, local generated files are the import boundary, and manifest upstream refs now point to vendor paths while local refs point to generated artifacts."
+      "notes": "Follows the planned supervisor plus nginx pattern and avoids editing upstream CoreScope source directly."
     },
     "integration": {
       "score": "PASS",
-      "notes": "Imports/exports integrate cleanly with existing Vitest and TypeScript JSON module usage; manifest shape remains compatible with the existing report builder."
+      "notes": "Ports, compose volume, package script, submodule checker, and CoreScope runtime paths integrate cleanly with the existing Next standalone container flow."
     }
   },
   "flags": [
     {
-      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/scripts/generate-utilities-artifacts.mjs",
-      "line": 139,
-      "note": "Serial step validation is intentionally narrower than the generated schema, accepting only explicit send/wait step types; if upstream later emits schema-valid command or omitted send types, the stale check will fail and require a conscious adapter update."
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/docker/nginx.conf",
+      "line": 101,
+      "note": "CoreScope public/index.html references favicon.ico, but nginx explicitly routes favicon.svg only. Non-blocking because favicon.svg is available, but consider adding favicon.ico to the CoreScope asset route."
+    },
+    {
+      "file": "/Users/cjvana/Documents/GitHub/denvermc-org/docker/start.sh",
+      "line": 163,
+      "note": "If CORESCOPE_ENABLE_INGESTOR=true is set before Step 3 config rendering/MQTT credentials exist, the ingestor may fail and be restarted by supervisor. Default false satisfies Step 2, but document or guard this before enabling ingestion."
     }
   ]
 }

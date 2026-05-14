@@ -1,3 +1,6 @@
 [submodule "vendor/meshcore-utilities-site"]
 	path = vendor/meshcore-utilities-site
 	url = https://github.com/Colorado-Mesh/meshcore-utilities-site
+[submodule "vendor/CoreScope"]
+	path = vendor/CoreScope
+	url = https://github.com/Kpa-clawbot/CoreScope

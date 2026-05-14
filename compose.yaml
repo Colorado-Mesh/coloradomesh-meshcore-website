@@ -1,30 +1,5 @@
-# The site uses the public Colorado Mesh analyzer API by default.
-# The optional live-map sidecar can be enabled with COMPOSE_PROFILES=live-map when MQTT subscriber credentials are available.
+# The site and CoreScope analyzer run inside one Docker container.
 services:
-  live-map:
-    profiles:
-      - live-map
-    image: ${LIVE_MAP_IMAGE:-yellowcooln/meshcore-mqtt-live-map:latest}
-    environment:
-      PROD_MODE: ${LIVE_MAP_PROD_MODE:-false}
-      PROD_TOKEN: ${MESHCORE_LIVE_MAP_API_TOKEN:-}
-      MQTT_HOST: ${LIVE_MAP_MQTT_HOST:-mqtt.meshcore.coloradomesh.org}
-      MQTT_PORT: ${LIVE_MAP_MQTT_PORT:-1883}
-      MQTT_USERNAME: ${LIVE_MAP_MQTT_USERNAME:-}
-      MQTT_PASSWORD: ${LIVE_MAP_MQTT_PASSWORD:-}
-      MQTT_TRANSPORT: ${LIVE_MAP_MQTT_TRANSPORT:-websockets}
-      MQTT_WS_PATH: ${LIVE_MAP_MQTT_WS_PATH:-/ws}
-      MQTT_TLS: ${LIVE_MAP_MQTT_TLS:-true}
-      MQTT_TOPIC: ${LIVE_MAP_MQTT_TOPIC:-meshcore/#}
-      ROUTE_INFRA_ONLY: ${LIVE_MAP_ROUTE_INFRA_ONLY:-true}
-      COVERAGE_API_URL: ${LIVE_MAP_COVERAGE_API_URL:-}
-      COVERAGE_API_KEY: ${LIVE_MAP_COVERAGE_API_KEY:-}
-      WEATHER_RADAR_ENABLED: ${LIVE_MAP_WEATHER_RADAR_ENABLED:-true}
-      WEATHER_RADAR_COUNTRY_BOUNDS_ENABLED: ${LIVE_MAP_WEATHER_RADAR_COUNTRY_BOUNDS_ENABLED:-false}
-    volumes:
-      - live-map-data:/data
-    restart: unless-stopped
-
   web:
     build:
       context: .
@@ -35,9 +10,51 @@ services:
     environment:
       NODE_ENV: production
       NEXT_TELEMETRY_DISABLED: "1"
-      HOSTNAME: 0.0.0.0
-      PORT: "3000"
+      HOSTNAME: 127.0.0.1
+      PORT: "3001"
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      CORESCOPE_HOST: 127.0.0.1
+      CORESCOPE_PORT: "3002"
+      CORESCOPE_CONFIG_DIR: /app/corescope
+      CORESCOPE_DB_PATH: /app/corescope/data/meshcore.db
+      CORESCOPE_PUBLIC_DIR: /app/corescope/public
+      CORESCOPE_ENABLE_INGESTOR: ${CORESCOPE_ENABLE_INGESTOR:-auto}
+      CORESCOPE_INGESTOR_STATS: /app/corescope/data/ingestor-stats.json
+      CORESCOPE_API_KEY: ${CORESCOPE_API_KEY:-}
+      CORESCOPE_BRAND_SITE_NAME: ${CORESCOPE_BRAND_SITE_NAME:-Colorado Mesh CoreScope}
+      CORESCOPE_BRAND_TAGLINE: ${CORESCOPE_BRAND_TAGLINE:-Live Colorado Mesh network analyzer}
+      CORESCOPE_DEFAULT_REGION: ${CORESCOPE_DEFAULT_REGION:-CO}
+      CORESCOPE_REGIONS_JSON: '${CORESCOPE_REGIONS_JSON:-{"CO":"Colorado, US"}}'
+      CORESCOPE_MAP_CENTER_LAT: ${CORESCOPE_MAP_CENTER_LAT:-39.5501}
+      CORESCOPE_MAP_CENTER_LON: ${CORESCOPE_MAP_CENTER_LON:--105.7821}
+      CORESCOPE_MAP_ZOOM: ${CORESCOPE_MAP_ZOOM:-7}
+      CORESCOPE_MQTT_BROKER: ${CORESCOPE_MQTT_BROKER:-}
+      CORESCOPE_MQTT_SERVER: ${CORESCOPE_MQTT_SERVER:-meshcore_mqtt.coloradomesh.org}
+      CORESCOPE_MQTT_PORT: ${CORESCOPE_MQTT_PORT:-8883}
+      CORESCOPE_MQTT_TRANSPORT: ${CORESCOPE_MQTT_TRANSPORT:-websockets}
+      CORESCOPE_MQTT_TLS_ENABLED: ${CORESCOPE_MQTT_TLS_ENABLED:-true}
+      CORESCOPE_MQTT_TOPICS: ${CORESCOPE_MQTT_TOPICS:-meshcore/#}
+      CORESCOPE_MQTT_USERNAME: ${CORESCOPE_MQTT_USERNAME:-website}
+      CORESCOPE_MQTT_PASSWORD: ${CORESCOPE_MQTT_PASSWORD:-}
+      CORESCOPE_MQTT_PASSWORD_FILE: ${CORESCOPE_MQTT_PASSWORD_FILE:-/run/secrets/corescope_mqtt_password}
+      CORESCOPE_MQTT_SOURCE_NAME: ${CORESCOPE_MQTT_SOURCE_NAME:-coloradomesh}
+      CORESCOPE_MQTT_REGION: ${CORESCOPE_MQTT_REGION:-CO}
+      CORESCOPE_MQTT_IATA_FILTER: ${CORESCOPE_MQTT_IATA_FILTER:-}
+      CORESCOPE_MQTT_REJECT_UNAUTHORIZED: ${CORESCOPE_MQTT_REJECT_UNAUTHORIZED:-true}
+      CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC: ${CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC:-45}
+      CORESCOPE_MQTT_SOURCES_JSON: ${CORESCOPE_MQTT_SOURCES_JSON:-}
+      CORESCOPE_CHANNEL_KEYS_JSON: '${CORESCOPE_CHANNEL_KEYS_JSON:-{}}'
+      CORESCOPE_HASH_CHANNELS: ${CORESCOPE_HASH_CHANNELS:-}
+      CORESCOPE_OBSERVER_IATA_WHITELIST: ${CORESCOPE_OBSERVER_IATA_WHITELIST:-}
+      CORESCOPE_NODE_BLACKLIST: ${CORESCOPE_NODE_BLACKLIST:-}
+      CORESCOPE_OBSERVER_BLACKLIST: ${CORESCOPE_OBSERVER_BLACKLIST:-}
+      CORESCOPE_RETENTION_NODE_DAYS: ${CORESCOPE_RETENTION_NODE_DAYS:-7}
+      CORESCOPE_RETENTION_OBSERVER_DAYS: ${CORESCOPE_RETENTION_OBSERVER_DAYS:-14}
+      CORESCOPE_RETENTION_PACKET_DAYS: ${CORESCOPE_RETENTION_PACKET_DAYS:-30}
+      CORESCOPE_RETENTION_METRICS_DAYS: ${CORESCOPE_RETENTION_METRICS_DAYS:-30}
+      CORESCOPE_PACKET_STORE_MAX_MEMORY_MB: ${CORESCOPE_PACKET_STORE_MAX_MEMORY_MB:-1024}
+      CORESCOPE_PACKET_STORE_RETENTION_HOURS: ${CORESCOPE_PACKET_STORE_RETENTION_HOURS:-168}
+      CORESCOPE_TILE_URL: ${CORESCOPE_TILE_URL:-https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png}
       MESHCORE_MAP_TILE_URL: ${MESHCORE_MAP_TILE_URL:-https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png}
       MESHCORE_MAP_TILE_ATTRIBUTION: '${MESHCORE_MAP_TILE_ATTRIBUTION:-&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors}'
       MESHCORE_MAP_DEFAULT_LATITUDE: ${MESHCORE_MAP_DEFAULT_LATITUDE:-39.5501}
@@ -46,9 +63,9 @@ services:
       MESHCORE_MAP_SAMPLE_DATA: ${MESHCORE_MAP_SAMPLE_DATA:-false}
       MESHCORE_MAP_DEMO_MODE: ${MESHCORE_MAP_DEMO_MODE:-false}
       MESHCORE_MAP_HISTORY_ENABLED: ${MESHCORE_MAP_HISTORY_ENABLED:-false}
-      MESHCORE_LIVE_MAP_API_URL: ${MESHCORE_LIVE_MAP_API_URL:-https://analyzer.meshcore.coloradomesh.org/api/nodes}
+      MESHCORE_LIVE_MAP_API_URL: ${MESHCORE_LIVE_MAP_API_URL:-http://127.0.0.1:3002/api/nodes}
       MESHCORE_LIVE_MAP_API_TOKEN: ${MESHCORE_LIVE_MAP_API_TOKEN:-}
-      MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS: ${MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS:-false}
+      MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS: ${MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS:-true}
       MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED: ${MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED:-false}
       MESHCORE_LIVE_MAP_API_REFRESH_SECONDS: ${MESHCORE_LIVE_MAP_API_REFRESH_SECONDS:-30}
       MESHCORE_LIVE_MAP_PROXY_TIMEOUT_MS: ${MESHCORE_LIVE_MAP_PROXY_TIMEOUT_MS:-8000}
@@ -58,16 +75,18 @@ services:
       MESHCORE_MQTT_PASSWORD: ${MESHCORE_MQTT_PASSWORD:-}
       MESHCORE_MQTT_TOPIC: ${MESHCORE_MQTT_TOPIC:-meshcore/#}
       MESHCORE_MQTT_CLIENT_ID: ${MESHCORE_MQTT_CLIENT_ID:-colorado-meshcore-site}
+    volumes:
+      - corescope-data:/app/corescope/data
     restart: unless-stopped
     healthcheck:
       test:
         - CMD-SHELL
         - >-
-          node -e "fetch('http://127.0.0.1:3000/api/map/stats').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+          node -e "Promise.all([fetch('http://127.0.0.1:3000/'),fetch('http://127.0.0.1:3000/api/health')]).then(([site,core])=>process.exit(site.ok&&core.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
 
 volumes:
-  live-map-data:
+  corescope-data:

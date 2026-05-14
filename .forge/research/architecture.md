@@ -1,108 +1,120 @@
-# Architecture Research: Submodule-Backed MeshCore Utilities Integration
+# Architecture Research: CoreScope live map replacement
 
-Project: integrate `https://github.com/Colorado-Mesh/meshcore-utilities-site` into the existing Colorado MeshCore Next.js 16 / React 19 / Tailwind 4 public site while preserving upstream updateability and the local design system.
+Checked: 2026-05-13
 
-### ITEM-architecture-1: Treat the upstream repo as a pinned source dependency, not a runtime app
+Project: Brownfield replacement of the existing Denver MeshCore `/map` live map with CoreScope from `https://github.com/Kpa-clawbot/CoreScope`, preferably as a git submodule under `vendor/`.
 
-- **Recommendation:** Add the upstream repository as a Git submodule at a clearly non-routable path such as `vendor/meshcore-utilities-site`, track its `main` branch in `.gitmodules`, and commit only the submodule pointer plus local integration/generation changes.
-- **Rationale:** The upstream project is a Flask/Python app with templates, static JS/CSS, and data files; this site is a Next.js App Router application. The clean boundary is to pin upstream as source material and adapt its data/logic into local Next components, not to run two web apps inside one public-site surface. Official Git submodule workflow supports `git submodule add -b main`, `git submodule update --init --recursive`, and `git submodule update --remote` for pulling remote-tracking changes, then recording the new submodule commit in the superproject.
+### ITEM-architecture-1: Treat CoreScope as a sidecar application, not a React component import
+
+- **Recommendation:** Add CoreScope as a pinned git submodule under `vendor/CoreScope` and run it as a separate service/container that the Denver site links or redirects to for the canonical live map experience.
+- **Rationale:** CoreScope is not a frontend widget. Its documented architecture is a two-process Go system: MQTT ingestor + Go HTTP server, backed by SQLite/in-memory indexes, serving a vanilla JS SPA and WebSocket stream. The local Denver site is a Next.js 16 app with a React Leaflet map currently rendered by `src/app/map/page.tsx` and `src/components/NetworkMap.tsx`. Importing CoreScope into this React tree would require porting its Go API, SQLite store, WebSocket hub, vanilla SPA router, and static assets, defeating the purpose of using CoreScope.
 - **Confidence:** HIGH
-- **Source:** Official docs + GitHub inspection — https://git-scm.com/docs/git-submodule.html ; https://github.com/Colorado-Mesh/meshcore-utilities-site
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not copy the upstream repo contents into `src/` by hand; that destroys update provenance. Do not deploy the Flask app as a reverse-proxied/iframe utility island; it creates styling, CSP, auth, routing, and operational drift inside a single public website.
+- **Source:** GitHub README — https://github.com/Kpa-clawbot/CoreScope#architecture; local — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not hand-port CoreScope screens into the existing `NetworkMap` React component; it duplicates CoreScope and violates the “use CoreScope as submodule where practical” constraint. Do not iframe CoreScope inside `/map`; it creates navigation, CSP, sizing, and accessibility problems while hiding CoreScope’s hash-router and WebSocket assumptions.
 
-### ITEM-architecture-2: Use a local adapter/generator boundary between upstream files and Next code
+### ITEM-architecture-2: Make `/map` a handoff route to CoreScope, not a second map implementation
 
-- **Recommendation:** Create a small adapter layer, e.g. `src/lib/upstream-utilities/`, plus an import/verification script that reads from `vendor/meshcore-utilities-site` and emits typed local artifacts under `src/lib/meshcore-data` or `src/lib/meshcore-tools/generated`. Keep hand-written integration code in `src/components/tools`, `src/lib/meshcore-tools`, and App Router pages.
-- **Rationale:** The existing site already has deterministic TypeScript utility domains (`src/lib/meshcore-tools/*`, `src/lib/meshcore-data/*`) and a parity manifest. Upstream supplies Python models/routes plus static JSON/JS. A generator boundary lets upstream changes be pulled forward while preserving local type safety, unit tests, and UI conventions. It also makes upstream drift visible as diffs in generated artifacts or parity tests.
+- **Recommendation:** Replace the current `/map` page body with a canonical CoreScope handoff: either a server-side redirect to the CoreScope map host or a lightweight Denver-branded landing shell with a primary CTA to the CoreScope `#/map` or `#/live` view. Any visual redesign of that shell should be delegated to `co-ui`/native Opus UI.
+- **Rationale:** The local `/map` page currently owns metadata, hero content, the `NetworkMapWrapper`, GPL attribution, analyzer link, and explanatory panels. If CoreScope is canonical, keeping the existing React Leaflet map creates two map products and two data pipelines. A handoff preserves the Denver site’s navigation and SEO while making CoreScope the single live-map UI.
 - **Confidence:** HIGH
-- **Source:** Codebase + GitHub inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/config-export.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://github.com/Colorado-Mesh/meshcore-utilities-site
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not import upstream Python or browser scripts directly into React components. Do not make the submodule itself part of the TypeScript app structure; keep it as an external source dependency with explicit adapters.
+- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx:71-129`; CoreScope client router — `https://github.com/Kpa-clawbot/CoreScope/blob/master/public/app.js`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not keep `NetworkMapWrapper` as the primary map once CoreScope is enabled. Do not embed CoreScope in the existing page via iframe unless a later product decision explicitly accepts iframe tradeoffs and frame/CSP changes.
 
-### ITEM-architecture-3: Prefer build-time generated JSON/TS artifacts over runtime reads from the submodule
+### ITEM-architecture-3: Prefer host/subdomain routing over path-prefix proxying
 
-- **Recommendation:** For stable upstream utility data such as `static/data/default_serial_commands.json`, `serial_commands.schema.json`, `static/data/recommended_settings.json`, region/emoji data, and naming constants, ingest them at build/update time into local typed modules and validate them with the existing test stack. Runtime pages should import local TS/JSON modules, not read files from the submodule on demand.
-- **Rationale:** The current Next config uses `output: 'standalone'`, and Next standalone output traces server dependencies/files during build. Runtime `fs` reads into submodule paths are easy to omit from file tracing and Docker images unless `outputFileTracingIncludes` is carefully configured. Build-time generation keeps deployed runtime small and predictable, and generated diffs make upstream updates reviewable.
+- **Recommendation:** Route CoreScope on its own host, e.g. `map.meshcore.coloradomesh.org` or the existing analyzer host, and have `/map` redirect or link there. If it must live on the same apex domain, use an edge/reverse proxy with host-based routing rather than a path prefix like `/map/*`.
+- **Rationale:** CoreScope’s browser code hardcodes root-relative API calls such as `fetch('/api/config/cache')`, `fetch('/api' + path)`, and WebSocket `new WebSocket(`${proto}://${location.host}`)`. The Denver Next app already owns `/api/map/*`, `/api/live-map/*`, `/api/geocode`, and middleware rate-limits `/api/:path*`. Mounting CoreScope under `/map` without modifying CoreScope would make its `/api/*` calls hit the Next app, not CoreScope. A dedicated host lets CoreScope own `/api/*`, static assets, hash routes, and `/ws` cleanly.
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Avoid runtime `fs.readFile` from `vendor/meshcore-utilities-site` for public tool data unless there is a strong reason; if used, add narrow `outputFileTracingIncludes` and a Docker smoke test. Avoid serving raw upstream JSON from `public/` unless it truly must be public and cache headers are intentionally managed.
+- **Source:** CoreScope source — `https://github.com/Kpa-clawbot/CoreScope/blob/master/public/app.js`, `https://github.com/Kpa-clawbot/CoreScope/blob/master/public/live.js`; local API routes — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/middleware.ts`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not use a simple Next.js rewrite from `/map/:path*` to CoreScope; it will not fix CoreScope’s absolute `/api` and WebSocket root assumptions. Do not remap all `/api/*` to CoreScope because the Denver site has existing API routes.
 
-### ITEM-architecture-4: Preserve `/tools` as the canonical route family and adapt upstream route names only as aliases
+### ITEM-architecture-4: Use Docker Compose layering for CoreScope deployment
 
-- **Recommendation:** Keep the current public Next routes as canonical: `/tools`, `/tools/repeater-name`, `/tools/companion-name`, `/tools/prefix-matrix`, and `/tools/serial-usb`. If upstream users expect Flask paths like `/repeater_name_tool`, add explicit redirects or compatibility route handlers, but do not expose the Flask URL shape as the primary IA.
-- **Rationale:** Next App Router uses folders as URL segments, and this codebase already has well-structured `/tools/*` pages with metadata, breadcrumbs, JSON-LD, and design-system wrapping. Route groups can organize implementation without changing URLs, but they are unnecessary unless the tools need a subset layout. Multiple root layouts would create full page reloads between sections and should be avoided for this unified public site.
+- **Recommendation:** Add a CoreScope service in Compose using `build.context: ./vendor/CoreScope` or the published image, keep it behind a profile such as `corescope`, and layer production settings with an override file. Mount durable CoreScope data at `/app/data` and a Denver-specific `config.json` into `/app/config.json`.
+- **Rationale:** The current repository already uses `compose.yaml`, `compose.live-map.yaml`, and a `web` service for the Next app. CoreScope’s Dockerfile builds the Go server, ingestor, static SPA, Mosquitto, Caddy, and supervisor-managed processes; its README recommends a prebuilt image or source build with `/app/data` mounted. Docker Compose’s documented merge model supports environment-specific service layering without duplicating the main web service.
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/getting-started/project-structure ; https://nextjs.org/docs/app/api-reference/file-conventions/route-groups ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not mirror upstream Flask routes one-for-one as the main Next routes. Do not introduce a separate root layout for utilities unless intentionally accepting full page reloads and a different app shell.
+- **Source:** Local compose — `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.live-map.yaml`; CoreScope Docker — https://github.com/Kpa-clawbot/CoreScope/blob/master/Dockerfile; Docker docs — https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not copy CoreScope’s built static files into the Next `public/` directory; the static files depend on CoreScope’s API and WebSocket server. Do not make the Next container run CoreScope processes; keep process ownership and health checks separate.
 
-### ITEM-architecture-5: Keep Server Component shells and Client Component tool islands
+### ITEM-architecture-5: Disable CoreScope’s bundled Caddy/Mosquitto only when an outer proxy/broker owns those roles
 
-- **Recommendation:** Render each utility page as a Server Component shell for metadata, SEO, JSON-LD, breadcrumbs, and shared layout, then mount a focused Client Component for interactive workflows such as naming, prefix analysis, serial USB, and browser-side key generation.
-- **Rationale:** Next’s `'use client'` boundary is intended for state, event handlers, and browser APIs; props passed into Client Components must be serializable. This matches the current pattern: `src/app/tools/repeater-name/page.tsx` is a server page that renders `ToolShell` and mounts `NamingWizard`, while `NamingWizard` owns state, clipboard, fetch, and generated download behavior.
+- **Recommendation:** For a deployment behind the existing site reverse proxy, run CoreScope with `DISABLE_CADDY=true`; set `DISABLE_MOSQUITTO=true` only when CoreScope ingests from an external MQTT broker/source and does not need the bundled local broker.
+- **Rationale:** CoreScope’s entrypoint selects supervisor configs based on `DISABLE_CADDY` and `DISABLE_MOSQUITTO`. The no-Caddy supervisor runs Mosquitto, the ingestor, and the Go server directly on port 3000. This aligns with an architecture where the Denver deployment’s outer proxy terminates TLS and routes a map subdomain to CoreScope.
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/directives/use-client ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/repeater-name/page.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NamingWizard.tsx`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not make the whole tools area client-rendered; it weakens SEO and consistency. Do not pass functions/classes from server code into client components; use serializable data and local client handlers.
+- **Source:** CoreScope Docker entrypoint/supervisor — https://github.com/Kpa-clawbot/CoreScope/blob/master/docker/entrypoint-go.sh, https://github.com/Kpa-clawbot/CoreScope/blob/master/docker/supervisord-go-no-caddy.conf
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not expose CoreScope’s bundled Caddy publicly if the Denver deployment already terminates TLS; double proxies complicate headers, WebSocket upgrades, and certificates. Do not disable Mosquitto unless MQTT sources are configured to avoid silently running a live UI with no packet ingest.
 
-### ITEM-architecture-6: Put browser-only and secret-sensitive workflows entirely in client islands
+### ITEM-architecture-6: Move live-map data ownership from Next API adapters to CoreScope APIs
 
-- **Recommendation:** Keep Web Serial access, clipboard/download behavior, and vanity/private-key generation in `'use client'` components. Server APIs may provide public data or validation, but private keys and raw device interaction must not traverse Next route handlers.
-- **Rationale:** Upstream explicitly generates key material client-side to avoid server knowledge of secrets, and this site already blocks private/secret/password fields in serial settings application. Browser APIs like Web Serial and Web Crypto belong behind client boundaries, while the server shell can still provide documentation and structured data.
+- **Recommendation:** Treat CoreScope as the authoritative map/analyzer API and retire the Next `/api/map/*` and `/api/live-map/*` data path from the live-map UI. Keep old endpoints only as compatibility/status fallbacks until consumers are removed.
+- **Rationale:** The Denver app currently normalizes `MESHCORE_LIVE_MAP_API_URL` or MQTT data into `MapSnapshot` through `src/lib/map/store.ts`, then renders with React Leaflet. CoreScope exposes a larger analyzer API surface (`/api/nodes`, `/api/packets`, `/api/stats`, `/api/config/map`, `/api/observers`, `/api/analytics/*`, `/ws`) and expects its frontend to consume those endpoints directly. Maintaining a parallel Next normalization layer would duplicate logic and risk inconsistent node status, regions, packet history, and route playback.
 - **Confidence:** HIGH
-- **Source:** GitHub inspection + codebase inspection — https://github.com/Colorado-Mesh/meshcore-utilities-site/blob/main/static/js/repeater_name_tool.js ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts`; https://nextjs.org/docs/app/api-reference/directives/use-client
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not port upstream key generation to a server route. Do not send uploaded settings containing private/secret/password fields to the server for convenience.
+- **Source:** Local store — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; CoreScope routes — https://github.com/Kpa-clawbot/CoreScope/blob/master/cmd/server/routes.go
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not adapt every CoreScope endpoint into the existing `ApiResponse<T>` wrapper; CoreScope already has a public API contract and SPA. Do not keep the current `/api/live-map/*` proxy as the primary source for CoreScope; it is designed around the previous `meshcore-mqtt-live-map` service, not CoreScope’s packet analyzer.
 
-### ITEM-architecture-7: Use Route Handlers only for bounded server responsibilities
+### ITEM-architecture-7: Create a Denver-specific CoreScope configuration artifact
 
-- **Recommendation:** Add or keep App Router `route.ts` handlers only where the utility needs server-side mediation: external geocoding/rate limiting, map data snapshots, compatibility redirects, or serving validated generated data with explicit cache headers. Pure deterministic utility logic should remain local TS functions used by Client Components and unit tests.
-- **Rationale:** Next Route Handlers support Web `Request`/`Response`, HTTP methods, query parsing, and segment config. They are a good fit for the existing `/api/geocode` and `/api/map/*` style boundaries, but overusing them for every upstream Flask endpoint would recreate the upstream backend unnecessarily.
+- **Recommendation:** Add a generated or checked-in non-secret CoreScope config template for Colorado Mesh values, with secrets supplied via deployment environment or mounted private config. Required values include `branding`, `mapDefaults.center`, `mapDefaults.zoom`, `defaultRegion`, `regions`, MQTT sources, optional `geo_filter`, and node/observer blacklist policy.
+- **Rationale:** CoreScope’s `config.example.json` defaults are Bay Area/SJC-oriented and include example MQTT sources, regions, map center, branding, hash channels, cache TTL, retention, and geofilter settings. The Denver site currently centralizes Colorado map defaults in env vars (`MESHCORE_MAP_DEFAULT_LATITUDE=39.5501`, longitude `-105.7821`, zoom `7`). Without a Colorado config, CoreScope will present the wrong default geography and region vocabulary.
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/file-conventions/route ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/geocode/route.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/README.md`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not rebuild Flask blueprints as a parallel Next API surface unless a client workflow truly needs server mediation. Do not expose broad CORS/public APIs for internal utility calculations.
+- **Source:** CoreScope config — https://github.com/Kpa-clawbot/CoreScope/blob/master/config.example.json; local env — `/Users/cjvana/Documents/GitHub/denvermc-org/.env.example`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not rely on CoreScope zero-config defaults for production. Do not commit MQTT passwords, API keys, or channel secrets; use mounted secret config or deployment secret injection.
 
-### ITEM-architecture-8: Drive design-system adaptation from local shells, not upstream CSS/templates
+### ITEM-architecture-8: Keep submodule mechanics explicit and pinned
 
-- **Recommendation:** Recreate upstream utility experiences using local brand components (`HeroPanel`, `ToolShell`, `ToolCard`, panels, buttons, form styles) and Tailwind/design tokens. Treat upstream templates/CSS as functional reference only, and delegate final visual implementation to `co-ui`/native Opus UI per project constraint.
-- **Rationale:** The existing site has a mature dark operations-console design system in `globals.css` plus brand components. Importing upstream Flask templates and CSS would bypass accessibility, navigation, metadata, and public-site polish standards. The local architecture should expose clean props/data/contracts so UI work can be delegated without entangling upstream files.
+- **Recommendation:** Add CoreScope with `git submodule add https://github.com/Kpa-clawbot/CoreScope vendor/CoreScope`, commit `.gitmodules` plus the submodule pointer, and add a small verification script or documented CI step that runs `git submodule update --init --recursive` before building CoreScope.
+- **Rationale:** Git submodules are the right fit for vendored source because the parent repository records an exact CoreScope commit while preserving upstream history. The local repo already uses a `vendor/meshcore-utilities-site` submodule, so the pattern is established. The build and review process must make the pinned revision visible because updating the submodule checkout alone does not update the parent repo.
 - **Confidence:** HIGH
-- **Source:** Codebase inspection — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/ToolShell.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/brand/ToolCard.tsx`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not iframe `tools.meshcore.coloradomesh.org` or paste upstream CSS into the app. Do not hand-code a new visual system in the Codex-backed session; provide architecture and contracts for UI delegation.
+- **Source:** Git docs — https://git-scm.com/book/en/v2/Git-Tools-Submodules; local — `/Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not vendor CoreScope by copying files into the repo; it hides upstream history and makes updates painful. Do not track “latest” implicitly in deployment; pin and review a concrete submodule commit.
 
-### ITEM-architecture-9: Make upstream updates a repeatable, test-gated workflow
+### ITEM-architecture-9: Use an outer reverse proxy for WebSockets and avoid Next external rewrites for CoreScope traffic
 
-- **Recommendation:** Add a documented script/workflow roughly equivalent to: initialize submodule, update from upstream `main`, run the generator/parity checks, run `npm run lint`, `npm run typecheck`, `npm run test`, and `npm run build`, then commit the submodule pointer and any generated/local integration diffs together. Add CI checks that fail when the submodule is missing or generated artifacts are stale.
-- **Rationale:** Submodule updates are explicit: `git submodule update --remote` moves the submodule worktree to a remote-tracking commit, and the superproject records that commit only after `git add <submodule-path>`. Without a repeatable workflow, maintainers will either forget to pull upstream data forward or silently drift from it.
+- **Recommendation:** Put Caddy/nginx/Traefik or the existing deployment proxy in front of both services and route the CoreScope host directly to the CoreScope service, including WebSocket upgrade traffic. Keep Next rewrites limited to simple redirects/handoff where possible.
+- **Rationale:** Next.js rewrites can proxy external URLs and are useful for incremental adoption, but CoreScope’s WebSocket uses the site root host and its SPA expects root-relative APIs. A real reverse proxy is a better boundary for a second full web app. Next.js self-hosting guidance also recommends a reverse proxy for malformed requests, rate limits, and payload controls; recent Next advisories around external rewrites and WebSocket upgrades make minimizing this surface prudent even though the local app is on a patched Next 16.2.5 line.
+- **Confidence:** MEDIUM
+- **Source:** Next docs — https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites; WebSearch — https://github.com/vercel/next.js/security/advisories/GHSA-c4j6-fc7j-m34r, https://github.com/vercel/next.js/security/advisories/GHSA-ggv3-7p47-pfv8
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not depend on Next rewrites as the long-term proxy for CoreScope API and WebSocket traffic. Do not expose CoreScope and Next on unrelated public ports without a single canonical URL plan.
+
+### ITEM-architecture-10: Update navigation, metadata, sitemap, and license attribution around CoreScope
+
+- **Recommendation:** Change the Denver site’s Live Map navigation and `/map` metadata to describe CoreScope as the canonical map/analyzer, update attribution links to `Kpa-clawbot/CoreScope`, and ensure source/license text treats CoreScope as GPL-3.0 unless upstream resolves the license contradiction.
+- **Rationale:** GitHub metadata and the repository LICENSE identify CoreScope as GPL-3.0, while the README currently says MIT. The current Denver `/map` page already contains GPL attribution for the prior `yellowcooln/meshcore-mqtt-live-map` source. The replacement should not leave stale upstream attribution or schema `isBasedOn` data in place.
+- **Confidence:** MEDIUM
+- **Source:** GitHub repo metadata — https://github.com/Kpa-clawbot/CoreScope; CoreScope LICENSE — https://github.com/Kpa-clawbot/CoreScope/blob/master/LICENSE; local map page — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx:55-69`
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not retain attribution to the previous live-map project as the primary basis for `/map`. Do not assume MIT based on README text until the upstream license mismatch is clarified.
+
+### ITEM-architecture-11: Verification gates should cover submodule, service health, route handoff, and WebSocket behavior
+
+- **Recommendation:** Add review gates for: submodule initialized; Compose config renders; CoreScope container builds/starts; `/api/healthz`, `/api/config/map`, `/api/stats`, and `/#/map` respond; WebSocket connects through the chosen host; Denver `/map` handoff works from desktop/mobile navigation; Next `npm run lint`, `npm run typecheck`, unit tests, and relevant Playwright route tests pass.
+- **Rationale:** The integration crosses repo management, deployment, routing, WebSockets, and existing site navigation. The local package already has verification scripts (`lint`, `typecheck`, `test`, `test:e2e`, Docker smoke) and CoreScope has Go, Node, and Playwright tests. A focused integration gate catches the most likely brownfield failures without requiring a full CoreScope test suite on every Denver site change.
 - **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://git-scm.com/docs/git-submodule.html ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not rely on developers manually inspecting upstream diffs with no generated parity output. Do not auto-track upstream HEAD at runtime; pin and review each submodule pointer bump.
-
-### ITEM-architecture-10: Keep deployment submodule-aware but runtime submodule-independent
-
-- **Recommendation:** Ensure all build environments initialize submodules before build, but design the deployed standalone Next runtime so it does not require the submodule directory to be present. Docker/CI should fail early if `vendor/meshcore-utilities-site` is absent when generation/parity checks run.
-- **Rationale:** The Dockerfile copies the repository into a builder stage and then copies only `public`, `.next/standalone`, and `.next/static` into the runner. This is good if submodule-derived outputs are built into local artifacts; it is fragile if runtime code expects the submodule path. Next standalone tracing can include extra files, but narrow generated artifacts are simpler than tracing an entire upstream repo.
-- **Confidence:** HIGH
-- **Source:** Official docs + codebase inspection — https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`
-- **Checked:** 2026-05-10
-- **Alternatives rejected:** Do not ship the whole upstream repo in the production image by default. Do not assume platform checkouts include submodules unless CI/build config explicitly initializes them.
+- **Source:** Local package scripts — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; CoreScope README test suite — https://github.com/Kpa-clawbot/CoreScope#for-developers
+- **Checked:** 2026-05-13
+- **Alternatives rejected:** Do not validate only the Next build; CoreScope can fail independently. Do not require full upstream CoreScope CI for every Denver content change unless the submodule pointer or CoreScope config changes.
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-architecture-1 | HIGH | Official docs + GitHub inspection | https://git-scm.com/docs/git-submodule.html ; https://github.com/Colorado-Mesh/meshcore-utilities-site |
-| ITEM-architecture-2 | HIGH | Codebase + GitHub inspection | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/config-export.ts`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/parity/manifest.ts`; https://github.com/Colorado-Mesh/meshcore-utilities-site |
-| ITEM-architecture-3 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js` |
-| ITEM-architecture-4 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/getting-started/project-structure ; https://nextjs.org/docs/app/api-reference/file-conventions/route-groups ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/page.tsx` |
-| ITEM-architecture-5 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/directives/use-client ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/tools/repeater-name/page.tsx` |
-| ITEM-architecture-6 | HIGH | GitHub + codebase inspection | https://github.com/Colorado-Mesh/meshcore-utilities-site/blob/main/static/js/repeater_name_tool.js ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/meshcore-tools/serial-settings.ts` |
-| ITEM-architecture-7 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/file-conventions/route ; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/geocode/route.ts` |
-| ITEM-architecture-8 | HIGH | Codebase inspection | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/globals.css`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/tools/ToolShell.tsx` |
-| ITEM-architecture-9 | HIGH | Official docs + codebase inspection | https://git-scm.com/docs/git-submodule.html ; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json` |
-| ITEM-architecture-10 | HIGH | Official docs + codebase inspection | https://nextjs.org/docs/app/api-reference/config/next-config-js/output ; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |
+| ITEM-architecture-1 | HIGH | GitHub + Local code | https://github.com/Kpa-clawbot/CoreScope#architecture; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx` |
+| ITEM-architecture-2 | HIGH | Local code + GitHub source | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`; https://github.com/Kpa-clawbot/CoreScope/blob/master/public/app.js |
+| ITEM-architecture-3 | HIGH | GitHub source + Local code | https://github.com/Kpa-clawbot/CoreScope/blob/master/public/live.js; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api` |
+| ITEM-architecture-4 | HIGH | Local code + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`; https://docs.docker.com/compose/how-tos/multiple-compose-files/merge/ |
+| ITEM-architecture-5 | HIGH | GitHub source | https://github.com/Kpa-clawbot/CoreScope/blob/master/docker/entrypoint-go.sh |
+| ITEM-architecture-6 | HIGH | Local code + GitHub source | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; https://github.com/Kpa-clawbot/CoreScope/blob/master/cmd/server/routes.go |
+| ITEM-architecture-7 | HIGH | GitHub source + Local code | https://github.com/Kpa-clawbot/CoreScope/blob/master/config.example.json; `/Users/cjvana/Documents/GitHub/denvermc-org/.env.example` |
+| ITEM-architecture-8 | HIGH | Official docs + Local code | https://git-scm.com/book/en/v2/Git-Tools-Submodules; `/Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules` |
+| ITEM-architecture-9 | MEDIUM | Official docs + WebSearch | https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites; https://github.com/vercel/next.js/security/advisories/GHSA-c4j6-fc7j-m34r |
+| ITEM-architecture-10 | MEDIUM | GitHub metadata + Local code | https://github.com/Kpa-clawbot/CoreScope; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx` |
+| ITEM-architecture-11 | HIGH | Local code + GitHub README | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://github.com/Kpa-clawbot/CoreScope#for-developers |

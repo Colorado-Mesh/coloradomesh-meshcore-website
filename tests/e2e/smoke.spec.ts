@@ -7,6 +7,7 @@ const criticalPages = ['/', '/start', '/map', '/tools', '/guides'];
 const repoRoot = process.cwd();
 const soundOverlayScript = readFileSync(path.join(repoRoot, 'corescope-overlay/denvermc-sound.js'), 'utf8');
 const shellOverlayScript = readFileSync(path.join(repoRoot, 'corescope-overlay/denvermc-shell.js'), 'utf8');
+const shellOverlayCss = readFileSync(path.join(repoRoot, 'corescope-overlay/denvermc-shell.css'), 'utf8');
 const upstreamUtilityRedirects = [
   { source: '/repeater_name_tool', destination: '/tools/repeater-name' },
   { source: '/companion_name_tool', destination: '/tools/companion-name' },
@@ -151,14 +152,21 @@ type SoundHarnessWindow = Window & {
   __coloradoMeshSound: SoundApi;
 };
 
-async function mountMapSoundOverlay(page: Page, options: { mode?: string; volume?: string } = {}) {
+async function mountMapSoundOverlay(
+  page: Page,
+  options: { mode?: string; volume?: string; mobileSheet?: boolean; shellPreference?: 'analyzer' | 'minimal' } = {},
+) {
   await page.goto('/map');
-  await page.evaluate(({ mode, volume }) => {
+  await page.evaluate(({ mode, volume, shellPreference }) => {
     window.localStorage.removeItem('coloradoMesh.map.soundMode');
     window.localStorage.removeItem('coloradoMesh.map.soundVolume');
+    window.localStorage.removeItem('denvermc.shell.userPreference');
     window.localStorage.setItem('live-audio-enabled', 'true');
     if (mode) window.localStorage.setItem('coloradoMesh.map.soundMode', mode);
     if (volume) window.localStorage.setItem('coloradoMesh.map.soundVolume', volume);
+    if (shellPreference === 'analyzer') {
+      window.localStorage.setItem('denvermc.shell.userPreference', 'analyzer');
+    }
 
     const label = document.createElement('label');
     label.id = 'testAudioLabel';
@@ -193,9 +201,22 @@ async function mountMapSoundOverlay(page: Page, options: { mode?: string; volume
     };
   }, options);
 
+  if (options.mobileSheet) {
+    // The bottom sheet/backdrop depend on CSS positioning. Inject the
+    // shell stylesheet so the sheet/trigger render the way they do in
+    // the deployed CoreScope overlay.
+    await page.addStyleTag({ content: shellOverlayCss });
+  }
   await page.addScriptTag({ content: shellOverlayScript });
   await page.addScriptTag({ content: soundOverlayScript });
-  await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeVisible();
+  if (options.mobileSheet) {
+    // On phone widths the inline group is hidden in favor of the sheet
+    // trigger; only assert attachment so existing visibility checks
+    // don't fire for hidden controls.
+    await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeAttached();
+  } else {
+    await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeVisible();
+  }
 }
 
 async function getSoundState(page: Page) {
@@ -279,7 +300,7 @@ test.describe('critical page smoke', () => {
 
     await expect(page.getByLabel('Colorado Mesh map sound mode')).toHaveValue('off');
     await expect(page.getByLabel('Colorado Mesh map sound volume')).toHaveValue('30');
-    await expect(page.locator('.denvermc-topbar__mark-img')).toHaveAttribute('src', '/brand/linux/256x256.png');
+    await expect(page.locator('.denvermc-topbar__mark-img')).toHaveAttribute('src', '/brand/color/mesh-color-256.png');
     await expect(page.locator('#liveAudioToggle')).toBeDisabled();
     await expect(page.locator('#testAudioLabel')).toBeHidden();
     await expect(page.locator('#audioControls')).toBeHidden();
@@ -443,6 +464,262 @@ test.describe('critical page smoke', () => {
         fallbackActive: false,
       }),
     });
+  });
+
+  test('map sound mobile bottom sheet stays within the viewport at 320/360/390/430 portrait widths', async ({ page }) => {
+    const portraitWidths = [320, 360, 390, 430] as const;
+    for (const width of portraitWidths) {
+      await page.setViewportSize({ width, height: 844 });
+      await mountMapSoundOverlay(page, { mobileSheet: true });
+
+      const trigger = page.locator('#denvermcSoundTrigger');
+      const sheet = page.locator('#denvermcSoundSheet');
+
+      await expect(trigger).toBeVisible();
+      await trigger.click();
+      await expect(sheet).toBeVisible();
+
+      const geometry = await sheet.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          left: rect.left,
+          right: rect.right,
+          width: rect.width,
+          viewport: window.innerWidth,
+        };
+      });
+
+      expect(
+        geometry.left,
+        `sheet left edge must stay within viewport at ${width}px`,
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        geometry.right,
+        `sheet right edge must stay within viewport at ${width}px`,
+      ).toBeLessThanOrEqual(geometry.viewport);
+      expect(geometry.width).toBeGreaterThan(0);
+      expect(geometry.width).toBeLessThanOrEqual(geometry.viewport);
+
+      // Body must not gain a horizontal scrollbar from the sheet itself.
+      const overflowsHorizontally = await page.evaluate(
+        () => document.documentElement.scrollWidth > window.innerWidth,
+      );
+      expect(overflowsHorizontally, `no horizontal overflow at ${width}px`).toBe(false);
+    }
+  });
+
+  test('map sound mobile bottom sheet opens, closes via Escape/backdrop/close, and preserves the sound API', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await mountMapSoundOverlay(page, { mobileSheet: true });
+
+    const trigger = page.locator('#denvermcSoundTrigger');
+    const sheet = page.locator('#denvermcSoundSheet');
+    const backdrop = page.locator('#denvermcSoundSheetBackdrop');
+    const closeBtn = page.locator('.denvermc-sound-sheet__close');
+    const inlineSound = page.locator('.denvermc-topbar__actions > .denvermc-sound');
+
+    // Compact trigger is the only sound affordance visible on phone widths.
+    await expect(trigger).toBeVisible();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toHaveAttribute('aria-controls', 'denvermcSoundSheet');
+    // Inline sound group moved into the sheet body — none remain as a
+    // direct child of the topbar actions container.
+    await expect(inlineSound).toHaveCount(0);
+    // Sheet starts hidden, with aria-hidden=true and tabIndex managed.
+    await expect(sheet).toBeHidden();
+    await expect(sheet).toHaveAttribute('aria-hidden', 'true');
+
+    // Open via trigger -> sheet visible, sound controls reachable.
+    await trigger.click();
+    await expect(sheet).toBeVisible();
+    await expect(sheet).toHaveAttribute('aria-hidden', 'false');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(closeBtn).toBeFocused();
+    await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeVisible();
+    await expect(page.getByLabel('Colorado Mesh map sound volume')).toBeVisible();
+
+    // Public sound API still drives the controls from inside the sheet.
+    await page.getByLabel('Colorado Mesh map sound mode').selectOption('native');
+    await expect.poll(() => getSoundState(page)).toMatchObject({ mode: 'native', unlocked: true });
+
+    // Escape closes and returns focus to the trigger.
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+    await expect(sheet).toHaveAttribute('aria-hidden', 'true');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+
+    // Backdrop closes.
+    await trigger.click();
+    await expect(sheet).toBeVisible();
+    await backdrop.click();
+    await expect(sheet).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    // Explicit close button closes.
+    await trigger.click();
+    await expect(sheet).toBeVisible();
+    await closeBtn.click();
+    await expect(sheet).toBeHidden();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  test('map sound mobile analyzer mode exposes the overlay topbar and compact sound trigger at 320/360/390/430 portrait widths', async ({ page }) => {
+    const portraitWidths = [320, 360, 390, 430] as const;
+    for (const width of portraitWidths) {
+      await page.setViewportSize({ width, height: 844 });
+      await mountMapSoundOverlay(page, { mobileSheet: true, shellPreference: 'analyzer' });
+
+      const body = page.locator('body');
+      const topbar = page.locator('.denvermc-topbar');
+      const trigger = page.locator('#denvermcSoundTrigger');
+      const sheet = page.locator('#denvermcSoundSheet');
+      const brand = page.locator('.denvermc-topbar__brand');
+
+      // Analyzer mode is active and the overlay topbar is no longer
+      // hidden by CSS — both must be true for the sound trigger to be
+      // reachable on the analyzer live route.
+      await expect(body, `analyzer body class at ${width}px`).toHaveClass(/denvermc-analyzer/);
+      await expect(topbar, `overlay topbar visible in analyzer at ${width}px`).toBeVisible();
+      await expect(trigger, `compact sound trigger visible in analyzer at ${width}px`).toBeVisible();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+      // Topbar must clear the top safe-area inset (no negative offset).
+      const topbarTop = await topbar.evaluate((el) => el.getBoundingClientRect().top);
+      expect(topbarTop, `overlay topbar starts on-screen at ${width}px`).toBeGreaterThanOrEqual(0);
+
+      // Regression guard for the mobile padding-shorthand pitfall: the
+      // topbar must continue to apply the env-derived safe-area inset as
+      // its padding-top at every mobile breakpoint. Headless Chromium
+      // resolves `env(safe-area-inset-top, 0px)` to 0, so we inject a
+      // simulated inset via the `--denvermc-topbar-safe-top` CSS variable
+      // and verify the override survives the 768/540/360px media-query
+      // cascade. If a future edit reintroduces `padding: 0 X` shorthand
+      // on `.denvermc-topbar`, this assertion will fail because the
+      // padding-top longhand gets reset to 0.
+      const paddingTop = await topbar.evaluate((el) => {
+        const root = document.documentElement;
+        const previous = root.style.getPropertyValue('--denvermc-topbar-safe-top');
+        root.style.setProperty('--denvermc-topbar-safe-top', '47px');
+        const value = window.getComputedStyle(el).paddingTop;
+        if (previous) root.style.setProperty('--denvermc-topbar-safe-top', previous);
+        else root.style.removeProperty('--denvermc-topbar-safe-top');
+        return value;
+      });
+      expect(
+        paddingTop,
+        `overlay topbar preserves safe-area padding-top at ${width}px`,
+      ).toBe('47px');
+
+      // Brand link must clear the 44×44 touch-target floor on phones —
+      // both the visible mark and the surrounding tap surface need to
+      // be large enough that a one-handed thumb reliably hits it.
+      const brandBox = await brand.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return { width: rect.width, height: rect.height };
+      });
+      expect(
+        brandBox.height,
+        `brand link height ≥ 44px at ${width}px`,
+      ).toBeGreaterThanOrEqual(44);
+      expect(
+        brandBox.width,
+        `brand link width ≥ 44px at ${width}px`,
+      ).toBeGreaterThanOrEqual(44);
+
+      // Sheet open → sound API controls reachable through the bottom sheet.
+      await trigger.click();
+      await expect(sheet, `sheet opens in analyzer at ${width}px`).toBeVisible();
+      await expect(page.getByLabel('Colorado Mesh map sound mode'), `mode select reachable at ${width}px`).toBeVisible();
+      await expect(page.getByLabel('Colorado Mesh map sound volume'), `volume reachable at ${width}px`).toBeVisible();
+      await page.keyboard.press('Escape');
+      await expect(sheet, `Escape closes sheet at ${width}px`).toBeHidden();
+
+      // Focus mode is still zero-distraction: switching to focus must
+      // hide the topbar even after analyzer just exposed it.
+      await page.evaluate(() => {
+        (document.getElementById('denvermcFocusBtn') as HTMLButtonElement | null)?.click();
+      });
+      await expect(body, `focus body class at ${width}px`).toHaveClass(/denvermc-focus/);
+      await expect(topbar, `overlay topbar hidden in focus at ${width}px`).toBeHidden();
+      await expect(trigger, `sound trigger hidden in focus at ${width}px`).toBeHidden();
+    }
+  });
+
+  test('site icon metadata points at same-origin Colorado Mesh derivatives and excludes legacy /brand/linux and /brand/win paths', async ({ page }) => {
+    await page.goto('/');
+
+    const iconHrefs = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]')).map(
+        (link) => (link as HTMLLinkElement).getAttribute('href') ?? '',
+      ),
+    );
+
+    expect(iconHrefs.length).toBeGreaterThan(0);
+    for (const href of iconHrefs) {
+      expect(href.startsWith('/')).toBe(true);
+      expect(href).not.toContain('/brand/linux/');
+      expect(href).not.toContain('/brand/win/');
+    }
+    expect(iconHrefs).toEqual(expect.arrayContaining([
+      expect.stringMatching(/\/favicon\.ico/),
+      expect.stringMatching(/\/favicon-16x16\.png/),
+      expect.stringMatching(/\/favicon-32x32\.png/),
+      expect.stringMatching(/\/apple-touch-icon\.png/),
+      expect.stringMatching(/\/brand\/color\/mesh-color-256\.png/),
+    ]));
+
+    const assetChecks = await page.evaluate(async (paths: string[]) => {
+      const results: Array<{ path: string; status: number | null; type: string | null }> = [];
+      for (const path of paths) {
+        try {
+          const response = await fetch(path, { method: 'HEAD' });
+          results.push({
+            path,
+            status: response.status,
+            type: response.headers.get('content-type'),
+          });
+        } catch {
+          results.push({ path, status: null, type: null });
+        }
+      }
+      return results;
+    }, [
+      '/favicon.ico',
+      '/favicon-16x16.png',
+      '/favicon-32x32.png',
+      '/apple-touch-icon.png',
+      '/brand/color/mesh-color-256.png',
+    ]);
+
+    for (const { path, status, type } of assetChecks) {
+      expect(status, `expected 200 for ${path}`).toBe(200);
+      const contentType = (type || '').toLowerCase();
+      if (path.endsWith('.ico')) {
+        expect(
+          contentType.includes('icon') || contentType.includes('image/'),
+          `unexpected content-type for ${path}: ${contentType}`,
+        ).toBe(true);
+      } else {
+        expect(contentType).toContain('image/png');
+      }
+    }
+  });
+
+  test('map overlay logo resolves to the vendored color mesh asset on desktop', async ({ page }) => {
+    await mountMapSoundOverlay(page);
+    const logo = page.locator('.denvermc-topbar__mark-img');
+    await expect(logo).toHaveAttribute('src', '/brand/color/mesh-color-256.png');
+    const status = await logo.evaluate((img) => {
+      const i = img as HTMLImageElement;
+      return new Promise<{ status: number | null; type: string | null }>((resolve) => {
+        fetch(i.src, { method: 'HEAD' })
+          .then((r) => resolve({ status: r.status, type: r.headers.get('content-type') }))
+          .catch(() => resolve({ status: null, type: null }));
+      });
+    });
+    expect(status.status).toBe(200);
+    expect((status.type || '').toLowerCase()).toContain('image/png');
   });
 
   test('tools hub exposes all four operator tools as first-class entries', async ({ page }) => {

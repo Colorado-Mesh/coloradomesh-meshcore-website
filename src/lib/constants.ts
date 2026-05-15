@@ -37,8 +37,9 @@ export const BRAND = {
   letsMeshUrl: 'https://letsmesh.net',
   githubOrgUrl: 'https://github.com/Colorado-Mesh',
   analyzerUrl: 'https://analyzer.meshcore.coloradomesh.org',
-  logoPath: '/brand/linux/256x256.png',
-  iconPath: '/brand/win/colorado-mesh.ico',
+  logoPath: '/brand/color/mesh-color.png',
+  logoMarkPath: '/brand/color/mesh-color-256.png',
+  iconPath: '/favicon.ico',
 } as const;
 
 // =============================================================================
@@ -52,6 +53,7 @@ export const COMMUNITY_NAME = BRAND.communityName;
 export const SITE_TAGLINE = BRAND.tagline;
 export const SITE_DESCRIPTION = BRAND.description;
 export const SITE_LOGO_PATH = BRAND.logoPath;
+export const SITE_LOGO_MARK_PATH = BRAND.logoMarkPath;
 
 // =============================================================================
 // External Links

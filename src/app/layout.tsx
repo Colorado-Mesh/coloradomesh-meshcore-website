@@ -65,11 +65,17 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/brand/win/colorado-mesh.ico", sizes: "any" },
-      { url: "/brand/linux/16x16.png", sizes: "16x16", type: "image/png" },
-      { url: "/brand/linux/32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/brand/color/mesh-color-128.png", sizes: "128x128", type: "image/png" },
+      { url: "/brand/color/mesh-color-256.png", sizes: "256x256", type: "image/png" },
+      { url: "/brand/color/mesh-color-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: "/brand/linux/256x256.png",
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
   },
   manifest: "/manifest.json",
   alternates: {
@@ -88,8 +94,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: SITE_LOGO_PATH,
-        width: 512,
-        height: 512,
+        width: 1254,
+        height: 1254,
         alt: `${SITE_NAME} logo`,
       },
     ],

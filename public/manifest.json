@@ -8,14 +8,26 @@
   "theme_color": "#4ecdc4",
   "icons": [
     {
-      "src": "/brand/linux/128x128.png",
+      "src": "/brand/color/mesh-color-128.png",
       "sizes": "128x128",
       "type": "image/png"
     },
     {
-      "src": "/brand/linux/256x256.png",
+      "src": "/brand/color/mesh-color-256.png",
       "sizes": "256x256",
       "type": "image/png"
+    },
+    {
+      "src": "/brand/color/mesh-color-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/brand/color/mesh-color.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

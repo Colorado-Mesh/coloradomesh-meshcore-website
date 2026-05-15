@@ -1,4 +1,4 @@
-import { BASE_URL } from '@/lib/constants';
+import { BASE_URL, SITE_LOGO_MARK_PATH } from '@/lib/constants';
 
 export interface BlogPostSchemaInput {
   title: string;
@@ -29,7 +29,7 @@ export function generateBlogPostSchema(post: BlogPostSchemaInput) {
       name: 'Colorado MeshCore',
       logo: {
         '@type': 'ImageObject',
-        url: `${BASE_URL}/logo-512.png`,
+        url: `${BASE_URL}${SITE_LOGO_MARK_PATH}`,
       },
     },
     mainEntityOfPage: {

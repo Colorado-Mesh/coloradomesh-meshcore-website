@@ -1,44 +1,51 @@
-# Step 3 Execution Plan: CoreScope packet event bridge and rate-limited sound router
+# Step 3 Execution Plan: Mobile overlay polish and site-wide logo update
 
 ## Goal
-Bridge CoreScope consolidated packet audio calls into an overlay-owned, metadata-only sound event router with dedupe, burst control, priority classification, and test counters.
+Delegate and verify the visual/frontend implementation that makes the CoreScope map overlay polished on 320–430px portrait screens and replaces the site-wide logo with a local vendored copy of the updated Colorado Mesh icon.
 
 ## Current Code Observations
-- `vendor/CoreScope/public/live.js` builds one consolidated packet per hash group with `Object.assign({}, first, { observation_count: obsCount })`, then calls `MeshAudio.sonifyPacket(consolidated)` at `vendor/CoreScope/public/live.js:2366`.
-- `vendor/CoreScope/public/audio.js` parses packet bytes from `raw`/`raw_hex`, uses `decoded.header.payloadTypeName`, `decoded.payload`, `decoded.path.hops`, and observation count; the overlay can reuse this metadata shape without reading message text.
-- `corescope-overlay/denvermc-sound.js` currently suppresses `MeshAudio.sonifyPacket` by replacing it with a counter-only no-op, so Step 3 should route packets there instead of calling upstream audio.
-- CoreScope's audio lab also calls `MeshAudio.sonifyPacket(pkt)` with synthetic packet objects, so the router must tolerate replay/audio-lab packet shapes.
-- Channel metadata can appear as `decoded.payload.channel`, `decoded.payload.channelName`, `decoded.payload.channelHash`, or live decrypt metadata such as `channelName`/`channelHashByte`; message text fields must not be consumed for sound decisions.
+- `corescope-overlay/denvermc-shell.js` currently uses `BRAND_LOGO_SRC = '/brand/linux/256x256.png'`, builds the sound selector inline in the top bar, and appends the sound controls before Focus/Analyzer/Site actions.
+- `corescope-overlay/denvermc-shell.css` currently keeps sound select/volume controls inline at phone widths; at `max-width: 420px` it hides only the volume label and narrows the select, which still squeezes the top bar.
+- The overlay already owns body mode classes (`denvermc-minimal`, `denvermc-analyzer`, `denvermc-focus`) and can add mobile-only sheet state without editing `vendor/CoreScope`.
+- `src/lib/constants.ts` exposes `BRAND.logoPath`/`SITE_LOGO_PATH` as `/brand/linux/256x256.png`; `BrandMark.tsx` uses that constant for the main site navigation.
+- `src/app/layout.tsx` and `public/manifest.json` still point metadata, apple icon, and PWA icons at the old brand assets.
+- `tests/e2e/smoke.spec.ts` already mounts the overlay, asserts the current logo path, sound controls, and has separate mobile navigation tests that can be extended for the new mobile sheet/logo behavior.
 
 ## Files to Change
-- `corescope-overlay/denvermc-sound.js` — add packet normalization, dedupe/rate-limiting, priority classification, router dispatch, and test seams.
-- `.forge/steps/step-3-plan.md` — this execution plan.
+- `corescope-overlay/denvermc-shell.js` — add mobile sound trigger/sheet behavior, Escape/backdrop close, route/mode synchronization, and update overlay logo path.
+- `corescope-overlay/denvermc-shell.css` — replace cramped inline phone controls with polished portrait-safe top bar and bottom sheet styling.
+- `public/brand/**` — vendor the updated Colorado Mesh logo locally from the provided GitHub source and generated icon sizes if needed.
+- `src/lib/constants.ts` — update the site-wide logo source of truth to the new same-origin asset path.
+- `src/app/layout.tsx` — update metadata/apple/open graph icon references where practical.
+- `public/manifest.json` — update PWA icon paths to local new-logo assets where practical.
+- `tests/e2e/smoke.spec.ts` — update logo expectations and add mobile sound sheet assertions.
 
 ## Ordered Implementation Checklist
-1. Extend counters with router fields: received, normalized, routed, dropped, deduped, throttled, locked, off, malformed, priority, and played placeholder counts.
-2. Add safe metadata helpers for packet hash/id, payload type, channel name/hash, hop count, observation count, timestamp, and byte-derived intensity without reading `payload.text`, decrypted message text, sender, or other message content fields.
-3. Implement `normalizePacket(pkt)` to return the planned `SoundEvent` shape or `null` for unusable packets, including `{ id, type, modeHint, channelName, channelHash, isEmergency, isPriority, observationCount, hopCount, intensity, timestamp }`.
-4. Implement dedupe using a short hash/id window so repeat observations of the same consolidated packet do not generate repeated events.
-5. Implement simple token-bucket throttles per priority lane where emergency/priority events get a higher allowance and low-priority events are dropped/merged under bursts.
-6. Replace the CoreScope `MeshAudio.sonifyPacket` suppression no-op with a wrapper that counts received packets and routes through the overlay router while still forcing upstream audio disabled.
-7. Implement `routeEvent(soundEvent)` to drop Off/locked/unavailable states, update counters and last event state, and call a placeholder mode strategy that records a played event but produces no actual sound yet.
-8. Add public/test methods on `window.__coloradoMeshSound`: `normalizePacket`, `routeEvent`, `injectTestEvent(eventOrPacket)`, and last-event access through `getState()` counters/fields.
-9. Keep hidden/non-live behavior unchanged: events process while sound is enabled/unlocked, but no events are queued while Off/locked.
+1. Run `co-ui` from the repo root with a concise handoff for Opus UI to implement the visual/mobile/logo work; this Codex-backed session must not directly implement the frontend visual changes.
+2. Ask Opus UI to vendor the new logo as same-origin local files, never as runtime GitHub image URLs, and to keep all user-facing labels as “Colorado Mesh.”
+3. Ask Opus UI to move phone-width sound controls into a bottom sheet opened by a compact topbar trigger while preserving desktop inline controls and all existing `window.__coloradoMeshSound` behavior.
+4. Ask Opus UI to implement accessible sheet close behavior via explicit close button, backdrop, and Escape without trapping normal map use unnecessarily.
+5. Ask Opus UI to tune 320, 360, 390/393, and 430px portrait layouts, including topbar touch targets, safe-area spacing, analyzer/minimal/focus collisions, and CoreScope live controls.
+6. Review Opus changes for scope, no `vendor/CoreScope` edits, no secret exposure, same-origin assets, and unchanged sound localStorage/API contracts.
+7. Update or confirm Playwright coverage for the new logo path and mobile sound sheet open/close behavior.
+8. Run the Step 3 targeted Playwright command, browser viewport screenshot checks, lint, and typecheck before staging.
 
 ## Interfaces and Data Contracts
-- Internal/test-exported `normalizePacket(pkt) -> SoundEvent | null`.
-- `SoundEvent` shape: `{ id, type, modeHint, channelName, channelHash, isEmergency, isPriority, observationCount, hopCount, intensity, timestamp }` and no message text/sender fields.
-- `routeEvent(soundEvent)` dispatches to the current mode strategy and returns `true` if accepted for playback, `false` if dropped.
-- `window.__coloradoMeshSound.injectTestEvent(eventOrPacket)` accepts either a normalized event-like object or a packet-like object and returns whether routing accepted it.
-- `getState()` includes `lastEvent`, `lastDroppedReason`, and expanded counters.
+- Existing sound API and storage contracts stay unchanged: `window.__coloradoMeshSound`, `setMode(mode, { userGesture })`, `setVolume(value)`, `subscribe(listener)`, `coloradoMesh.map.soundMode`, and `coloradoMesh.map.soundVolume`.
+- Desktop users keep a visible sound mode select, volume slider, and status in the top bar.
+- Mobile portrait users get a compact sound trigger in the top bar and a bottom sheet containing the same mode select, volume slider, and status text.
+- The bottom sheet must close via explicit close control, Escape, and backdrop click; it should not appear in focus mode unless Opus keeps a deliberate minimal sound affordance.
+- Logo references should resolve to local same-origin paths under `public/brand/`; no remote GitHub image URL should be used at runtime.
 
 ## Verification Plan
-- Automated: `npm run lint`; `npm run typecheck`; `node --check corescope-overlay/denvermc-sound.js`; `npm run corescope:apply-overlay`; `git diff --check`; `git -C vendor/CoreScope status --short` after generated artifact cleanup.
-- Manual/test seam: after `/map#/live`, use `window.__coloradoMeshSound.injectTestEvent(...)` with repeated same-hash packets to confirm dedupe/drop counters; use an emergency channel packet to confirm priority classification.
-- Regression: CoreScope upstream audio remains disabled; no AudioContext creation happens on page load; no text/sender fields appear in normalized events.
+- Automated: `PLAYWRIGHT_PORT=4324 npx playwright test tests/e2e/smoke.spec.ts --project=chromium --workers=1 --grep "map sound|mobile|logo"`
+- Automated: `npm run lint`
+- Automated: `npm run typecheck`
+- Manual/browser: inspect local map at 320, 360, 390, and 430px portrait; open/close sound sheet; switch sound modes/volume; toggle analyzer/minimal/focus; verify no topbar, sheet, live header, live controls, or map zoom collisions.
+- Regression: rerun the full map sound targeted suite from Step 2 if mobile changes touch existing sound control selectors or behavior.
 
 ## Stop Conditions
-- If routing requires editing `vendor/CoreScope`, stop and keep the overlay-only wrapper approach.
-- If actual audio synthesis becomes necessary to validate routing, stop and defer sound design to Step 4.
-- If packet metadata is insufficient to classify channel priority without reading message text, use only channel/hash/type metadata and avoid text-derived behavior.
-- If throttling risks dropping emergency channel metadata entirely, adjust the lane config rather than broadening event content.
+- Pause if Opus UI cannot run or cannot edit; produce a handoff prompt for `/handoff-opus-ui` instead of implementing visual changes directly in Codex.
+- Pause if the GitHub logo cannot be fetched or converted into local assets without using a runtime remote URL.
+- Pause if mobile sheet implementation would require changing `window.__coloradoMeshSound` API semantics or sound localStorage keys.
+- Pause if any change requires editing `vendor/CoreScope` directly.

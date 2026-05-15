@@ -26,6 +26,12 @@
   --denvermc-warn-soft: rgba(244, 140, 6, 0.18);
   --denvermc-topbar-h: 56px;
   --denvermc-topbar-h-mobile: 56px;
+  /* Notch / status-bar offset for the fixed topbar. Routed through a
+   * variable so mobile media queries can safely override padding-left /
+   * padding-right without re-resetting padding-top (which would let the
+   * topbar render under the OS safe area on notched phones). Tests can
+   * inject a non-zero value here to assert the override survives. */
+  --denvermc-topbar-safe-top: env(safe-area-inset-top, 0px);
   --denvermc-shadow: 0 10px 30px -16px rgba(0, 0, 0, 0.85);
   --denvermc-shadow-soft: 0 8px 28px -18px rgba(0, 0, 0, 0.7);
   --denvermc-radius: 9px;
@@ -44,8 +50,13 @@ body.denvermc-shell .skip-link { z-index: 2000; }
   display: none;
   align-items: center;
   gap: 16px;
-  padding: 0 16px;
-  padding-top: env(safe-area-inset-top, 0px);
+  /* Longhand padding — mobile media queries must NOT use the `padding`
+   * shorthand here, since that resets `padding-top` (the safe-area inset)
+   * and lets the fixed topbar render beneath the OS notch / status bar. */
+  padding-top: var(--denvermc-topbar-safe-top);
+  padding-right: 16px;
+  padding-bottom: 0;
+  padding-left: 16px;
   background: linear-gradient(180deg, var(--denvermc-bg-strong) 0%, var(--denvermc-bg) 100%);
   border-bottom: 1px solid var(--denvermc-border);
   box-shadow: var(--denvermc-shadow);
@@ -470,6 +481,253 @@ body.denvermc-minimal .denvermc-topbar { display: flex; }
   }
 }
 
+/* ---------- Compact mobile sound trigger ---------- *
+ * Hidden on desktop (the inline .denvermc-sound group serves there); on
+ * phone widths it replaces the cramped inline select with a single
+ * tap-target that opens the bottom sheet. */
+.denvermc-sound-trigger {
+  position: relative;
+  display: none;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+}
+.denvermc-sound-trigger[hidden] { display: none !important; }
+.denvermc-sound-trigger--active {
+  background: rgba(0, 212, 170, 0.10);
+  border-color: rgba(0, 212, 170, 0.45);
+  color: #ffffff;
+}
+.denvermc-sound-trigger__pill {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--denvermc-border-soft);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--denvermc-text-muted);
+  white-space: nowrap;
+}
+.denvermc-sound-trigger__pill:empty { display: none; }
+.denvermc-sound-trigger__pill[data-mode="off"] { display: none; }
+.denvermc-sound-trigger--active .denvermc-sound-trigger__pill {
+  color: #d6fff3;
+  background: rgba(0, 212, 170, 0.14);
+  border-color: rgba(0, 212, 170, 0.40);
+}
+
+/* ---------- Bottom sheet for sound on portrait phones ---------- */
+.denvermc-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1700;
+  background: rgba(0, 0, 0, 0.42);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  opacity: 0;
+  transition: opacity 160ms ease;
+  pointer-events: auto;
+}
+.denvermc-sheet-backdrop[hidden] { display: none; }
+body.denvermc-sound-sheet-open .denvermc-sheet-backdrop { opacity: 1; }
+
+.denvermc-sound-sheet {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) translateY(100%);
+  /* border-box keeps the visible rect within `width` even with horizontal
+   * padding, so the sheet never spills past the viewport on narrow phones
+   * (320–430 portrait) where `min(520px, 100vw)` resolves to 100vw. */
+  box-sizing: border-box;
+  width: min(520px, 100vw);
+  max-width: 100vw;
+  z-index: 1750;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px 18px calc(20px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, var(--denvermc-bg-strong) 0%, #0a1420 100%);
+  border-top: 1px solid var(--denvermc-border);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -18px 50px -20px rgba(0, 0, 0, 0.75);
+  color: var(--denvermc-text);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+/* Scope border-box to descendants so children with `width: 100%` (the
+ * in-sheet sound group, its select, its slider) fit within the sheet's
+ * content area regardless of what upstream/global box-sizing is set. */
+.denvermc-sound-sheet *,
+.denvermc-sound-sheet *::before,
+.denvermc-sound-sheet *::after {
+  box-sizing: border-box;
+}
+.denvermc-sound-sheet[hidden] { display: none; }
+body.denvermc-sound-sheet-open .denvermc-sound-sheet {
+  transform: translateX(-50%) translateY(0);
+}
+
+.denvermc-sound-sheet__header {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  grid-template-areas: "grabber title status close";
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+}
+.denvermc-sound-sheet__grabber {
+  grid-area: grabber;
+  display: block;
+  width: 38px;
+  height: 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  justify-self: start;
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.denvermc-sound-sheet__title {
+  grid-area: title;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--denvermc-text);
+}
+.denvermc-sound-sheet__status {
+  grid-area: status;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--denvermc-text-muted);
+  white-space: nowrap;
+}
+.denvermc-sound-sheet__status:empty { display: none; }
+.denvermc-sound-sheet__close {
+  grid-area: close;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid var(--denvermc-border-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--denvermc-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+.denvermc-sound-sheet__close:hover {
+  background: rgba(0, 212, 170, 0.10);
+  border-color: rgba(0, 212, 170, 0.45);
+  color: #ffffff;
+}
+.denvermc-sound-sheet__close:focus-visible {
+  outline: 2px solid var(--denvermc-accent);
+  outline-offset: 2px;
+}
+.denvermc-sound-sheet__close .denvermc-btn__icon { width: 16px; height: 16px; }
+
+.denvermc-sound-sheet__body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.denvermc-sound-sheet__hint {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--denvermc-text-muted);
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+}
+
+/* Sound group inside the sheet: large, finger-friendly, stacked. */
+.denvermc-sound.denvermc-sound--in-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+  height: auto;
+  padding: 14px 14px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--denvermc-border-soft);
+}
+.denvermc-sound--in-sheet .denvermc-sound__mode-label,
+.denvermc-sound--in-sheet .denvermc-sound__volume-label {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+.denvermc-sound--in-sheet .denvermc-sound__mode-label {
+  font-size: 11px;
+}
+.denvermc-sound--in-sheet .denvermc-sound__volume-text {
+  display: inline-flex;
+  font-size: 11px;
+}
+.denvermc-sound--in-sheet .denvermc-sound__select {
+  width: 100%;
+  max-width: none;
+  height: 44px;
+  font-size: 14px;
+  padding: 0 34px 0 14px;
+  background-size: 12px 12px;
+  background-position: right 14px center;
+}
+.denvermc-sound--in-sheet .denvermc-sound__volume {
+  width: 100%;
+  height: 36px;
+}
+.denvermc-sound--in-sheet .denvermc-sound__volume::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  margin-top: -8px;
+}
+.denvermc-sound--in-sheet .denvermc-sound__volume::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+}
+.denvermc-sound--in-sheet .denvermc-sound__status {
+  align-self: flex-start;
+  height: auto;
+  padding: 4px 10px;
+  font-size: 10px;
+  letter-spacing: 0.10em;
+}
+.denvermc-sound--in-sheet .denvermc-sound__status:empty { display: none; }
+
+/* Focus mode strictly hides the sheet/trigger even if state went stale. */
+body.denvermc-focus .denvermc-sound-sheet,
+body.denvermc-focus .denvermc-sheet-backdrop,
+body.denvermc-focus .denvermc-sound-trigger { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .denvermc-sound-sheet,
+  .denvermc-sheet-backdrop {
+    transition: none !important;
+  }
+}
+
 /* ---------- Minimal mode: collapse upstream chrome ---------- */
 /* Hide upstream top-nav and bottom-nav so our overlay can own chrome */
 body.denvermc-minimal .top-nav,
@@ -580,14 +838,53 @@ body.denvermc-analyzer .live-node-detail {
   z-index: 1150;
 }
 
+/* ---------- Analyzer mode on phones: surface the overlay topbar ---------- *
+ * Below 768px CoreScope's `.top-nav` is mostly decorative (the route
+ * switcher lives in the bottom-nav at those widths) so analyzer mode
+ * swaps it out for the Colorado Mesh overlay topbar. That keeps the
+ * compact `#denvermcSoundTrigger` reachable from every analyzer route on
+ * phones without leaving a 56+52px double-header at the top. Focus mode
+ * keeps its own `display: none !important` rules below, so it is still
+ * the zero-distraction state. */
+@media (max-width: 768px) {
+  body.denvermc-analyzer .denvermc-topbar { display: flex; }
+  body.denvermc-analyzer .top-nav { display: none !important; }
+  /* CoreScope live.css subtracts 52px (the now-hidden top-nav) from
+     `.live-page` height. CoreScope's resize handler later sets an inline
+     `height: window.innerHeight`, but during initial paint reclaim the
+     gap so the map fills the viewport like minimal mode. */
+  body.denvermc-analyzer .live-page {
+    height: 100vh;
+    height: 100dvh;
+  }
+  body.denvermc-analyzer .live-header {
+    top: calc(var(--denvermc-topbar-h) + 12px + env(safe-area-inset-top, 0px));
+    left: 14px;
+    right: auto;
+    max-width: calc(100vw - 28px);
+  }
+  body.denvermc-analyzer .live-page .leaflet-top.leaflet-right {
+    top: calc(var(--denvermc-topbar-h) + 12px + env(safe-area-inset-top, 0px));
+  }
+  body.denvermc-analyzer .live-node-detail {
+    top: calc(var(--denvermc-topbar-h) + 12px + env(safe-area-inset-top, 0px));
+  }
+}
+
 @media (max-width: 640px) {
   body.denvermc-analyzer .live-header {
-    top: 60px;
+    top: calc(var(--denvermc-topbar-h) + 10px + env(safe-area-inset-top, 0px));
     left: 8px;
     right: 8px;
     max-width: calc(100vw - 16px);
     padding: 4px 8px;
     gap: 6px;
+  }
+  body.denvermc-analyzer .live-page .leaflet-top.leaflet-right {
+    top: calc(var(--denvermc-topbar-h) + 10px + env(safe-area-inset-top, 0px));
+  }
+  body.denvermc-analyzer .live-node-detail {
+    top: calc(var(--denvermc-topbar-h) + 10px + env(safe-area-inset-top, 0px));
   }
   body.denvermc-analyzer .live-header .live-header-toggle { display: inline-flex; }
   body.denvermc-analyzer .live-header:not(.is-expanded) .live-header-body { display: none; }
@@ -753,7 +1050,8 @@ body.denvermc-focus .denvermc-focus-exit { display: inline-flex; }
 /* ---------- Mobile tuning ---------- */
 @media (max-width: 768px) {
   :root { --denvermc-topbar-h: var(--denvermc-topbar-h-mobile); }
-  .denvermc-topbar { gap: 8px; padding: 0 10px; }
+  /* Sides only — keep the base padding-top safe-area inset. */
+  .denvermc-topbar { gap: 8px; padding-left: 10px; padding-right: 10px; }
   .denvermc-topbar__divider { display: none; }
   .denvermc-topbar__title-sub { display: none; }
   .denvermc-btn { padding: 0 10px; font-size: 12px; }
@@ -768,26 +1066,120 @@ body.denvermc-focus .denvermc-focus-exit { display: inline-flex; }
 
 @media (max-width: 640px) {
   .denvermc-status { display: none; }
-  .denvermc-topbar__brand { gap: 9px; margin-left: -6px; }
+  /* Tap target floor: the brand link is interactive (it's a same-origin
+   * <a href="/">). Enforce ≥44×44 so 320/360/390/430 portraits clear the
+   * touch-target floor without the operator needing pixel-perfect aim. */
+  .denvermc-topbar__brand {
+    gap: 9px;
+    margin-left: -6px;
+    min-height: 44px;
+    min-width: 44px;
+  }
   .denvermc-topbar__mark { width: 30px; height: 30px; border-radius: 9px; }
   .denvermc-topbar__title-main { font-size: 12.5px; }
   /* Tap target floor: enlarge buttons in the topbar to satisfy AGENTS
    * touch-target rule on phones (≥44×44). */
-  .denvermc-btn { height: 40px; min-height: 40px; }
+  .denvermc-btn { height: 44px; min-height: 44px; min-width: 44px; }
   /* Hide the focus-exit label on phones — icon alone is unambiguous and
    * frees corner space for one-handed reach. */
   .denvermc-focus-exit__label { display: none; }
-  .denvermc-focus-exit { width: 40px; padding: 0; justify-content: center; }
-  .denvermc-sound { height: 40px; gap: 6px; padding: 0 6px; }
-  .denvermc-sound__volume-text { display: none; }
-  .denvermc-sound__status { display: none; }
-  .denvermc-sound__select { height: 32px; max-width: 132px; font-size: 12px; }
-  .denvermc-sound__volume { width: 68px; height: 28px; }
+  .denvermc-focus-exit { width: 44px; padding: 0; justify-content: center; }
 }
 
-@media (max-width: 420px) {
-  .denvermc-sound__volume-label { display: none; }
-  .denvermc-sound__select { max-width: 116px; }
+/* Below 540px (covers every phone width from 320 up through 430 portrait)
+ * the inline sound select+slider is cramped and unreliable; swap it out
+ * for the compact trigger button that opens the bottom sheet. */
+@media (max-width: 540px) {
+  .denvermc-topbar__actions > .denvermc-sound:not(.denvermc-sound--in-sheet) {
+    /* The JS reparents this element into the sheet on phone widths, but
+     * if the listener hasn't run yet (initial paint), keep it hidden so
+     * the cramped layout never flashes. */
+    display: none !important;
+  }
+  .denvermc-sound-trigger { display: inline-flex; }
+  /* The brand subtitle is already hidden; tighten brand gap further so
+   * the trigger + analyzer + site cluster fits at 320px without wrap.
+   * Sides only — preserves the base safe-area padding-top. */
+  .denvermc-topbar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  /* Keep the ≥44×44 touch-target floor from the 640px rule by using
+   * longhand padding-left / padding-right; the brand padding shorthand
+   * here previously knocked the brand link below the practical target. */
+  .denvermc-topbar__brand {
+    gap: 8px;
+    padding-top: 4px;
+    padding-right: 6px;
+    padding-bottom: 4px;
+    padding-left: 6px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .denvermc-topbar__title-main { font-size: 12px; letter-spacing: 0.05em; }
+  .denvermc-topbar__actions { gap: 6px; }
+  .denvermc-sound-trigger__label { display: none; }
+  /* Keep the live-header below the topbar with breathing room and avoid
+   * crowding the right edge on small portraits. */
+  body.denvermc-minimal .live-header {
+    left: 8px;
+    right: 8px;
+    max-width: calc(100vw - 16px);
+    padding: 4px 6px !important;
+  }
+  /* Live-controls cluster: leave room for the sheet trigger without
+   * letting the legend/settings stack stretch off the safe area. */
+  body.denvermc-minimal .live-controls {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px)) !important;
+    right: 10px !important;
+  }
+  body.denvermc-minimal .legend-toggle-btn {
+    right: 10px;
+    bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+  }
+  /* Analyzer mode at narrow portrait — overlay topbar is now the route's
+   * top chrome (CoreScope `.top-nav` is hidden ≤768). Slot the live-feed
+   * and live-controls clusters so they don't collide with either the
+   * overlay topbar or the persistent CoreScope bottom-nav. */
+  body.denvermc-analyzer .live-header {
+    left: 8px;
+    right: 8px;
+    max-width: calc(100vw - 16px);
+    padding: 4px 6px !important;
+  }
+  body.denvermc-analyzer .live-controls {
+    bottom: calc(76px + env(safe-area-inset-bottom, 0px) + var(--bottom-nav-reserve, 0px)) !important;
+    right: 10px !important;
+  }
+  body.denvermc-analyzer .legend-toggle-btn {
+    right: 10px;
+    bottom: calc(124px + env(safe-area-inset-bottom, 0px) + var(--bottom-nav-reserve, 0px));
+  }
+  body.denvermc-analyzer .feed-show-btn {
+    left: 10px;
+  }
+}
+
+/* The narrowest portrait — 320×568 (iPhone SE 1st gen). Drop the brand
+ * subtitle and trim trigger pill so brand + status pill + sound + focus
+ * + analyzer + site all fit in one row. Analyzer route's status pill is
+ * already hidden ≤640px. */
+@media (max-width: 360px) {
+  /* Sides only — preserves the base safe-area padding-top. */
+  .denvermc-topbar { gap: 4px; padding-left: 6px; padding-right: 6px; }
+  /* Brand stays a ≥44×44 hit-target even though its mark shrinks to 28px;
+   * the inner mark is centered via align-items so the visible icon stays
+   * compact while the tap target remains generous. */
+  .denvermc-topbar__brand {
+    margin-left: -4px;
+    padding-top: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-left: 4px;
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .denvermc-topbar__mark { width: 28px; height: 28px; }
+  .denvermc-topbar__title { display: none; }
+  .denvermc-sound-trigger__pill { display: none; }
+  .denvermc-btn { padding: 0 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -5,7 +5,7 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import { HeroPanel, NetworkPanel, SectionEyebrow } from '@/components/brand';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import { generateFAQSchema } from '@/lib/schemas/faq';
-import { BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL, SITE_NAME } from '@/lib/constants';
+import { BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL, SITE_LOGO_PATH, SITE_NAME } from '@/lib/constants';
 
 const PAGE_TITLE = 'Why MeshCore?';
 const PAGE_DESCRIPTION =
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: `${PAGE_TITLE} | ${SITE_NAME}`,
     description: PAGE_DESCRIPTION,
-    images: ['/logo-512.png'],
+    images: [SITE_LOGO_PATH],
   },
 };
 

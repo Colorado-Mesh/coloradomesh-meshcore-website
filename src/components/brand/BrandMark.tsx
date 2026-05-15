@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { SITE_LOGO_PATH, SITE_NAME } from '@/lib/constants';
+import { SITE_LOGO_MARK_PATH, SITE_NAME } from '@/lib/constants';
 
 type BrandMarkSize = 'sm' | 'md' | 'lg';
 
@@ -40,7 +40,7 @@ export default function BrandMark({
   const inner = (
     <span className={`inline-flex items-center ${sizing.gap}`}>
       <Image
-        src={SITE_LOGO_PATH}
+        src={SITE_LOGO_MARK_PATH}
         alt={`${SITE_NAME} logo`}
         width={sizing.mark}
         height={sizing.mark}

@@ -22,7 +22,7 @@
   var PATH_PREFIX = '/map';
   var STORAGE_KEY = 'denvermc.shell.userPreference';
   var DEFAULT_HASH = '#/live';
-  var BRAND_LOGO_SRC = '/brand/linux/256x256.png'; // Same asset used by the main site header
+  var BRAND_LOGO_SRC = '/brand/color/mesh-color-256.png'; // Vendored Colorado Mesh color logo (same-origin)
 
   // Where Colorado Mesh's site root lives. This overlay is served from
   // the same origin as the Next app via nginx, so a relative path works.
@@ -102,6 +102,16 @@
   var soundUnsubscribe = null;
   var soundReadyTimer = null;
   var syncingSoundControls = false;
+  var soundTriggerBtnEl = null;
+  var soundTriggerStatusEl = null;
+  var soundSheetEl = null;
+  var soundSheetBodyEl = null;
+  var soundSheetBackdropEl = null;
+  var soundSheetCloseBtnEl = null;
+  var soundSheetStatusEl = null;
+  var soundSheetMql = null;
+  var soundSheetOpen = false;
+  var soundSheetLastFocus = null;
   var SOUND_MODE_OPTIONS = [
     { value: 'off', label: 'Sound Off' },
     { value: 'native', label: 'Native+' },
@@ -275,6 +285,7 @@
       else if (state.unlocked) soundStatusEl.textContent = 'On';
       else soundStatusEl.textContent = 'Tap to start';
     }
+    syncSoundTrigger(state);
   }
 
   function connectSoundControls() {
@@ -301,6 +312,249 @@
         soundReadyTimer = null;
       }
     }, 250);
+  }
+
+  function soundModeLabel(value) {
+    for (var i = 0; i < SOUND_MODE_OPTIONS.length; i += 1) {
+      if (SOUND_MODE_OPTIONS[i].value === value) return SOUND_MODE_OPTIONS[i].label;
+    }
+    var api = getSoundApi();
+    var opts = soundOptionsFromApi(api);
+    for (var j = 0; j < opts.length; j += 1) {
+      if (opts[j].value === value) return opts[j].label;
+    }
+    return 'Sound';
+  }
+
+  function buildSoundTrigger() {
+    if (soundTriggerBtnEl) return soundTriggerBtnEl;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'denvermc-btn denvermc-btn--ghost denvermc-sound-trigger';
+    btn.id = 'denvermcSoundTrigger';
+    btn.setAttribute('aria-label', 'Open Colorado Mesh map sound controls');
+    btn.setAttribute('aria-haspopup', 'dialog');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'denvermcSoundSheet');
+    btn.title = 'Sound';
+    btn.appendChild(svgIcon(
+      // Speaker with one wave — reads cleanly at icon-only sizes
+      'M3.5 6h1.7L8 3v10L5.2 10H3.5V6zm7.6.4c.9.8.9 2.4 0 3.2l-.9-.9c.4-.5.4-.9 0-1.4l.9-.9z',
+      '0 0 16 16'
+    ));
+    var label = document.createElement('span');
+    label.className = 'denvermc-btn__label denvermc-sound-trigger__label';
+    label.textContent = 'Sound';
+    btn.appendChild(label);
+    var pill = document.createElement('span');
+    pill.className = 'denvermc-sound-trigger__pill';
+    pill.dataset.mode = 'off';
+    pill.textContent = '';
+    btn.appendChild(pill);
+    btn.addEventListener('click', function () {
+      if (soundSheetOpen) closeSoundSheet();
+      else openSoundSheet();
+    });
+    soundTriggerBtnEl = btn;
+    soundTriggerStatusEl = pill;
+    return btn;
+  }
+
+  function buildSoundSheet() {
+    if (soundSheetEl) return soundSheetEl;
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'denvermc-sheet-backdrop';
+    backdrop.id = 'denvermcSoundSheetBackdrop';
+    backdrop.setAttribute('aria-hidden', 'true');
+    backdrop.hidden = true;
+    backdrop.addEventListener('click', function () { closeSoundSheet(); });
+    document.body.appendChild(backdrop);
+    soundSheetBackdropEl = backdrop;
+
+    var sheet = document.createElement('aside');
+    sheet.className = 'denvermc-sound-sheet';
+    sheet.id = 'denvermcSoundSheet';
+    sheet.setAttribute('role', 'dialog');
+    // aria-modal=false: the sheet is a non-trapping panel so operators
+    // can still pan/zoom the underlying map by tapping the backdrop or
+    // pressing Escape; explicit close affordances cover screen readers.
+    sheet.setAttribute('aria-modal', 'false');
+    sheet.setAttribute('aria-labelledby', 'denvermcSoundSheetTitle');
+    sheet.setAttribute('aria-hidden', 'true');
+    sheet.hidden = true;
+    // Keep the sheet out of the tab order while closed so keyboard users
+    // don't land on hidden controls.
+    sheet.tabIndex = -1;
+
+    var header = document.createElement('header');
+    header.className = 'denvermc-sound-sheet__header';
+
+    var grabber = document.createElement('span');
+    grabber.className = 'denvermc-sound-sheet__grabber';
+    grabber.setAttribute('aria-hidden', 'true');
+    header.appendChild(grabber);
+
+    var title = document.createElement('h2');
+    title.className = 'denvermc-sound-sheet__title';
+    title.id = 'denvermcSoundSheetTitle';
+    title.textContent = 'Map sound';
+    header.appendChild(title);
+
+    var status = document.createElement('span');
+    status.className = 'denvermc-sound-sheet__status';
+    status.id = 'denvermcSoundSheetStatus';
+    header.appendChild(status);
+    soundSheetStatusEl = status;
+
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'denvermc-sound-sheet__close';
+    closeBtn.setAttribute('aria-label', 'Close map sound controls');
+    closeBtn.title = 'Close';
+    closeBtn.appendChild(svgIcon(
+      'M4.3 3 8 6.7 11.7 3l1.3 1.3L9.3 8l3.7 3.7L11.7 13 8 9.3 4.3 13 3 11.7 6.7 8 3 4.3z',
+      '0 0 16 16'
+    ));
+    closeBtn.addEventListener('click', function () { closeSoundSheet(); });
+    header.appendChild(closeBtn);
+    soundSheetCloseBtnEl = closeBtn;
+
+    sheet.appendChild(header);
+
+    var body = document.createElement('div');
+    body.className = 'denvermc-sound-sheet__body';
+    sheet.appendChild(body);
+    soundSheetBodyEl = body;
+
+    var hint = document.createElement('p');
+    hint.className = 'denvermc-sound-sheet__hint';
+    hint.textContent = 'Tap a mode to start. Volume changes apply immediately.';
+    sheet.appendChild(hint);
+
+    document.body.appendChild(sheet);
+    soundSheetEl = sheet;
+    return sheet;
+  }
+
+  function shouldUseSoundSheet() {
+    if (!soundSheetMql) return false;
+    return !!soundSheetMql.matches;
+  }
+
+  function placeSoundGroup() {
+    if (!soundGroupEl) return;
+    if (shouldUseSoundSheet()) {
+      // Move the canonical sound group into the sheet body — controls keep
+      // their identity (same select/volume DOM, same aria-labels) so all
+      // existing __coloradoMeshSound API plumbing stays intact.
+      if (!soundSheetBodyEl) buildSoundSheet();
+      if (soundGroupEl.parentNode !== soundSheetBodyEl) {
+        soundSheetBodyEl.appendChild(soundGroupEl);
+      }
+      soundGroupEl.classList.add('denvermc-sound--in-sheet');
+    } else {
+      // Restore to the topbar actions. If the sheet was open while the
+      // viewport widened past mobile, close it so we don't leave a
+      // phantom dialog at desktop widths.
+      if (soundSheetOpen) closeSoundSheet();
+      var actions = topbarEl ? topbarEl.querySelector('.denvermc-topbar__actions') : null;
+      if (actions && soundGroupEl.parentNode !== actions) {
+        // Insert sound group between the divider and the focus/analyzer
+        // buttons — matches the original desktop layout exactly.
+        var focusBtn = actions.querySelector('#denvermcFocusBtn');
+        if (focusBtn) actions.insertBefore(soundGroupEl, focusBtn);
+        else actions.appendChild(soundGroupEl);
+      }
+      soundGroupEl.classList.remove('denvermc-sound--in-sheet');
+    }
+  }
+
+  function syncSoundTrigger(state) {
+    if (!soundTriggerBtnEl) return;
+    var mode = (state && state.mode) || 'off';
+    var label = soundModeLabel(mode);
+    if (mode === 'off') {
+      soundTriggerBtnEl.setAttribute('aria-label', 'Open Colorado Mesh map sound controls — currently off');
+      soundTriggerBtnEl.classList.remove('denvermc-sound-trigger--active');
+    } else {
+      var status = (state && state.unlocked) ? 'on' : 'locked';
+      soundTriggerBtnEl.setAttribute('aria-label', 'Open Colorado Mesh map sound controls — ' + label + ' (' + status + ')');
+      soundTriggerBtnEl.classList.add('denvermc-sound-trigger--active');
+    }
+    if (soundTriggerStatusEl) {
+      soundTriggerStatusEl.dataset.mode = mode;
+      if (mode === 'off') soundTriggerStatusEl.textContent = '';
+      else soundTriggerStatusEl.textContent = (state && state.unlocked) ? 'On' : 'Tap';
+    }
+    if (soundSheetStatusEl) {
+      if (mode === 'off') soundSheetStatusEl.textContent = '';
+      else if (state && state.available === false) soundSheetStatusEl.textContent = 'Unavailable';
+      else if (state && state.unlocked) soundSheetStatusEl.textContent = 'On · ' + label;
+      else soundSheetStatusEl.textContent = 'Tap to start · ' + label;
+    }
+  }
+
+  function openSoundSheet() {
+    if (!soundSheetEl || soundSheetOpen) return;
+    // Only meaningful on mobile widths; if the viewport widened just
+    // before the click, fall through to no-op rather than show a sheet
+    // over an already-visible inline control set.
+    if (!shouldUseSoundSheet()) return;
+    soundSheetOpen = true;
+    soundSheetLastFocus = (document.activeElement && document.activeElement !== document.body)
+      ? document.activeElement
+      : soundTriggerBtnEl;
+    soundSheetEl.hidden = false;
+    soundSheetEl.setAttribute('aria-hidden', 'false');
+    if (soundSheetBackdropEl) {
+      soundSheetBackdropEl.hidden = false;
+      soundSheetBackdropEl.setAttribute('aria-hidden', 'false');
+    }
+    document.body.classList.add('denvermc-sound-sheet-open');
+    if (soundTriggerBtnEl) soundTriggerBtnEl.setAttribute('aria-expanded', 'true');
+    // Move focus to the close button so keyboard / screen-reader users
+    // can dismiss the sheet immediately without tabbing through map
+    // chrome. We do NOT trap focus — pan/zoom remains reachable.
+    if (soundSheetCloseBtnEl) {
+      try { soundSheetCloseBtnEl.focus({ preventScroll: true }); }
+      catch { soundSheetCloseBtnEl.focus(); }
+    }
+  }
+
+  function closeSoundSheet() {
+    if (!soundSheetEl || !soundSheetOpen) return;
+    soundSheetOpen = false;
+    soundSheetEl.setAttribute('aria-hidden', 'true');
+    soundSheetEl.hidden = true;
+    if (soundSheetBackdropEl) {
+      soundSheetBackdropEl.setAttribute('aria-hidden', 'true');
+      soundSheetBackdropEl.hidden = true;
+    }
+    document.body.classList.remove('denvermc-sound-sheet-open');
+    if (soundTriggerBtnEl) soundTriggerBtnEl.setAttribute('aria-expanded', 'false');
+    var returnTo = soundSheetLastFocus && document.body.contains(soundSheetLastFocus)
+      ? soundSheetLastFocus
+      : soundTriggerBtnEl;
+    soundSheetLastFocus = null;
+    if (returnTo && typeof returnTo.focus === 'function') {
+      try { returnTo.focus({ preventScroll: true }); }
+      catch { returnTo.focus(); }
+    }
+  }
+
+  function watchSoundSheetMedia() {
+    if (soundSheetMql || typeof window.matchMedia !== 'function') return;
+    soundSheetMql = window.matchMedia('(max-width: 540px)');
+    var handler = function () {
+      placeSoundGroup();
+      if (!shouldUseSoundSheet() && soundSheetOpen) closeSoundSheet();
+    };
+    if (typeof soundSheetMql.addEventListener === 'function') {
+      soundSheetMql.addEventListener('change', handler);
+    } else if (typeof soundSheetMql.addListener === 'function') {
+      soundSheetMql.addListener(handler);
+    }
   }
 
   function buildTopbar() {
@@ -423,6 +677,7 @@
 
     actions.appendChild(status);
     actions.appendChild(divider);
+    actions.appendChild(buildSoundTrigger());
     actions.appendChild(buildSoundControls());
     actions.appendChild(focusBtn);
     actions.appendChild(analyzerBtn);
@@ -554,6 +809,7 @@
       if (topbarEl) topbarEl.setAttribute('hidden', '');
       if (fabEl) fabEl.setAttribute('hidden', '');
       if (focusExitEl) focusExitEl.setAttribute('hidden', '');
+      if (soundSheetOpen) closeSoundSheet();
       stopMinimalSeedWatch();
       unseedMinimalPanels();
       return;
@@ -564,6 +820,7 @@
       if (mode === 'focus') topbarEl.setAttribute('hidden', '');
       else topbarEl.removeAttribute('hidden');
     }
+    if (mode === 'focus' && soundSheetOpen) closeSoundSheet();
     // FAB only in analyzer mode — gives a discoverable "return to minimal"
     // affordance separate from the topbar toggle (topbar is hidden on
     // very small viewports where the bar collapses controls).
@@ -724,6 +981,9 @@
     if (!isMapPath()) return;
 
     buildTopbar();
+    buildSoundSheet();
+    watchSoundSheetMedia();
+    placeSoundGroup();
     buildFab();
     buildFocusExit();
     applyMode();
@@ -748,7 +1008,15 @@
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       var t = e.target;
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      // Allow inputs INSIDE the sheet to escape it (select/volume),
+      // but bail otherwise so normal form interactions still own Esc.
+      var insideSheet = soundSheetEl && t && soundSheetEl.contains(t);
+      if (t && !insideSheet && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (soundSheetOpen) {
+        e.preventDefault();
+        closeSoundSheet();
+        return;
+      }
       if (focusActive) {
         e.preventDefault();
         setFocus(false);

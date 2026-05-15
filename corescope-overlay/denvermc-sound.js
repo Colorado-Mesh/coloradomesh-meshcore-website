@@ -10,6 +10,7 @@
   var VOLUME_STORAGE_KEY = 'coloradoMesh.map.soundVolume';
   var UPSTREAM_AUDIO_ENABLED_KEY = 'live-audio-enabled';
   var DEFAULT_VOLUME = 0.3;
+  var ENSEMBLE_MANIFEST_URL = '/sound/orchestral/manifest.json';
   var AudioCtor = window.AudioContext || window.webkitAudioContext || null;
   var modes = [
     { value: 'off', label: 'Sound Off' },
@@ -34,6 +35,17 @@
   var scheduledSources = new Set();
   var scheduledNodes = new Set();
   var cachedNoiseBuffer = null;
+  var ensembleManifest = null;
+  var ensembleManifestPromise = null;
+  var ensembleBuffers = {};
+  var ensembleBufferPromises = {};
+  var ensembleWarnings = {};
+  var ensembleState = {
+    status: 'idle',
+    loaded: false,
+    failed: false,
+    sampleCount: 0,
+  };
   var suppressObserver = null;
   var suppressTimer = null;
   var dedupeWindowMs = 2500;
@@ -136,6 +148,7 @@
       lastNormalizedEvent: cloneEvent(lastNormalizedEvent),
       lastEvent: cloneEvent(lastEvent),
       lastDroppedReason: lastDroppedReason,
+      ensemble: Object.assign({}, ensembleState),
     };
   }
 
@@ -244,6 +257,7 @@
         if (resumed && typeof resumed.then === 'function') {
           resumed.then(function () {
             state.unlocked = audioContextIsRunning();
+            if (state.mode === 'ensemble' && state.unlocked) primeEnsembleSamples();
             applyVolume();
             notify();
           }).catch(function () {
@@ -255,6 +269,7 @@
         }
       }
       state.unlocked = audioContextIsRunning();
+      if (state.mode === 'ensemble' && state.unlocked) primeEnsembleSamples();
       applyVolume();
       updateStatus();
       return state.unlocked;
@@ -281,6 +296,7 @@
     } else if (userGesture) {
       counters.unlockAttempts += 1;
       ensureAudioContext();
+      if (mode === 'ensemble' && state.unlocked) primeEnsembleSamples();
     } else {
       state.unlocked = false;
       applyVolume();
@@ -551,6 +567,204 @@
     return end - audioCtx.currentTime + (options.release || 0.08);
   }
 
+  function warnEnsembleOnce(key, message) {
+    if (ensembleWarnings[key]) return;
+    ensembleWarnings[key] = true;
+    try { console.warn('[Colorado Mesh sound]', message); }
+    catch { /* console can be unavailable in hardened contexts */ }
+  }
+
+  function fetchJson(url) {
+    if (typeof window.fetch !== 'function') return Promise.reject(new Error('fetch unavailable'));
+    return window.fetch(url, { cache: 'force-cache' }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.json();
+    });
+  }
+
+  function loadEnsembleManifest() {
+    if (ensembleManifest) return Promise.resolve(ensembleManifest);
+    if (ensembleManifestPromise) return ensembleManifestPromise;
+    ensembleState.status = 'loading';
+    ensembleManifestPromise = fetchJson(ENSEMBLE_MANIFEST_URL).then(function (manifest) {
+      if (!manifest || !Array.isArray(manifest.samples) || !manifest.roles) throw new Error('invalid manifest');
+      ensembleManifest = manifest;
+      ensembleState.status = 'manifest-ready';
+      ensembleState.failed = false;
+      ensembleState.sampleCount = manifest.samples.length;
+      notify();
+      return manifest;
+    }).catch(function (err) {
+      ensembleState.status = 'degraded';
+      ensembleState.failed = true;
+      warnEnsembleOnce('manifest', 'Orchestral manifest unavailable; using procedural fallback.');
+      notify();
+      throw err;
+    });
+    return ensembleManifestPromise;
+  }
+
+  function sampleById(id) {
+    if (!ensembleManifest || !Array.isArray(ensembleManifest.samples)) return null;
+    for (var i = 0; i < ensembleManifest.samples.length; i++) {
+      if (ensembleManifest.samples[i].id === id) return ensembleManifest.samples[i];
+    }
+    return null;
+  }
+
+  function ensembleRoleIds(role) {
+    if (!ensembleManifest || !ensembleManifest.roles) return [];
+    var ids = ensembleManifest.roles[role];
+    return Array.isArray(ids) ? ids : [];
+  }
+
+  function decodeAudioData(arrayBuffer) {
+    return new Promise(function (resolve, reject) {
+      var decoded;
+      try { decoded = audioCtx.decodeAudioData(arrayBuffer, resolve, reject); }
+      catch (err) { reject(err); return; }
+      if (decoded && typeof decoded.then === 'function') decoded.then(resolve).catch(reject);
+    });
+  }
+
+  function loadEnsembleSample(sample) {
+    if (!sample || !sample.id || !sample.url) return Promise.reject(new Error('invalid sample'));
+    if (ensembleBuffers[sample.id]) return Promise.resolve(ensembleBuffers[sample.id]);
+    if (ensembleBufferPromises[sample.id]) return ensembleBufferPromises[sample.id];
+    ensembleBufferPromises[sample.id] = window.fetch(sample.url, { cache: 'force-cache' }).then(function (response) {
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      return response.arrayBuffer();
+    }).then(decodeAudioData).then(function (buffer) {
+      ensembleBuffers[sample.id] = buffer;
+      ensembleState.loaded = Object.keys(ensembleBuffers).length > 0;
+      ensembleState.status = ensembleState.failed ? 'degraded' : Object.keys(ensembleBuffers).length >= ensembleState.sampleCount ? 'ready' : 'loading';
+      notify();
+      return buffer;
+    }).catch(function (err) {
+      ensembleState.status = 'degraded';
+      ensembleState.failed = true;
+      warnEnsembleOnce(sample.id, 'Orchestral sample failed to load: ' + sample.id);
+      notify();
+      throw err;
+    });
+    return ensembleBufferPromises[sample.id];
+  }
+
+  function primeEnsembleSamples() {
+    loadEnsembleManifest().then(function (manifest) {
+      manifest.samples.forEach(function (sample) {
+        loadEnsembleSample(sample).catch(function () {});
+      });
+    }).catch(function () {});
+  }
+
+  function chooseEnsembleRole(event) {
+    if (event.isEmergency) return 'priority';
+    if (event.type === 'ADVERT' || event.type === 'NODEINFO') return 'node';
+    if (event.type === 'GRP_TXT' || event.type === 'CHAN' || event.type === 'TEXT') return 'messages';
+    if (event.isPriority || eventLane(event) === 'priority') return 'priority';
+    return 'messages';
+  }
+
+  function loadedSampleForRole(role, seed) {
+    var ids = ensembleRoleIds(role);
+    var candidates = [];
+    ids.forEach(function (id) {
+      var sample = sampleById(id);
+      if (sample && ensembleBuffers[id]) candidates.push(sample);
+    });
+    if (!candidates.length) return null;
+    return candidates[seed % candidates.length];
+  }
+
+  function noteForEnsembleEvent(event, role, seed) {
+    var scale = role === 'priority' ? [0, 3, 7, 10] : [0, 2, 3, 5, 7, 9, 10];
+    var root = role === 'node' ? 60 : role === 'priority' ? 50 : 62;
+    var span = scale.length * 2;
+    var index = seed % span;
+    return root + Math.floor(index / scale.length) * 12 + scale[index % scale.length];
+  }
+
+  function scheduleSample(sample, midi, start, duration, gainValue, options) {
+    options = options || {};
+    var buffer = ensembleBuffers[sample.id];
+    if (!buffer) return 0;
+    var source = audioCtx.createBufferSource();
+    var env = audioCtx.createGain();
+    var nodes = [source, env];
+    var end = start + duration;
+    source.buffer = buffer;
+    source.playbackRate.value = Math.pow(2, (midi - sample.rootNote) / 12);
+    envelopeGain(env, start, duration, gainValue, options.attack || 0.006, options.decay || 0.08, options.sustain || gainValue * 0.45, options.release || 0.18);
+    source.connect(env);
+    env.connect(options.destination || masterGain);
+    scheduledSources.add(source);
+    source.start(start);
+    source.stop(Math.min(start + buffer.duration / source.playbackRate.value, end + (options.release || 0.18) + 0.08));
+    source.onended = function () {
+      scheduledSources.delete(source);
+      nodes.forEach(function (node) {
+        scheduledNodes.delete(node);
+        safeDisconnect(node);
+      });
+    };
+    scheduleCleanup(nodes, duration + (options.release || 0.18) + 0.4);
+    return end - audioCtx.currentTime + (options.release || 0.18);
+  }
+
+  function fallbackEnsemble(event) {
+    var lane = eventLane(event);
+    if (lane === 'priority') return playGenerative(event);
+    return playNative(event);
+  }
+
+  function playEnsemble(event) {
+    if (!ensembleManifest) {
+      primeEnsembleSamples();
+      return fallbackEnsemble(event);
+    }
+    var role = chooseEnsembleRole(event);
+    var seed = eventSeed(event, 'ensemble');
+    var sample = loadedSampleForRole(role, seed);
+    if (!sample) {
+      primeEnsembleSamples();
+      return fallbackEnsemble(event);
+    }
+    return scheduleModeCue('ensemble', event, function (soundEvent) {
+      var lane = eventLane(soundEvent);
+      var intensity = clamp(soundEvent.intensity, 0.05, 1);
+      var start = audioCtx.currentTime + 0.018;
+      var midi = noteForEnsembleEvent(soundEvent, role, seed);
+      var gain = role === 'priority' ? 0.16 : role === 'node' ? 0.082 : 0.105;
+      var duration = role === 'priority' ? 0.42 : role === 'node' ? 0.22 : 0.34;
+      var total = scheduleSample(sample, midi, start, duration, gain * (0.7 + intensity * 0.55), {
+        attack: role === 'priority' ? 0.003 : 0.008,
+        decay: role === 'node' ? 0.045 : 0.075,
+        sustain: role === 'priority' ? 0.3 : 0.38,
+        release: role === 'priority' ? 0.32 : 0.2,
+      });
+      if (role === 'messages' && lane !== 'low') {
+        var second = loadedSampleForRole('messages', seed + 1) || sample;
+        total = Math.max(total, scheduleSample(second, midi + (seed % 2 ? 3 : 7), start + 0.16, 0.28, gain * 0.54, {
+          attack: 0.01,
+          decay: 0.06,
+          sustain: 0.32,
+          release: 0.18,
+        }));
+      }
+      if (role === 'priority' && event.observationCount >= 3) {
+        var accent = loadedSampleForRole('priority', seed + 3) || sample;
+        total = Math.max(total, scheduleSample(accent, midi + 12, start + 0.11, 0.28, gain * 0.5, {
+          attack: 0.004,
+          decay: 0.05,
+          sustain: 0.22,
+          release: 0.24,
+        }));
+      }
+      return total;
+    });
+  }
+
   function cooldownForMode(mode, event) {
     var lane = eventLane(event);
     if (mode === 'generative') return lane === 'priority' ? 110 : lane === 'low' ? 520 : 220;
@@ -732,7 +946,7 @@
     if (state.mode === 'native') return playNative(event);
     if (state.mode === 'generative') return playGenerative(event);
     if (state.mode === 'blaster') return playBlaster(event);
-    if (state.mode === 'ensemble') return true;
+    if (state.mode === 'ensemble') return playEnsemble(event);
     return false;
   }
 

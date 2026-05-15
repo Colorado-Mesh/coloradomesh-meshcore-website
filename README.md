@@ -64,6 +64,8 @@ Production uses one container. nginx listens on public port `3000`, sends the no
 
 `/map` is Docker-owned CoreScope, not the old in-app React map. Loading `/map` defaults to `/map#/live` and applies the local `corescope-overlay/` shell during the Docker build. The minimal Colorado Mesh live-map view hides CoreScope chrome by default, while the **Full analyzer** control exposes the stock CoreScope routes such as `#/packets`, `#/nodes`, `#/channels`, `#/analytics`, and `#/perf`.
 
+Map sound is browser-local and opt-in. It defaults to **Sound Off**, requires a user gesture before the browser unlocks audio, and stores only the selected mode and volume in localStorage. Native+, Generative Key, Orchestral Ensemble, and Space Blaster run from the overlay; Orchestral Ensemble ships curated CC0 sample assets under `/sound/orchestral/` and needs no additional server, credentials, or environment variables.
+
 CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Retention defaults mark nodes inactive after 7 days, remove observers after 14 days, and prune packet history after 30 days. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
 
 Run the container smoke test after building an image:
@@ -72,7 +74,7 @@ Run the container smoke test after building an image:
 npm run docker:smoke -- --image colorado-meshcore-site:local
 ```
 
-The smoke test starts a temporary container, verifies the Next site, CoreScope `/map`, overlay asset injection, CoreScope health/config/stats/node/packet endpoints, preserved Next `/api/map/*` compatibility endpoints, and the root WebSocket route.
+The smoke test starts a temporary container, verifies the Next site, CoreScope `/map`, overlay asset injection, bundled sound assets, CoreScope health/config/stats/node/packet endpoints, preserved Next `/api/map/*` compatibility endpoints, and the root WebSocket route.
 
 ## Runtime Environment
 

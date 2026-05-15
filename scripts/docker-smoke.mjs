@@ -60,6 +60,15 @@ async function expectJson(path) {
   return response.json();
 }
 
+async function expectNonEmpty(path) {
+  const response = await expectOk(path);
+  const body = await response.arrayBuffer();
+  if (body.byteLength <= 0) {
+    throw new Error(`${path} returned an empty response`);
+  }
+  return body;
+}
+
 async function expectApiSuccess(path) {
   const body = await expectJson(path);
   if (body?.success !== true || body.data === undefined) {
@@ -123,11 +132,31 @@ try {
   await waitFor(`${baseUrl}/api/map/runtime`);
   await expectTextIncludes('/', 'Colorado MeshCore');
   const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
-  for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc']) {
+  for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc', 'denvermc-sound.js?v=denvermc']) {
     if (!mapHtml.includes(expected)) {
       throw new Error(`/map did not include expected CoreScope overlay asset: ${expected}`);
     }
   }
+  await expectTextIncludes('/denvermc-sound.js?v=denvermc', 'window.__coloradoMeshSound');
+
+  const orchestralManifest = await expectJson('/sound/orchestral/manifest.json');
+  if (orchestralManifest?.version === undefined || !Array.isArray(orchestralManifest.samples) || !orchestralManifest.samples.length) {
+    throw new Error('/sound/orchestral/manifest.json did not include a valid sample manifest');
+  }
+  for (const role of ['messages', 'node', 'priority']) {
+    if (!Array.isArray(orchestralManifest.roles?.[role]) || !orchestralManifest.roles[role].length) {
+      throw new Error(`/sound/orchestral/manifest.json did not include role mappings for ${role}`);
+    }
+  }
+  for (const sample of orchestralManifest.samples) {
+    for (const field of ['id', 'url', 'rootNote', 'license', 'sourceUrl', 'attribution']) {
+      if (sample[field] === undefined || sample[field] === null || sample[field] === '') {
+        throw new Error(`/sound/orchestral/manifest.json sample is missing ${field}`);
+      }
+    }
+    await expectNonEmpty(sample.url);
+  }
+  await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
 
   const runtime = await expectApiSuccess('/api/map/runtime');
   const snapshot = await expectApiSuccess('/api/map/snapshot');

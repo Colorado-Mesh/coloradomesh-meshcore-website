@@ -1,7 +1,12 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 const criticalPages = ['/', '/start', '/map', '/tools', '/guides'];
+const repoRoot = process.cwd();
+const soundOverlayScript = readFileSync(path.join(repoRoot, 'corescope-overlay/denvermc-sound.js'), 'utf8');
+const shellOverlayScript = readFileSync(path.join(repoRoot, 'corescope-overlay/denvermc-shell.js'), 'utf8');
 const upstreamUtilityRedirects = [
   { source: '/repeater_name_tool', destination: '/tools/repeater-name' },
   { source: '/companion_name_tool', destination: '/tools/companion-name' },
@@ -9,77 +14,7 @@ const upstreamUtilityRedirects = [
   { source: '/serial_usb_tool', destination: '/tools/serial-usb' },
 ] as const;
 
-function mockOperatorPanelSnapshot(page: import('@playwright/test').Page) {
-  return page.route('/api/map/snapshot', async (route) => {
-    const generatedAt = '2026-05-09T12:00:00.000Z';
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          generatedAt,
-          nodes: [
-            {
-              id: 'node-test-1',
-              publicKey: 'A10F000000000000000000000000000000000000000000000000000000000000000',
-              name: 'DEN-OP-A',
-              role: 'repeater',
-              coordinates: { latitude: 39.74, longitude: -104.99 },
-              lastHeardAt: generatedAt,
-              status: 'online',
-              isOnline: true,
-            },
-          ],
-          links: [],
-          routes: [],
-          stats: {
-            totalNodes: 1,
-            onlineNodes: 1,
-            visibleNodes: 1,
-            locatedNodes: 1,
-            repeaterNodes: 1,
-            staleNodes: 0,
-            offlineNodes: 0,
-            linkCount: 0,
-            routeCount: 0,
-            averageBatteryPercent: null,
-            lastUpdated: generatedAt,
-            source: { type: 'live_map_api', label: 'Mocked map data', lastUpdated: generatedAt },
-            connectionState: 'connected',
-          },
-          connection: {
-            state: 'connected',
-            configured: true,
-            sampleData: false,
-            historyEnabled: false,
-            topic: null,
-            lastConnectedAt: generatedAt,
-            lastMessageAt: generatedAt,
-            message: 'Mocked map data is active.',
-          },
-          source: { type: 'live_map_api', label: 'Mocked map data', lastUpdated: generatedAt },
-          warnings: [],
-          features: [
-            {
-              id: 'live-map-snapshot',
-              label: 'Live map snapshot',
-              status: 'available',
-              message: 'Mocked.',
-            },
-            {
-              id: 'advanced-live-map-proxy',
-              label: 'Advanced live-map operator endpoints',
-              status: 'available',
-              message: 'Mocked operator endpoints.',
-            },
-          ],
-        },
-      }),
-    });
-  });
-}
-
-function mockPrefixMatrixSnapshot(page: import('@playwright/test').Page) {
+function mockPrefixMatrixSnapshot(page: Page) {
   return page.route('/api/map/snapshot', async (route) => {
     const generatedAt = '2026-05-09T12:00:00.000Z';
     await route.fulfill({
@@ -146,6 +81,77 @@ function mockPrefixMatrixSnapshot(page: import('@playwright/test').Page) {
   });
 }
 
+type SoundState = {
+  mode: string;
+  volume: number;
+  unlocked: boolean;
+  status: string;
+};
+
+type SoundHarnessWindow = Window & {
+  MeshAudio: {
+    enabled: boolean;
+    setEnabled: (value: boolean) => boolean;
+    isEnabled: () => boolean;
+    restore: () => boolean;
+    sonifyPacket: (packet?: unknown) => unknown;
+  };
+  __coloradoMeshSound: {
+    getState: () => SoundState;
+  };
+};
+
+async function mountMapSoundOverlay(page: Page, options: { mode?: string; volume?: string } = {}) {
+  await page.goto('/map');
+  await page.evaluate(({ mode, volume }) => {
+    window.localStorage.removeItem('coloradoMesh.map.soundMode');
+    window.localStorage.removeItem('coloradoMesh.map.soundVolume');
+    window.localStorage.setItem('live-audio-enabled', 'true');
+    if (mode) window.localStorage.setItem('coloradoMesh.map.soundMode', mode);
+    if (volume) window.localStorage.setItem('coloradoMesh.map.soundVolume', volume);
+
+    const label = document.createElement('label');
+    label.id = 'testAudioLabel';
+    const toggle = document.createElement('input');
+    toggle.id = 'liveAudioToggle';
+    toggle.type = 'checkbox';
+    toggle.checked = true;
+    label.append(toggle, 'Audio');
+    document.body.appendChild(label);
+
+    const controls = document.createElement('div');
+    controls.id = 'audioControls';
+    controls.textContent = 'Audio controls';
+    document.body.appendChild(controls);
+
+    (window as unknown as SoundHarnessWindow).MeshAudio = {
+      enabled: true,
+      setEnabled(value: boolean) {
+        this.enabled = value;
+        return this.enabled;
+      },
+      isEnabled() {
+        return this.enabled;
+      },
+      restore() {
+        this.enabled = window.localStorage.getItem('live-audio-enabled') === 'true';
+        return this.enabled;
+      },
+      sonifyPacket() {
+        return 'upstream-audio';
+      },
+    };
+  }, options);
+
+  await page.addScriptTag({ content: shellOverlayScript });
+  await page.addScriptTag({ content: soundOverlayScript });
+  await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeVisible();
+}
+
+async function getSoundState(page: Page) {
+  return page.evaluate(() => (window as unknown as SoundHarnessWindow).__coloradoMeshSound.getState());
+}
+
 test.describe('critical page smoke', () => {
   for (const pagePath of criticalPages) {
     test(`loads ${pagePath}`, async ({ page }) => {
@@ -181,75 +187,57 @@ test.describe('critical page smoke', () => {
     await expect(discordLink).toHaveAttribute('rel', /noopener/);
   });
 
-  test('map page renders diagnostics and operator copy', async ({ page }) => {
+  test('map page documents Docker-owned CoreScope runtime in local development', async ({ page }) => {
     await page.goto('/map');
-    await expect(page.getByText(/\/api\/map\/snapshot/)).toBeVisible();
-    await expect(page.getByText(/\/api\/live-map\/\*/)).toBeVisible();
-    const diagnostics = page.getByTestId('map-diagnostics');
-    await expect(diagnostics).toBeVisible({ timeout: 15_000 });
+
+    await expect(page.getByRole('heading', { name: /Run Docker to use the production map/i })).toBeVisible();
+    await expect(page.getByText(/CoreScope runtime served by nginx inside the site container/i)).toBeVisible();
+    await expect(page.getByText(/docker compose up --build/i)).toBeVisible();
   });
 
-  test('map page exposes configured live-map operator fallbacks', async ({ page }) => {
-    await mockOperatorPanelSnapshot(page);
-    await page.route('/api/live-map/stats', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            node_count: 1,
-            decoder: { nodes: 1, errors_total: 0 },
-            mqtt: { connected: true },
-            source: { label: 'Mocked map data', type: 'live_map_api' },
-          },
-        }),
-      });
+  test('map sound overlay defaults Off, uses the Colorado Mesh logo, and suppresses upstream audio', async ({ page }) => {
+    await mountMapSoundOverlay(page);
+
+    await expect(page.getByLabel('Colorado Mesh map sound mode')).toHaveValue('off');
+    await expect(page.getByLabel('Colorado Mesh map sound volume')).toHaveValue('30');
+    await expect(page.locator('.denvermc-topbar__mark-img')).toHaveAttribute('src', '/brand/linux/256x256.png');
+    await expect(page.locator('#liveAudioToggle')).toBeDisabled();
+    await expect(page.locator('#testAudioLabel')).toBeHidden();
+    await expect(page.locator('#audioControls')).toBeHidden();
+
+    await expect.poll(() => page.evaluate(() => ({
+      upstreamStored: window.localStorage.getItem('live-audio-enabled'),
+      upstreamEnabled: (window as unknown as SoundHarnessWindow).MeshAudio.isEnabled(),
+      upstreamSonifyResult: (window as unknown as SoundHarnessWindow).MeshAudio.sonifyPacket(),
+    }))).toEqual({
+      upstreamStored: 'false',
+      upstreamEnabled: false,
+      upstreamSonifyResult: false,
     });
-    await page.route('/api/live-map/coverage', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: { type: 'FeatureCollection', features: [] } }),
-      });
+  });
+
+  test('map sound overlay shows persisted modes as locked and persists volume changes', async ({ page }) => {
+    await mountMapSoundOverlay(page, { mode: 'ensemble', volume: '0.72' });
+
+    const mode = page.getByLabel('Colorado Mesh map sound mode');
+    const volume = page.getByLabel('Colorado Mesh map sound volume');
+
+    await expect(mode).toHaveValue('ensemble');
+    await expect(volume).toHaveValue('72');
+    await expect(page.locator('.denvermc-sound__status')).toContainText('Tap to start');
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'ensemble',
+      volume: 0.72,
+      unlocked: false,
+      status: 'locked',
     });
-    await page.route('/api/live-map/los**', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: { distance_km: 1.2, clear: true } }),
-      });
+
+    await volume.evaluate((input) => {
+      const slider = input as HTMLInputElement;
+      slider.value = '42';
+      slider.dispatchEvent(new Event('input', { bubbles: true }));
     });
-    await page.route('/api/live-map/weather/radar/country-bounds**', async (route) => {
-      await route.fulfill({
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, data: { country: 'United States', country_code: 'US' } }),
-      });
-    });
-
-    await page.goto('/map');
-
-    const diagnostics = page.getByTestId('map-diagnostics');
-    await expect(diagnostics).toContainText('Advanced live-map operator endpoints', { timeout: 15_000 });
-    await expect(diagnostics).toContainText('Available');
-
-    const stats = page.getByRole('region', { name: 'Live-map stats' });
-    await expect(stats.getByText('NODES')).toBeVisible({ timeout: 15_000 });
-
-    const coverage = page.getByRole('region', { name: 'Coverage overlay' });
-    await expect(coverage.getByRole('button', { name: /Probe coverage/i })).toBeEnabled();
-    await coverage.getByRole('button', { name: /Probe coverage/i }).click();
-    await expect(coverage.getByText('FeatureCollection')).toBeVisible({ timeout: 15_000 });
-
-    const los = page.getByRole('region', { name: 'Line-of-sight' });
-    await expect(los.getByRole('button', { name: /Calculate LOS/i })).toBeEnabled();
-    await los.getByRole('button', { name: /Calculate LOS/i }).click();
-    await expect(los.getByText('DISTANCE')).toBeVisible({ timeout: 15_000 });
-
-    const weather = page.getByRole('region', { name: 'Weather radar bounds' });
-    await expect(weather.getByRole('button', { name: /Probe bounds/i })).toBeEnabled();
-    await weather.getByRole('button', { name: /Probe bounds/i }).click();
-    await expect(weather.getByText('United States')).toBeVisible({ timeout: 15_000 });
-
-    const peerHistory = page.getByRole('region', { name: 'Peer history' });
-    await expect(peerHistory.getByRole('combobox', { name: /Node/i })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem('coloradoMesh.map.soundVolume'))).toBe('0.42');
   });
 
   test('tools hub exposes all four operator tools as first-class entries', async ({ page }) => {
@@ -585,107 +573,12 @@ test.describe('global navigation', () => {
 });
 
 test.describe('map page interaction details', () => {
-  test('mobile viewport keeps the map within ~70svh of the viewport', async ({ page }) => {
+  test('local-development fallback keeps map guidance readable on mobile', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/map');
-    const shell = page.locator('.cm-map-shell .cm-map').first();
-    await expect(shell).toBeVisible({ timeout: 15_000 });
-    const box = await shell.boundingBox();
-    expect(box).not.toBeNull();
-    if (box) {
-      // clamp(360px, 70svh, 620px) at 844px viewport ≈ min(620, 590) = 590px
-      expect(box.height).toBeLessThanOrEqual(620);
-      expect(box.height).toBeGreaterThanOrEqual(360);
-    }
-  });
 
-  test('operator-panels anchor scrolls clear of the fixed header', async ({ page }) => {
-    await page.goto('/map');
-    const panels = page.getByTestId('map-operator-panels');
-    await expect(panels).toBeVisible({ timeout: 15_000 });
-
-    await page.evaluate(() => {
-      const target = document.getElementById('cm-operator-panels');
-      target?.scrollIntoView({ behavior: 'auto', block: 'start' });
-    });
-
-    // Allow the browser a tick to settle scroll position.
-    await page.waitForTimeout(100);
-
-    const headerBottom = await page.evaluate(() => {
-      const header = document.querySelector('header[role="banner"]');
-      return header ? header.getBoundingClientRect().bottom : 0;
-    });
-    const panelsTop = await panels.evaluate(
-      (node) => (node as HTMLElement).getBoundingClientRect().top
-    );
-
-    // Panels heading must not be hidden behind the fixed header.
-    expect(panelsTop).toBeGreaterThanOrEqual(headerBottom);
-  });
-
-  test('LOS panel rejects out-of-range latitude and disables submit', async ({ page }) => {
-    await mockOperatorPanelSnapshot(page);
-    await page.goto('/map');
-
-    const los = page.getByRole('region', { name: 'Line-of-sight' });
-    await expect(los).toBeVisible({ timeout: 15_000 });
-    const submit = los.getByRole('button', { name: /Calculate LOS/i });
-    await expect(submit).toBeEnabled();
-
-    const lat1 = los.getByLabel('Lat 1', { exact: true });
-    await expect(lat1).toBeVisible();
-    await lat1.fill('91');
-
-    await expect(lat1).toHaveAttribute('aria-invalid', 'true');
-    await expect(los.getByText(/Latitude must be between/i)).toBeVisible();
-    await expect(submit).toBeDisabled();
-
-    await lat1.fill('40');
-    await expect(submit).toBeEnabled();
-  });
-
-  test('Weather radar panel rejects out-of-range longitude and disables submit', async ({ page }) => {
-    await mockOperatorPanelSnapshot(page);
-    await page.goto('/map');
-
-    const weather = page.getByRole('region', { name: 'Weather radar bounds' });
-    await expect(weather).toBeVisible({ timeout: 15_000 });
-    const submit = weather.getByRole('button', { name: /Probe bounds/i });
-    await expect(submit).toBeEnabled();
-
-    const lon = weather.getByLabel('Longitude', { exact: true });
-    await expect(lon).toBeVisible();
-    await lon.fill('-200');
-
-    await expect(lon).toHaveAttribute('aria-invalid', 'true');
-    await expect(weather.getByText(/Longitude must be between/i)).toBeVisible();
-    await expect(submit).toBeDisabled();
-
-    await lon.fill('-105');
-    await expect(submit).toBeEnabled();
-  });
-
-  test('coverage probe button has a visible focus outline when focused via keyboard', async ({ page }) => {
-    await mockOperatorPanelSnapshot(page);
-    await page.goto('/map');
-
-    const coverage = page.getByRole('region', { name: 'Coverage overlay' });
-    await expect(coverage).toBeVisible({ timeout: 15_000 });
-    const probe = coverage.getByRole('button', { name: /Probe coverage/i });
-    await expect(probe).toBeEnabled();
-
-    await probe.evaluate((node) => (node as HTMLElement).focus({ preventScroll: true } as FocusOptions));
-
-    const outline = await probe.evaluate((node) => {
-      const style = window.getComputedStyle(node, null);
-      return {
-        outlineStyle: style.outlineStyle,
-        outlineWidth: parseFloat(style.outlineWidth || '0'),
-      };
-    });
-
-    expect(outline.outlineStyle).not.toBe('none');
-    expect(outline.outlineWidth).toBeGreaterThanOrEqual(2);
+    const fallback = page.getByRole('heading', { name: /Run Docker to use the production map/i });
+    await expect(fallback).toBeVisible();
+    await expect(page.getByText(/docker compose up --build/i)).toBeVisible();
   });
 });

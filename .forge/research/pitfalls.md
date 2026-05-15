@@ -1,224 +1,152 @@
-# Pitfalls Research: Replacing Denver MeshCore live map with CoreScope
+# Pitfalls Research: CoreScope Live Map Sound Modes
 
-Checked: 2026-05-13
+Project: Add opt-in map sound modes to the embedded CoreScope live map through the local overlay/patch layer, preserving the single Docker container and avoiding direct edits under `vendor/CoreScope`.
 
-### ITEM-pitfalls-1: Treating CoreScope as a drop-in React component
+### ITEM-pitfalls-1: Autoplay breaks when sound is restored before a user gesture
 
-- **What goes wrong:** The replacement starts by importing CoreScope files into `src/components/NetworkMap.tsx` or copying CoreScope `public/*.js` into the Next.js bundle, then build/runtime breaks because CoreScope is a standalone vanilla-JS SPA backed by a Go API and WebSocket server, not a React component library.
-- **Root cause:** The current Denver site is a Next.js App Router app with a React Leaflet component under `/map`; CoreScope serves its own `public/index.html`, hash router (`#/map`, `#/live`, etc.), REST endpoints under `/api/*`, and WebSocket connections from its Go server.
-- **Prevention:** Integrate CoreScope as a sidecar application and route `/map` (or a scoped prefix) to that running service. Keep the submodule as source provenance and deployment input; do not port the UI by hand unless a separate UI implementation is delegated.
+- **What goes wrong:** A returning user previously selected a non-off mode, the page restores that state on `/map`, creates/resumes `AudioContext`, and the first packets silently fail or trigger a confusing unlock overlay because the browser suspended audio.
+- **Root cause:** Audible Web Audio playback is generally blocked until user interaction. Current CoreScope vendor audio restores `live-audio-enabled=true` and eagerly calls `initAudio()` during `MeshAudio.restore()`, then shows an unlock overlay only after packet sonification hits a suspended context.
+- **Prevention:** Keep `Sound Off` as the runtime default on load, even if a non-off mode is persisted; treat persisted mode as the selector value but require an explicit click/tap/keyboard activation before any context creation/resume or sound scheduling. On enable, call `AudioContext.resume()` inside that same trusted user event and show clear state: “Sound selected; press Enable sound.”
 - **Severity:** CRITICAL
-- **Phase relevance:** Architecture and implementation planning
+- **Phase relevance:** Phase 1 sound selector and audio engine lifecycle
 - **Confidence:** HIGH
-- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`, `/tmp/CoreScope/README.md`, `/tmp/CoreScope/public/index.html`, `/tmp/CoreScope/cmd/server/main.go`
-- **Checked:** 2026-05-13
+- **Source:** Official docs + codebase — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:169-183`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-2: Submodule exists locally but is empty in CI, Docker, or Netlify
+### ITEM-pitfalls-2: Persisting “enabled” instead of “selected mode” violates opt-in expectations
 
-- **What goes wrong:** Local builds work after cloning CoreScope manually, but CI/deploy builds fail or deploy an empty `/vendor/CoreScope` because the parent repository only records a gitlink and the build environment never initializes submodules.
-- **Root cause:** Git submodules are pinned commit references; normal clones can leave submodule directories empty unless `--recurse-submodules` or `git submodule update --init --recursive` is run. Docker builds copy only the initialized build context; Netlify supports submodules but has caveats around private/SSH and nested submodules.
-- **Prevention:** Add CoreScope with a public HTTPS submodule URL under `vendor/corescope`, pin a release commit, and make verification explicit: `git submodule update --init --recursive` before `npm run build` and before `docker build`. Add a repo script similar to `utilities:check-submodule` that fails when the CoreScope path is missing or detached at an unexpected SHA.
+- **What goes wrong:** A user chooses Native+ once, revisits later in a quiet environment, and the map attempts to play audio automatically because the stored state means “audio enabled,” not merely “preferred mode.”
+- **Root cause:** Existing CoreScope audio persists `live-audio-enabled`, `live-audio-voice`, BPM, and volume in `localStorage`. That model is fine for a lab page but risky for a public live map where sound must be opt-in each session.
+- **Prevention:** Store only a local non-sensitive preference such as `denvermc.map.soundMode = off|native-plus|generative-key|orchestral|space-blaster`; keep a separate in-memory `unlocked` flag that is never persisted. If the stored mode is not `off`, render it selected but muted/locked until user activation. Do not reuse `live-audio-enabled=true` semantics for the new map selector.
 - **Severity:** CRITICAL
-- **Phase relevance:** Repository setup, CI, deployment
+- **Phase relevance:** Phase 1 storage model and migration from existing CoreScope audio
 - **Confidence:** HIGH
-- **Source:** Official docs — https://git-scm.com/book/en/v2/Git-Tools-Submodules; https://docs.netlify.com/build/git-workflows/repo-permissions-linking/
-- **Checked:** 2026-05-13
+- **Source:** Codebase + official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:147-183`; https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-3: Floating `latest` image or moving branch silently changes the map
+### ITEM-pitfalls-3: Accessibility regressions from audio-only feedback and hidden controls
 
-- **What goes wrong:** Production behavior changes after a redeploy because the compose file pulls `ghcr.io/kpa-clawbot/corescope:latest` or a submodule update tracks `master` rather than a reviewed commit/release.
-- **Root cause:** CoreScope is actively releasing; GitHub showed `v3.7.2` as latest on 2026-05-06, with recent map/runtime changes. Submodules pin commits, but container tags like `latest` move.
-- **Prevention:** Pin both the submodule SHA and the runtime image tag/digest. Prefer a release tag such as `v3.7.2` after smoke testing, and update via an explicit PR that includes CoreScope release notes, API smoke tests, and map route verification.
+- **What goes wrong:** Sound cues convey packet priority/message activity that is not available visually; keyboard or screen-reader users cannot find the selector; autoplay or long-running ambient sound interferes with screen readers; focus mode hides the only audio control.
+- **Root cause:** Sonification can easily become a parallel UI layer rather than decoration. WCAG requires user control for audio that starts automatically and lasts more than 3 seconds, and WAI techniques recommend playing sounds only on user request to avoid disrupting assistive technology.
+- **Prevention:** Make sound strictly supplemental. Keep all packet status visible in the map/feed; add a keyboard-reachable selector with explicit labels, `aria-label`/`aria-describedby`, and a persistent mute/off path visible in minimal, analyzer, and focus states. Ensure the selector remains reachable after CoreScope live controls collapse, and test with Playwright/axe plus keyboard-only flow.
+- **Severity:** CRITICAL
+- **Phase relevance:** Phase 1 UI controls; Phase 4 a11y validation
+- **Confidence:** HIGH
+- **Source:** Official accessibility guidance + codebase — https://www.w3.org/WAI/WCAG22/Understanding/audio-control; https://www.w3.org/WAI/WCAG22/Techniques/general/G171.html; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:134-265`
+- **Checked:** 2026-05-14
+
+### ITEM-pitfalls-4: Packet bursts turn sonification into noise or a CPU spike
+
+- **What goes wrong:** During high activity, every packet/message schedules notes, zaps, or samples; audio becomes chaotic, active voices pile up, visual animation stutters, and the browser may drop audio or frames.
+- **Root cause:** Live packet events are bursty and can include multiple observations per hash. Existing audio is called once per consolidated packet before feed dedup and has only a coarse `MAX_VOICES = 12` gate; it does not provide per-event-type rate limits, priority lanes, cooldowns, or mode-specific mixing rules.
+- **Prevention:** Add a central sound event router with token buckets/cooldowns per event class: messages, node adverts/dots, route traces, priority/emergency. Collapse duplicate observations by hash before audio, cap concurrent voices lower on mobile, reserve a high-priority lane for emergency/priority cues, and drop or merge low-priority node pings under load. Use tasteful default volume and a master limiter/compressor.
+- **Severity:** CRITICAL
+- **Phase relevance:** Phase 2 event router and Native+/mode implementations
+- **Confidence:** HIGH
+- **Source:** Codebase + official tooling — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:12-13`; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js:2362-2367`; https://developer.chrome.com/docs/devtools/webaudio
+- **Checked:** 2026-05-14
+
+### ITEM-pitfalls-5: Audio timing jitters if notes are driven by timers or visual animation callbacks
+
+- **What goes wrong:** Generative Key arpeggios and Orchestral/Space Blaster cues drift, flam, or bunch up when the map is busy rendering Leaflet animations, Matrix rain, feed updates, or GC runs.
+- **Root cause:** `setTimeout`, `setInterval`, and `requestAnimationFrame` run on the main thread and are delayed by layout, rendering, network callbacks, and garbage collection. Audio timing needs `AudioContext.currentTime` and scheduled `AudioParam`/source events.
+- **Prevention:** Use main-thread events only to enqueue semantic sound events. Schedule actual notes and envelopes against `audioContext.currentTime` with a short lookahead. Keep visual sync best-effort by reading the audio clock rather than making audio wait for map animation callbacks. Do not build musical timing from Leaflet hop animation callbacks except for lightweight accents.
 - **Severity:** MODERATE
-- **Phase relevance:** Deployment and release management
+- **Phase relevance:** Phase 2 shared engine; Phase 3 generative/orchestral modes
 - **Confidence:** HIGH
-- **Source:** WebFetch — https://github.com/Kpa-clawbot/CoreScope/releases
-- **Checked:** 2026-05-13
+- **Source:** Official guidance + codebase — https://web.dev/articles/audio-scheduling; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js:78-120`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-4: License metadata mismatch is ignored
+### ITEM-pitfalls-6: Creating/destroying many audio nodes per packet causes GC and audio glitches
 
-- **What goes wrong:** The site updates attribution from the old `meshcore-mqtt-live-map` GPL notice to “CoreScope MIT/ISC” based on README/package metadata, then later discovers the repository `LICENSE` is GPL-3.0.
-- **Root cause:** CoreScope has conflicting license signals: the GitHub repo and root `LICENSE` indicate GPL-3.0, while `package.json` says ISC and the README says MIT. The authoritative repository license file is GPL-3.0 unless clarified upstream.
-- **Prevention:** Treat CoreScope as GPL-3.0 for compliance until upstream clarifies. Preserve notices, publish source/submodule commit references, and avoid copying CoreScope code into proprietary/non-GPL components. Ask upstream to resolve README/package metadata before relying on a permissive interpretation.
-- **Severity:** CRITICAL
-- **Phase relevance:** Legal/review gate before implementation
-- **Confidence:** HIGH
-- **Source:** WebFetch — https://github.com/Kpa-clawbot/CoreScope; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/LICENSE; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/package.json
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-5: Routing CoreScope at `/map` without accounting for root-relative assets and APIs
-
-- **What goes wrong:** `/map` loads a blank page or partially styled shell because CoreScope’s HTML requests `/style.css`, `/app.js`, `/api/config/map`, `/api/nodes`, and `ws(s)://host/` from the origin root, colliding with the Denver Next app and its existing `/api/*` routes.
-- **Root cause:** CoreScope is designed to own the origin root; it uses root-relative assets/API calls and a hash router. The Denver site already uses `/map` and `/api/map/*`/`/api/live-map/*` under the same origin.
-- **Prevention:** Prefer a reverse-proxy mount on a dedicated subdomain (`map.denvermeshcore...` or `corescope...`) or run CoreScope at the site root for `/map` only with carefully rewritten asset/API/WebSocket paths. Do not proxy only `/map` and assume assets follow; test every CoreScope tab and `/api/docs` under the final URL.
-- **Severity:** CRITICAL
-- **Phase relevance:** Routing and deployment design
-- **Confidence:** HIGH
-- **Source:** Local code — `/tmp/CoreScope/public/index.html`, `/tmp/CoreScope/public/app.js`, `/tmp/CoreScope/cmd/server/routes.go`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/api/*`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-6: Existing security headers block iframe-based embedding
-
-- **What goes wrong:** A quick integration uses `<iframe src="...CoreScope...">`, but the frame is blocked by `X-Frame-Options: DENY` or by CSP `frame-ancestors 'none'`; if the iframe points cross-origin, additional CSP and cookie/origin problems appear.
-- **Root cause:** The Denver Next config and Netlify config intentionally deny framing for every path. CoreScope itself is a full application, not a widget.
-- **Prevention:** Do not use iframe embedding as the primary replacement. Use reverse proxy/routing so CoreScope is the page response for the canonical map route, or explicitly scope header exceptions only if a temporary iframe is unavoidable and reviewed.
+- **What goes wrong:** Generative Key or Space Blaster creates oscillators, filters, panners, gains, and buffers per packet; after several bursts, users hear clicks/stutters or see CPU spikes.
+- **Root cause:** Real-time audio has tight deadlines. Short-lived JS objects and node graphs increase garbage collection pressure; GC pauses are especially damaging to audio. Existing CoreScope voice code creates multiple oscillator/gain nodes per sampled byte and per chord voice, then disconnects them after scheduled completion.
+- **Prevention:** Keep procedural modes simple and bounded: reuse a single `AudioContext`, master bus, limiter, and shared effects; use short-lived oscillators only for brief events with hard caps; pool reusable nodes where feasible; avoid heavy DSP and allocations in audio callbacks. Do not introduce AudioWorklet unless the procedural synth genuinely needs it; if using one, avoid allocations in `process()`.
 - **Severity:** MODERATE
-- **Phase relevance:** UX/routing implementation
+- **Phase relevance:** Phase 2 engine performance; Phase 4 profiling
 - **Confidence:** HIGH
-- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml`
-- **Checked:** 2026-05-13
+- **Source:** Browser performance guidance + codebase — https://hacks.mozilla.org/2020/05/high-performance-web-audio-with-audioworklet-in-firefox/; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js:96-132`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-7: Content Security Policy blocks CoreScope’s CDN dependencies and WebSocket
+### ITEM-pitfalls-7: “CC0 sample set” is not automatically safe to bundle
 
-- **What goes wrong:** CoreScope’s map page renders without Leaflet, heatmap, Chart.js, Swagger UI, or live updates because Denver’s CSP currently allows scripts from `'self'` only and connect hosts are limited to known analyzer/map sources.
-- **Root cause:** CoreScope `public/index.html` loads Leaflet, `leaflet-heat`, Chart.js, and Swagger UI from `unpkg.com`; its client opens a WebSocket to the same host, and map tiles come from CARTO. The current site CSP does not include `https://unpkg.com` in `script-src`/`style-src`.
-- **Prevention:** Prefer vendoring CoreScope’s third-party browser assets into the CoreScope image/submodule so production CSP can remain mostly `self`. If using CDN assets, explicitly add pinned CDN hosts plus SRI verification and add `wss:`/same-origin WebSocket allowance for the CoreScope route.
+- **What goes wrong:** The app bundles a small harp/celeste/woodwind/brass sample set labeled “free,” but one file is actually CC-BY, CC-BY-NC, Sampling+, trademarked, a copyrighted upload, or lacks redistribution proof. The Docker image then redistributes it to everyone.
+- **Root cause:** Freesound and similar libraries host per-sound licenses; CC0 has no warranty and does not clear trademark, patent, privacy, publicity, or third-party rights. “Free” and “royalty-free” are not the same as CC0/public-domain-safe redistribution.
+- **Prevention:** For initial implementation, structure Orchestral Ensemble to lazy-load from an empty or clearly isolated sample manifest and ship no samples unless each file has archived proof: source URL, creator, license/deed, download date, and redistribution note. Prefer procedural fallback or explicitly CC0 sources; reject CC-BY-NC and unclear “royalty-free” packs. If using CC-BY later, build attribution UI/docs before adding assets.
 - **Severity:** CRITICAL
-- **Phase relevance:** Security headers and deployment verification
+- **Phase relevance:** Phase 3 Orchestral Ensemble asset pipeline; release review
 - **Confidence:** HIGH
-- **Source:** Local code and official docs — `/tmp/CoreScope/public/index.html`; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy; https://leafletjs.com/download.html
-- **Checked:** 2026-05-13
+- **Source:** License docs — https://creativecommons.org/publicdomain/zero/1.0/legalcode.en; https://freesound.org/help/faq/
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-8: WebSocket upgrade is lost through the reverse proxy
+### ITEM-pitfalls-8: Space Blaster crosses into copyrighted sound-alike territory
 
-- **What goes wrong:** CoreScope loads initially but the live packet feed, nav pulse, and map refresh never update; browser console shows WebSocket close/reconnect loops.
-- **Root cause:** CoreScope opens `new WebSocket(`${proto}//${location.host}`)` and its Go server upgrades WebSocket requests at `/ws` and also any static path with `Upgrade: websocket`. Reverse proxies must forward `Upgrade` and `Connection` headers and preserve the expected path/host.
-- **Prevention:** Configure the deployment proxy with HTTP/1.1 WebSocket upgrade headers and long timeouts. Smoke test `wss://<final-host>/ws` and browser live updates, not just HTTP `/api/stats`.
+- **What goes wrong:** “Space Blaster” uses Star Wars samples or too-close recreations marketed as lightsabers/blasters; even if files are found online, the site ships copyrighted/trademark-associated audio.
+- **Root cause:** Sci-fi sounds are easy to imitate by copying famous assets. The project constraint explicitly forbids copyrighted Star Wars samples and unauthorized Andrew Huang Collisions assets.
+- **Prevention:** Make Space Blaster fully procedural with oscillator sweeps, filtered noise bursts, envelopes, stereo panning, and delay/reverb-like effects generated at runtime. Name and UI copy should say “Space Blaster” or “sci-fi zaps,” not Star Wars terms. Keep no sample files for this mode unless license proof is reviewed separately.
 - **Severity:** CRITICAL
-- **Phase relevance:** Deployment and operations
+- **Phase relevance:** Phase 3 Space Blaster implementation; release/legal review
 - **Confidence:** HIGH
-- **Source:** Local code and CoreScope docs — `/tmp/CoreScope/public/app.js`, `/tmp/CoreScope/cmd/server/main.go`, `/tmp/CoreScope/cmd/server/websocket.go`, `/tmp/CoreScope/docs/deployment.md`
-- **Checked:** 2026-05-13
+- **Source:** Project constraints + CC0 caveats — Forge project prompt; https://creativecommons.org/publicdomain/zero/1.0/legalcode.en
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-9: Data compatibility assumptions produce an empty or misleading map
+### ITEM-pitfalls-9: Local preference storage fails in private/restricted contexts
 
-- **What goes wrong:** The replacement is deployed but shows no Denver nodes, stale Bay Area defaults, or only packet analytics without the expected current map markers.
-- **Root cause:** The Denver map currently consumes normalized node snapshots from `MESHCORE_LIVE_MAP_API_URL` (defaulting to the Colorado analyzer `/api/nodes`). CoreScope expects to ingest MeshCore packets from MQTT topics such as `meshcore/+/+/packets`, stores SQLite state, and exposes its own `/api/nodes` contract. Node fields are similar but not identical.
-- **Prevention:** Decide explicitly whether CoreScope will ingest Denver MQTT directly or be adapted to the existing Colorado analyzer feed. Configure MQTT sources, topics, region/default center, and geofilter for Colorado before routing users. Verify with CoreScope `/api/stats`, `/api/nodes?limit=...`, and visible marker counts.
-- **Severity:** CRITICAL
-- **Phase relevance:** Data integration and acceptance testing
-- **Confidence:** HIGH
-- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`, `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/docs/api-spec.md`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-10: Region/geofilter defaults leak Bay Area assumptions into Denver
-
-- **What goes wrong:** Jump buttons, map center, filters, or geo filtering default to SJC/SFO/OAK/MRY and Bay Area coordinates, confusing Denver users or dropping/flagging Colorado packets as foreign.
-- **Root cause:** CoreScope’s example config and README are Bay Area/SJC-oriented. Its `defaultRegion`, `regions`, `mapDefaults`, `observerIATAWhitelist`, `iataFilter`, and optional `geo_filter` all influence ingestion and UI.
-- **Prevention:** Create a Denver-specific `/app/data/config.json` with Colorado map center/zoom, Denver/Colorado region labels, correct MQTT IATA filters (or none if not used), and reviewed geo-filter behavior. Include a test fixture or live smoke check proving Colorado nodes survive ingestion.
+- **What goes wrong:** The selector works in normal Chrome but throws `SecurityError` or `QuotaExceededError` in private browsing, blocked-storage environments, or unusual origins; the whole overlay breaks or defaults unpredictably.
+- **Root cause:** `localStorage` is synchronous, origin-scoped, can be blocked by user/browser policy, and can throw on read/write. Existing overlay code correctly wraps shell preference reads/writes, while vendor CoreScope audio writes are not consistently guarded.
+- **Prevention:** Implement sound-mode storage with the same defensive overlay pattern already used by `denvermc-shell.js`: wrap all reads/writes in `try/catch`, validate stored enum values, fall back to `off`, and never store sensitive packet/message content. Avoid storing sample manifests or large data in `localStorage`.
 - **Severity:** MODERATE
-- **Phase relevance:** Configuration and UX acceptance
+- **Phase relevance:** Phase 1 storage utility; Phase 4 browser testing
 - **Confidence:** HIGH
-- **Source:** Local code — `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/cmd/server/config.go`, `/tmp/CoreScope/public/map.js`
-- **Checked:** 2026-05-13
+- **Source:** Official docs + codebase — https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage; https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:53-62`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-11: Public analyzer exposes more sensitive data than the current live map
+### ITEM-pitfalls-10: Editing vendor CoreScope or relying on unstable internals makes upgrades painful
 
-- **What goes wrong:** Replacing the map unintentionally publishes packet feeds, channel messages, observer health, route traces, node analytics, exact coordinates, and possibly decrypted group chat beyond what users expected from the existing marker map.
-- **Root cause:** CoreScope is a full packet/network analyzer with channels, packet feed, observers, traces, live route visualization, and channel decryption features. The current `/map` page primarily warns about exact marker coordinates, not full packet analytics exposure.
-- **Prevention:** Make a product/security decision before launch: either expose the full analyzer intentionally, limit routing/navigation to map-only surfaces, or deploy CoreScope behind access controls. Configure `nodeBlacklist`, `observerBlacklist`, channel keys, and write/admin API keys carefully; update privacy copy and operator consent language.
+- **What goes wrong:** The feature is implemented by modifying `vendor/CoreScope/public/audio.js` or `live.js`; the next CoreScope submodule update overwrites changes or creates merge conflicts. Alternatively, an overlay monkey-patches private globals and breaks when upstream renames a function.
+- **Root cause:** CoreScope public assets are vendored, while this site already has an overlay copy/inject system. The existing overlay only owns its own CSS/JS and injects managed tags into `index.html`; direct vendor edits violate the project constraint.
+- **Prevention:** Add new sound-mode assets under `corescope-overlay` and extend `scripts/apply-corescope-overlay.mjs` to copy/inject them in deterministic order. Use stable public seams first (`window.MeshAudio`, DOM controls, custom events emitted by overlay). If a CoreScope packet hook is missing, patch by wrapping at the overlay boundary and document the exact vendor assumptions; do not edit `vendor/CoreScope`.
 - **Severity:** CRITICAL
-- **Phase relevance:** Scope, security review, launch readiness
+- **Phase relevance:** Phase 1 integration design; all implementation phases
 - **Confidence:** HIGH
-- **Source:** CoreScope README and local config — `/tmp/CoreScope/README.md`, `/tmp/CoreScope/config.example.json`, `/tmp/CoreScope/docs/api-spec.md`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`
-- **Checked:** 2026-05-13
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs:2-24`; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:11-13`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-12: Write/admin endpoints are accidentally exposed
+### ITEM-pitfalls-11: Lazy-loaded orchestral assets can hurt first interaction and Docker simplicity
 
-- **What goes wrong:** Public users can post packets, hit debug/admin endpoints, or infer operational internals; alternatively, legitimate ingestion fails because the API key is left as the weak example value and is rejected/unsafe.
-- **Root cause:** CoreScope has public read endpoints plus API-key-protected write/admin routes such as `POST /api/packets`, `/api/perf/reset`, `/api/admin/prune`, `/api/debug/affinity`, and `/api/backup`. Its config rejects weak default keys, but proxy routing can still expose endpoints broadly.
-- **Prevention:** Set a strong API key if any write/admin route is needed, keep it server-side only, and consider reverse-proxy rules that deny public access to admin/debug/write endpoints. Avoid enabling broad CORS; default CoreScope CORS is same-origin unless configured.
-- **Severity:** CRITICAL
-- **Phase relevance:** Security review and deployment
-- **Confidence:** HIGH
-- **Source:** Local code — `/tmp/CoreScope/cmd/server/routes.go`, `/tmp/CoreScope/cmd/server/config.go`, `/tmp/CoreScope/cmd/server/cors.go`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-13: Collapsing CoreScope into the existing Next Docker image bloats or breaks deployment
-
-- **What goes wrong:** The existing `node:24-alpine` Next standalone Dockerfile is modified to build Go, run Mosquitto, Caddy, SQLite, and Next in one container, causing image bloat, process supervision issues, or missing persistent state.
-- **Root cause:** Denver’s current Dockerfile is a single Next.js standalone runtime. CoreScope’s image is a multi-stage Go build with an Alpine runtime that includes Mosquitto, Caddy, supervisor, SQLite persistence under `/app/data`, and exposed ports 80/443/1883.
-- **Prevention:** Run CoreScope as a separate service/container and route to it from the edge/reverse proxy. Preserve a persistent volume for `/app/data`; do not make SQLite ephemeral inside the web image.
-- **Severity:** CRITICAL
-- **Phase relevance:** Deployment architecture
-- **Confidence:** HIGH
-- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`, `/tmp/CoreScope/Dockerfile`, `/tmp/CoreScope/docs/deployment.md`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-14: Health check only verifies HTTP, not readiness or data freshness
-
-- **What goes wrong:** Deploy marks CoreScope healthy while the in-memory packet store is still warming, MQTT is disconnected, or the DB is empty/locked; users see stale or empty map data.
-- **Root cause:** CoreScope has `/api/healthz` gated on background initialization and `/api/stats` for counts; its deployment docs mention health checks, but a shallow HTTP 200 check can miss ingestion and data freshness problems. SQLite can also lock or grow with retention settings.
-- **Prevention:** Use `/api/healthz` for readiness, `/api/stats` for runtime counts, and an operator smoke test that checks recent packets/nodes for the Colorado source. Configure retention, memory limits, DB backups, and single-writer deployment.
+- **What goes wrong:** Selecting Orchestral Ensemble downloads megabytes of samples on the first click, delays the unlock/play gesture, fails offline/cache unpredictably, or bloats the single Docker image unexpectedly.
+- **Root cause:** Sample playback requires fetching/decoding audio buffers, which is asynchronous and can exceed the timing window of a user gesture if mixed with context setup. Bundled assets also become part of the container and need cache-busting plus license review.
+- **Prevention:** Keep initial sample manifest tiny or empty. If samples are bundled later, preload/decode only after the user selects/enables Orchestral, show loading state, cache decoded buffers in memory only, and fall back to procedural bell/woodwind approximations if fetch/decode fails. Do not block the global sound enable gesture on sample availability.
 - **Severity:** MODERATE
-- **Phase relevance:** Observability and operations
-- **Confidence:** HIGH
-- **Source:** Local code and docs — `/tmp/CoreScope/cmd/server/healthz.go`, `/tmp/CoreScope/docs/deployment.md`, `/tmp/CoreScope/config.example.json`
-- **Checked:** 2026-05-13
+- **Phase relevance:** Phase 3 Orchestral Ensemble; Docker/build validation
+- **Confidence:** MEDIUM
+- **Source:** Official docs + codebase — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile:82-96`
+- **Checked:** 2026-05-14
 
-### ITEM-pitfalls-15: Map tile provider policy and attribution are treated as cosmetic
+### ITEM-pitfalls-12: Message sonification can leak or over-emphasize sensitive activity
 
-- **What goes wrong:** The public map violates tile service policy, gets blocked, or ships missing/incorrect attribution after replacing Denver’s existing tile config with CoreScope defaults.
-- **Root cause:** Denver currently normalizes tile URL/attribution via runtime env. CoreScope defaults to CARTO basemaps and OSM attribution strings; OSM tile policy requires visible attribution, valid Referer/User-Agent behavior, caching, and prohibits bulk/pre-seeded/offline tile downloading.
-- **Prevention:** Keep tile provider configuration explicit in CoreScope config, preserve attribution in the map UI, avoid tile proxying unless headers/caching identify the app correctly, and use a commercial/self-hosted provider if expected traffic exceeds public tile norms.
+- **What goes wrong:** Group/direct messages get distinctive melodies or loud accents that reveal message volume, priority, or channel activity to bystanders; worse, mapping text bytes directly to melody makes private activity feel encoded or inspectable.
+- **Root cause:** Packet audio is ambient and public to anyone near the device. The live feed already renders message previews; adding sound increases the chance of unintended disclosure or distraction, especially for emergency/priority cues.
+- **Prevention:** Do not speak or encode message text content. Map only coarse event metadata: type, priority, count, and hash-bucketed variation. Keep direct-message cues subtle and non-semantic, and provide a one-click Sound Off/mute path. Avoid persisting any packet-derived data in storage.
 - **Severity:** MODERATE
-- **Phase relevance:** Deployment, UX, compliance
-- **Confidence:** HIGH
-- **Source:** Official docs and local code — https://operations.osmfoundation.org/policies/tiles/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`; `/tmp/CoreScope/public/roles.js`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-16: SSR/browser-only map code is reintroduced during any partial port
-
-- **What goes wrong:** A partial “native Next” port of CoreScope’s map code fails with `window is not defined`, Leaflet DOM access errors, hydration mismatch, or broken marker assets.
-- **Root cause:** Leaflet and React Leaflet are browser/DOM-dependent. The current Denver map avoids SSR problems by using a client wrapper and dynamic import; CoreScope is plain browser JavaScript loaded by an HTML page.
-- **Prevention:** If any native Next integration remains, keep map code behind a Client Component with `next/dynamic(..., { ssr: false })` inside a client file, or avoid porting and proxy the CoreScope SPA. Do not import Leaflet/CoreScope browser modules from Server Components.
-- **Severity:** MODERATE
-- **Phase relevance:** Frontend implementation
-- **Confidence:** HIGH
-- **Source:** Official docs and local code — https://nextjs.org/docs/app/guides/lazy-loading; https://react-leaflet.js.org/docs/start-introduction/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMapWrapper.tsx`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-17: Existing `/map` SEO, metadata, and compatibility links disappear without redirects/attribution updates
-
-- **What goes wrong:** External links to `/map`, metadata, JSON-LD license attribution, sitemap coverage, and current copy all become stale or inconsistent after swapping in CoreScope.
-- **Root cause:** The current `/map` page is a Next route with metadata, schema, breadcrumbs, source attribution for the old GPL live-map upstream, and explanatory operator content. A reverse-proxied CoreScope SPA will bypass most of that page shell.
-- **Prevention:** Preserve `/map` as the canonical URL but update metadata/sitemap/attribution at the edge or via a lightweight landing wrapper if needed. Replace old `meshcore-mqtt-live-map` attribution with CoreScope provenance and provide source links to this repository plus the submodule commit.
-- **Severity:** MINOR
-- **Phase relevance:** Launch polish and compliance
-- **Confidence:** HIGH
-- **Source:** Local code — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/sitemap.ts`
-- **Checked:** 2026-05-13
-
-### ITEM-pitfalls-18: Case-insensitive filesystem collisions in the CoreScope submodule are missed
-
-- **What goes wrong:** macOS developers see warnings or missing docs because CoreScope currently contains case-colliding paths (`docs/DEPLOYMENT.md` and `docs/deployment.md`), which can lead to confusing diffs or incomplete local inspection on case-insensitive filesystems.
-- **Root cause:** Git can track case-distinct filenames, but default macOS filesystems cannot materialize both in the working tree. The local clone produced a collision warning.
-- **Prevention:** Avoid editing CoreScope docs from this repository and perform release verification in Linux CI. If docs must be referenced, use GitHub/raw URLs rather than relying on both files existing locally on macOS.
-- **Severity:** MINOR
-- **Phase relevance:** Developer workflow and review
-- **Confidence:** HIGH
-- **Source:** Local clone observation — `git clone https://github.com/Kpa-clawbot/CoreScope.git /tmp/CoreScope` warning on 2026-05-13
-- **Checked:** 2026-05-13
+- **Phase relevance:** Phase 2 event taxonomy; Phase 3 per-mode sound design
+- **Confidence:** MEDIUM
+- **Source:** Codebase + storage/security guidance — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js:3134-3160`; https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/12-Testing_Browser_Storage
+- **Checked:** 2026-05-14
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-pitfalls-1 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`; `/tmp/CoreScope/README.md`; `/tmp/CoreScope/public/index.html` |
-| ITEM-pitfalls-2 | HIGH | Official docs | https://git-scm.com/book/en/v2/Git-Tools-Submodules; https://docs.netlify.com/build/git-workflows/repo-permissions-linking/ |
-| ITEM-pitfalls-3 | HIGH | WebFetch | https://github.com/Kpa-clawbot/CoreScope/releases |
-| ITEM-pitfalls-4 | HIGH | WebFetch | https://github.com/Kpa-clawbot/CoreScope; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/LICENSE; https://raw.githubusercontent.com/Kpa-clawbot/CoreScope/master/package.json |
-| ITEM-pitfalls-5 | HIGH | Local code | `/tmp/CoreScope/public/index.html`; `/tmp/CoreScope/public/app.js`; `/tmp/CoreScope/cmd/server/routes.go` |
-| ITEM-pitfalls-6 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml` |
-| ITEM-pitfalls-7 | HIGH | Official docs + local code | https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy; https://leafletjs.com/download.html; `/tmp/CoreScope/public/index.html` |
-| ITEM-pitfalls-8 | HIGH | Local code + docs | `/tmp/CoreScope/public/app.js`; `/tmp/CoreScope/cmd/server/websocket.go`; `/tmp/CoreScope/docs/deployment.md` |
-| ITEM-pitfalls-9 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/store.ts`; `/tmp/CoreScope/docs/api-spec.md` |
-| ITEM-pitfalls-10 | HIGH | Local code | `/tmp/CoreScope/config.example.json`; `/tmp/CoreScope/cmd/server/config.go`; `/tmp/CoreScope/public/map.js` |
-| ITEM-pitfalls-11 | HIGH | Local code + README | `/tmp/CoreScope/README.md`; `/tmp/CoreScope/config.example.json`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx` |
-| ITEM-pitfalls-12 | HIGH | Local code | `/tmp/CoreScope/cmd/server/routes.go`; `/tmp/CoreScope/cmd/server/config.go`; `/tmp/CoreScope/cmd/server/cors.go` |
-| ITEM-pitfalls-13 | HIGH | Local code + docs | `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`; `/tmp/CoreScope/Dockerfile`; `/tmp/CoreScope/docs/deployment.md` |
-| ITEM-pitfalls-14 | HIGH | Local code + docs | `/tmp/CoreScope/cmd/server/healthz.go`; `/tmp/CoreScope/docs/deployment.md`; `/tmp/CoreScope/config.example.json` |
-| ITEM-pitfalls-15 | HIGH | Official docs + local code | https://operations.osmfoundation.org/policies/tiles/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`; `/tmp/CoreScope/public/roles.js` |
-| ITEM-pitfalls-16 | HIGH | Official docs + local code | https://nextjs.org/docs/app/guides/lazy-loading; https://react-leaflet.js.org/docs/start-introduction/; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMapWrapper.tsx` |
-| ITEM-pitfalls-17 | HIGH | Local code | `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/sitemap.ts` |
-| ITEM-pitfalls-18 | HIGH | Local clone observation | `/tmp/CoreScope` clone warning |
+| ITEM-pitfalls-1 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:169-183` |
+| ITEM-pitfalls-2 | HIGH | Codebase + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:147-183`; https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage |
+| ITEM-pitfalls-3 | HIGH | Official accessibility guidance + Codebase | https://www.w3.org/WAI/WCAG22/Understanding/audio-control; https://www.w3.org/WAI/WCAG22/Techniques/general/G171.html; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:134-265` |
+| ITEM-pitfalls-4 | HIGH | Codebase + Official tooling | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js:12-13`; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js:2362-2367`; https://developer.chrome.com/docs/devtools/webaudio |
+| ITEM-pitfalls-5 | HIGH | Official guidance + Codebase | https://web.dev/articles/audio-scheduling; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js:78-120` |
+| ITEM-pitfalls-6 | HIGH | Browser performance guidance + Codebase | https://hacks.mozilla.org/2020/05/high-performance-web-audio-with-audioworklet-in-firefox/; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js:96-132` |
+| ITEM-pitfalls-7 | HIGH | License docs | https://creativecommons.org/publicdomain/zero/1.0/legalcode.en; https://freesound.org/help/faq/ |
+| ITEM-pitfalls-8 | HIGH | Project constraints + License docs | Forge project prompt; https://creativecommons.org/publicdomain/zero/1.0/legalcode.en |
+| ITEM-pitfalls-9 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage; https://developer.mozilla.org/en-US/docs/Web/API/Storage_API/Storage_quotas_and_eviction_criteria; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:53-62` |
+| ITEM-pitfalls-10 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs:2-24`; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js:11-13` |
+| ITEM-pitfalls-11 | MEDIUM | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile:82-96` |
+| ITEM-pitfalls-12 | MEDIUM | Codebase + Security guidance | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js:3134-3160`; https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/11-Client-side_Testing/12-Testing_Browser_Storage |

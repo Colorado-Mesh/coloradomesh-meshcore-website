@@ -1,140 +1,190 @@
-# Prior Art Research: CoreScope Live Map Replacement
+# Prior Art Research: CoreScope Map Sound Modes
 
-Project: Replace the Denver MeshCore site's current live map experience with CoreScope, preferably as a git submodule under `vendor/` and integrated into the existing brownfield deployment.
+Checked: 2026-05-14
 
-### ITEM-prior-art-1: CoreScope upstream is the strongest canonical replacement
+Project context: brownfield browser feature layered onto the existing CoreScope live map. The best prior art points away from raw packet capture and toward a small client-side sonification engine fed by the existing CoreScope packet/message/node event stream, with opt-in audio state persisted in `localStorage` and no copyrighted sample assets.
 
-- **URL:** https://github.com/Kpa-clawbot/CoreScope
-- **What it does well:** CoreScope is an actively maintained, self-hosted MeshCore analyzer with MQTT ingestion, real-time packet decoding, live packet feed, map/live views, channel chat, packet tracing, node analytics, observers, OpenAPI docs, and prebuilt GHCR Docker images for amd64/arm64. Its architecture is purpose-built for an analyzer replacement: Go ingestor + Go HTTP server + SQLite persistence + in-memory indexed packet store + vanilla JS frontend.
-- **What it lacks:** It is a full standalone application, not a drop-in React/Next component. Submodule integration should therefore treat it as an upstream service/artifact, not code to inline into the Next.js app. License metadata conflicts in upstream docs: GitHub metadata and `LICENSE` are GPL-3.0, while README currently says MIT; treat it as GPL-3.0 until upstream clarifies.
-- **What we can learn:** Use CoreScope as the canonical analyzer/live-map runtime, preferably mounted as `vendor/CoreScope` and deployed as a sidecar/service behind the Denver site or reverse proxy. Avoid porting its UI into the Next app by hand; link, proxy, iframe, or route traffic to the CoreScope service and keep Denver-specific shell work minimal.
-- **License:** GPL-3.0 based on GitHub license metadata and repository `LICENSE`; README has contradictory MIT text.
+### ITEM-prior-art-1: SoNSTAR network-traffic sonification
+
+- **URL:** https://paulvickers.github.io/SoNSTAR/
+- **What it does well:** Turns TCP/IP traffic flows and packet-header flag combinations into a real-time soundscape for cyber situational awareness. It emphasizes event sequence, rhythm/timing, and loudness as useful operator cues rather than trying to make every packet literally audible.
+- **What it lacks:** It is packet-capture oriented, not browser/Web Audio based. The GitHub project uses Python 2.7 and Max/MSP, has no clear active-maintenance signal, and does not map directly to MeshCore/CoreScope domain events.
+- **What we can learn:** Treat CoreScope packet/message activity as semantically grouped events, not as a raw stream to beep for every packet. Map event class, urgency, and recency to distinct sounds; throttle density so operators can learn a normal soundscape and notice deviations.
+- **License:** Not clearly stated on the project page/repository.
 - **Confidence:** HIGH
-- **Source:** GitHub CLI + README/LICENSE — https://github.com/Kpa-clawbot/CoreScope
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://paulvickers.github.io/SoNSTAR/ and https://github.com/nuson/SoNSTAR
+- **Checked:** 2026-05-14
 
-### ITEM-prior-art-2: CoreScope public instance and OpenAPI spec provide a live contract to integrate against
+### ITEM-prior-art-2: Network-Sonification desktop packet visualizer
 
-- **URL:** https://analyzer.00id.net/api/docs
-- **What it does well:** The public instance exposes product navigation for Map, Live, Packets, Channels, Nodes, Traces, Observers, Analytics, and Perf. Its OpenAPI spec documents REST endpoint groups for stats, health, nodes, observers, packets, traces, channels, analytics, config, cache, theme, and region data.
-- **What it lacks:** The fetched OpenAPI paths did not expose a WebSocket/SSE endpoint, so REST docs alone are not enough to implement real-time push integration. CoreScope's README claims WebSocket broadcast, but consumers should verify the route from source or runtime before proxying it.
-- **What we can learn:** During implementation, use `/api/spec` as the compatibility gate for REST integrations and smoke tests. For the Denver site, REST endpoints can replace or supplement existing `/api/map/*` and `/api/live-map/*` polling paths, while WebSocket routing should be validated separately from CoreScope source/runtime.
-- **License:** N/A for live service; upstream project license applies.
+- **URL:** https://github.com/dmeldrum6/Network-Sonification
+- **What it does well:** Provides a simple, understandable sonification model: packet size influences pitch/loudness, protocol influences waveform/timbre, and visual particles reinforce the audio mapping. It also includes useful UX precedents such as muted startup, anti-clipping, overlapping-tone handling, and local-only processing.
+- **What it lacks:** It is a Windows WPF desktop app using NAudio, SharpPcap, and PacketDotNet; it depends on packet capture privileges and is not suitable as browser code. Its mapping is protocol-centric, while the CoreScope feature needs MeshCore event-centric mappings.
+- **What we can learn:** Native+ should borrow the simple dimension mapping: event magnitude/frequency to volume or brightness, event type to timbre, and priority/emergency to clearly separated accents. Avoid complex mappings that require a legend to understand.
+- **License:** MIT shown, with an additional unknown license file noted by GitHub metadata.
 - **Confidence:** MEDIUM
-- **Source:** WebFetch — https://analyzer.00id.net/api/spec
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://github.com/dmeldrum6/Network-Sonification
+- **Checked:** 2026-05-14
 
-### ITEM-prior-art-3: Denver's current live map is a mature local integration but should be retired as UI
+### ITEM-prior-art-3: SonNet network-data sonification interface
 
-- **URL:** /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx
-- **What it does well:** The existing Denver site already has a brownfield live-map integration: a Next.js `/map` page, `NetworkMap` React/Leaflet UI, `/api/map/*` and `/api/live-map/*` routes, environment-based runtime config, upstream proxy hardening, SSRF/private-address checks, response size/time limits, token handling, diagnostics panels, local fallback behavior, and Docker compose wiring for `yellowcooln/meshcore-mqtt-live-map`.
-- **What it lacks:** It is a custom Next/React map surface rather than the full CoreScope analyzer. It duplicates live-map UI and proxy responsibilities that CoreScope already owns, and it lacks CoreScope's broader packet feed, channel, trace, observer, and analytics experience.
-- **What we can learn:** Preserve the hardening and operational lessons, but do not keep building the custom Leaflet UI as the canonical experience. Replace the public `/map` destination with a CoreScope-backed experience and keep only thin compatibility routes/status checks if needed for SEO, health checks, redirects, or legacy consumers.
-- **License:** Current map attribution states GPL-3.0 derivative of `yellowcooln/meshcore-mqtt-live-map`.
-- **Confidence:** HIGH
-- **Source:** Local repo — /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx
-- **Checked:** 2026-05-13
-
-### ITEM-prior-art-4: yellowcooln/meshcore-mqtt-live-map is the current community live-map baseline, not the future target
-
-- **URL:** https://github.com/yellowcooln/meshcore-mqtt-live-map
-- **What it does well:** Provides a live MeshCore traffic map with FastAPI backend, MQTT subscription over TCP/WebSockets/TLS, official MeshCore decoder integration, WebSocket updates, Leaflet UI, route lines, history, peers, coverage, weather, LOS, PWA support, `/snapshot`, `/stats`, `/api/nodes`, `/peers/{id}`, and a Docker image. The Denver repo's current API/proxy shape aligns closely with this project's endpoints.
-- **What it lacks:** It is map-centric and Python/FastAPI-based, not a full analyzer. It does not provide the same breadth of CoreScope packet analytics, channel UI, observer analytics, OpenAPI contract, or Go in-memory packet-store performance model.
-- **What we can learn:** Use this as a compatibility reference for migration, especially for endpoint parity and env var mapping. Do not invest further in this as the canonical runtime if the goal is to replace the map with CoreScope.
-- **License:** GPL-3.0
-- **Confidence:** HIGH
-- **Source:** GitHub CLI README/repo metadata — https://github.com/yellowcooln/meshcore-mqtt-live-map
-- **Checked:** 2026-05-13
-
-### ITEM-prior-art-5: Official MeshCore Map is a public registry, not a local live analyzer
-
-- **URL:** https://github.com/meshcore-dev/map.meshcore.io
-- **What it does well:** The official MeshCore Map is a static Vue/Leaflet frontend backed by `https://map.meshcore.io/api/v1/nodes`. The MeshCore blog describes search, filtering, clustering, QR/contact links, shareable URLs, iframe embedding, freshness colors, manual uploads, and an auto-uploader flow for infrastructure nodes.
-- **What it lacks:** It is an internet map/registry with day-scale freshness, not local RF packet monitoring. It does not replace CoreScope-style packet traces, observer health, channel decoding, route replay, or near-real-time local diagnostics.
-- **What we can learn:** Keep official map links as an external ecosystem reference, but do not use it as the Denver live-map replacement. If Denver wants public node registration, use the official uploader path separately from CoreScope.
-- **License:** MIT
-- **Confidence:** HIGH
-- **Source:** GitHub CLI + WebFetch — https://blog.meshcore.io/2026/04/04/meshcore-map
-- **Checked:** 2026-05-13
-
-### ITEM-prior-art-6: Existing Denver vendor submodule pattern should be copied for CoreScope
-
-- **URL:** /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules
-- **What it does well:** The repo already vendors `Colorado-Mesh/meshcore-utilities-site` as a submodule under `vendor/meshcore-utilities-site` and has a verification script that checks the submodule exists, is non-empty, contains required upstream files, and resolves to a valid commit SHA.
-- **What it lacks:** The script is specific to utilities and does not yet generalize submodule checks. There is no CoreScope submodule entry or CoreScope readiness check yet.
-- **What we can learn:** Add CoreScope as a pinned submodule under `vendor/corescope` or `vendor/CoreScope`, then add a dedicated `scripts/check-corescope-submodule.mjs` and npm script. Check for upstream files that prove it is usable (`Dockerfile`, `config.example.json`, `cmd/server`, `cmd/ingestor`, `public`, `proto`, `LICENSE`) and record the pinned commit in review notes.
-- **License:** N/A for integration pattern.
-- **Confidence:** HIGH
-- **Source:** Local repo — /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules and /Users/cjvana/Documents/GitHub/denvermc-org/scripts/check-utilities-submodule.mjs
-- **Checked:** 2026-05-13
-
-### ITEM-prior-art-7: meshcoretomqtt and meshcore-packet-capture are the right observer ingestion layer
-
-- **URL:** https://github.com/Cisien/meshcoretomqtt
-- **What it does well:** `meshcoretomqtt` is the established Python bridge for Repeaters/RoomServers connected over serial/USB, publishing status/packets/debug topics such as `meshcore/{IATA}/{PUBLIC_KEY}/packets`. `agessaman/meshcore-packet-capture` complements it for Companion radios via BLE/serial/TCP and can publish packet/RF telemetry to MQTT. Both projects support broker credentials, TLS/WebSockets or multi-broker patterns relevant to feeding CoreScope.
-- **What it lacks:** These are capture/bridge tools, not web map replacements. They require operator hardware and firmware/runtime setup outside the Denver website deployment.
-- **What we can learn:** Do not build packet capture into the Denver Next.js site. Document CoreScope's expected MQTT topic/config and rely on these observer tools or existing Colorado Mesh broker feeds to populate CoreScope.
-- **License:** MIT for both `Cisien/meshcoretomqtt` and `agessaman/meshcore-packet-capture`.
-- **Confidence:** HIGH
-- **Source:** GitHub CLI README/repo metadata — https://github.com/Cisien/meshcoretomqtt and https://github.com/agessaman/meshcore-packet-capture
-- **Checked:** 2026-05-13
-
-### ITEM-prior-art-8: Community deployments like CT Mesh validate the standalone live-map deployment model
-
-- **URL:** https://meshcore-map.ctmesh.org/
-- **What it does well:** CT Mesh presents a live MeshCore map whose visible UI states that markers update in real time from an MQTT broker. It exposes operator controls for node sizing, dark/topo layers, units, labels, heat/coverage, weather, history, peers, hops, LOS, route details, and propagation estimates.
-- **What it lacks:** It appears to be a deployed map instance rather than a reusable integration package. The page does not by itself answer deployment, license, or API-contract questions.
-- **What we can learn:** Live MeshCore mapping is commonly deployed as a dedicated web app/service fed by MQTT, not embedded as a hand-coded component inside a broader site. Denver should follow that pattern for CoreScope: separate service, clear reverse proxy/subpath, and simple navigation from the main site.
-- **License:** N/A for deployed site.
+- **URL:** https://sonnet.cs.princeton.edu/
+- **What it does well:** Wraps low-level network sniffing and connection-state analysis behind a composer-friendly ChucK API, letting users focus on mapping live network behavior to sound.
+- **What it lacks:** It is a ChucK/free-software research tool, not a browser library. The page does not give enough detail on exact network fields, supported platforms, license, or production use.
+- **What we can learn:** Build a small sound adapter layer between CoreScope events and instruments. The UI should not let every mode inspect raw DOM state directly; instead normalize incoming activity into stable event objects like `message`, `nodeSeen`, `packetBurst`, `priority`, and `emergency`.
+- **License:** Page says free software; exact license not found.
 - **Confidence:** MEDIUM
-- **Source:** WebFetch — https://meshcore-map.ctmesh.org/
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://sonnet.cs.princeton.edu/
+- **Checked:** 2026-05-14
 
-### ITEM-prior-art-9: MeshExplorer is a possible alternative, but less aligned than CoreScope
+### ITEM-prior-art-4: SIREN Web Audio sonification workstation
 
-- **URL:** https://github.com/ajvpot/meshexplorer
-- **What it does well:** MeshExplorer targets real-time maps, chat, and packet analysis for MeshCore and Meshtastic with a modern responsive UI. It is built with Next.js and supports a `NEXT_PUBLIC_API_URL` split between frontend and API, which resembles the Denver site's technology choices.
-- **What it lacks:** It appears less mature for this use case: fewer stars/forks than CoreScope, no license metadata found via GitHub, ClickHouse dependency, and a generic README with limited MeshCore operational detail.
-- **What we can learn:** Borrow the idea of frontend/API separation if needed, but do not choose it over CoreScope for this project. CoreScope is more active, MeshCore-specific, operationally documented, and directly requested as the target.
-- **License:** Unknown/no license metadata found.
+- **URL:** https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c
+- **What it does well:** Demonstrates a Web Audio-based sonification architecture where data matrices become tracks/channels and data can modulate sound parameters. It validates using browser-native audio for exploratory sonification.
+- **What it lacks:** It is a general workstation, not a drop-in map sound library or network-monitoring implementation. The publication license is CC BY-NC 4.0, which is not appropriate to copy into a permissive/commercial-safe asset pipeline.
+- **What we can learn:** Structure sound modes as channels with shared rate limiting, gain staging, and scheduling rather than scattered `playSound()` calls. This matters for Native+, Generative Key, and Orchestral Ensemble sharing the same event stream.
+- **License:** Publication CC BY-NC 4.0; code license not verified from the fetched page.
 - **Confidence:** MEDIUM
-- **Source:** GitHub CLI README/repo metadata — https://github.com/ajvpot/meshexplorer
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c
+- **Checked:** 2026-05-14
 
-### ITEM-prior-art-10: MeshCore MQTT triangulator is useful adjunct analytics, not part of the first replacement
+### ITEM-prior-art-5: Tone.js for Generative Key and scheduled Web Audio synthesis
 
-- **URL:** https://github.com/brad28b/meshcore_mqtt_triangulator
-- **What it does well:** Passively triangulates MeshCore repeaters or advertised nodes from MQTT packet observations using multi-anchor chain-walk, weighted geometric median, optional terrain-aware mode, SQLite collection, and validation tooling. It documents data quality limits around publisher density, GPS correctness, path hash collisions, and sparse edge-of-coverage targets.
-- **What it lacks:** It is a CLI/analytics subsystem, not a live-map UI replacement. It needs accumulated MQTT observations and may introduce privacy concerns if used to infer locations for nodes that do not publish exact GPS.
-- **What we can learn:** Keep triangulation out of the CoreScope replacement scope unless operators explicitly request it. CoreScope already covers the primary analyzer/map need; triangulation can be a later opt-in operator tool with privacy review.
-- **License:** MIT
+- **URL:** https://tonejs.github.io/
+- **What it does well:** Provides a mature Web Audio framework for interactive music: synths, `PolySynth`, samplers, effects, routing, automation, and a global Transport for synchronized scheduling. It is directly aligned with browser melodies, arpeggios, chords, tasteful effects, and sample playback.
+- **What it lacks:** It is not map- or network-specific. Audio still must be started from a user gesture, and sample loading is asynchronous. The visible GitHub latest release metadata surfaced an old release, so implementation should verify npm package state during build planning.
+- **What we can learn:** Use Tone.js if adding an npm dependency is acceptable. It is the strongest fit for Generative Key and can also support Native+ mixing and future sample-backed Orchestral Ensemble. Keep Sound Off default and only call audio start/unmute from the selector gesture.
+- **License:** MIT.
 - **Confidence:** HIGH
-- **Source:** GitHub CLI README/repo metadata — https://github.com/brad28b/meshcore_mqtt_triangulator
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://tonejs.github.io/ and https://github.com/Tonejs/Tone.js
+- **Checked:** 2026-05-14
 
-### ITEM-prior-art-11: MeshCore Map uploader solves official-map publishing, not Denver live-map replacement
+### ITEM-prior-art-6: Scribbletune pattern generation
 
-- **URL:** https://github.com/recrof/map.meshcore.io-uploader
-- **What it does well:** Automatically uploads repeaters or room servers to the official MeshCore map when a Companion hears adverts. It supports USB or host:port Companion access and containerized deployment.
-- **What it lacks:** It does not provide live packet visualization, local analyzer UI, route tracing, or CoreScope integration. It targets the official internet map's registry/update workflow.
-- **What we can learn:** Treat official-map publishing as a separate operational concern from CoreScope. If Denver wants nodes on map.meshcore.io, use this uploader alongside observer tooling; do not conflate it with replacing `/map`.
-- **License:** MIT
+- **URL:** https://scribbletune.com/
+- **What it does well:** Provides a JavaScript music-pattern language with scale-based note generation, chord/arpeggio helpers, pattern strings, MIDI generation, and browser playback when paired with Tone.js.
+- **What it lacks:** It is composition-focused, not a sonification engine. The fetched page did not expose a license, and adding it would likely be excessive for a small map feature.
+- **What we can learn:** Borrow the concept, not necessarily the dependency: represent Generative Key patterns as short deterministic note-pattern strings and scale degrees. Implement a small internal pattern mapper first; only add Scribbletune if composition requirements become more complex.
+- **License:** Not visible from fetched page.
+- **Confidence:** MEDIUM
+- **Source:** WebFetch — https://scribbletune.com/
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-7: WebAudioFont browser instrument catalog
+
+- **URL:** https://surikov.github.io/webaudiofont/
+- **What it does well:** Offers browser Web Audio sample/wavetable playback with MIDI-style notes, chords, strums, pitch bends, scheduling, EQ, reverb, and dynamic instrument loading. Its catalog includes many orchestral-relevant GM instruments such as harp, pizzicato strings, timpani, celesta, brass, and woodwinds.
+- **What it lacks:** Licensing is not simply CC0; the site points to separate project and underlying soundfont licenses such as GeneralUserGS and FluidR3. Loaded instruments stay cached in memory, and the sound quality is GM/wavetable style rather than a bespoke orchestral palette.
+- **What we can learn:** WebAudioFont is a useful reference for dynamic instrument loading and GM-style mapping, but do not use its sounds unless each preset's license is audited. For this project, prefer CC0 assets from VCSL/FreePats or procedural synths.
+- **License:** Mixed/needs per-soundfont verification.
 - **Confidence:** HIGH
-- **Source:** GitHub CLI README/repo metadata — https://github.com/recrof/map.meshcore.io-uploader
-- **Checked:** 2026-05-13
+- **Source:** WebFetch — https://surikov.github.io/webaudiofont/
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-8: webaudio-tinysynth sample-free GM synth
+
+- **URL:** https://github.com/g200kg/webaudio-tinysynth
+- **What it does well:** Implements a browser WebAudio synthesizer and MIDI player with General MIDI-style program changes, note on/off, pitch bend, volume, pan, sustain, rhythm channel, sequencer support, no dependencies, and no PCM samples.
+- **What it lacks:** It is synthetic and GM-like, not realistic orchestral audio. Higher quality and polyphony can cost CPU, and some advanced MIDI expression features are unsupported.
+- **What we can learn:** If avoiding sample licensing and bundle size is more important than orchestral realism, webaudio-tinysynth is a viable fallback idea: use procedural GM-ish timbres for Orchestral Ensemble until CC0 samples are added. Prefer Tone.js for richer generative control unless dependency budget rejects it.
+- **License:** Apache-2.0.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://github.com/g200kg/webaudio-tinysynth
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-9: tonejs-instruments quick-loader
+
+- **URL:** https://github.com/nbrosowsky/tonejs-instruments
+- **What it does well:** Provides a convenient `SampleLibrary.load()` wrapper for Tone.js and a broad set of acoustic/orchestral instruments including harp, flute, clarinet, bassoon, French horn, trumpet, trombone, tuba, violin, cello, contrabass, piano, and xylophone. It supports MP3 with OGG fallback and minified sample sets.
+- **What it lacks:** The samples are listed as CC-BY 3.0, not CC0. Attribution obligations and source-tracking make it less aligned with the project's legally safe/CC0 preference. Loading all instruments may be slow, and instruments are not connected to output by default.
+- **What we can learn:** Reuse the loading pattern, not the assets by default: per-instrument manifests, lazy loading, MP3/OGG variants, and minified sample maps. Use CC0 samples instead.
+- **License:** Code MIT; samples CC-BY 3.0 per repository text.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://github.com/nbrosowsky/tonejs-instruments
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-10: Versilian Community Sample Library (VCSL)
+
+- **URL:** https://versilian-studios.com/vcsl/
+- **What it does well:** Provides a large CC0/public-domain sample library with over 4,000 samples, SFZ mappings, WAV sources, and explicit commercial reuse friendliness. Relevant instruments include concert harp, folk harp, timpani, bells/chimes, glockenspiel, vibraphone, recorders, saxophone-family instruments, whistles, and plucked/bowed psaltery.
+- **What it lacks:** It is about 5 GB in total and raw instruments can be 20-75 MB, so it is inappropriate to bundle wholesale. The page did not show conventional orchestral brass section coverage, and celeste/pizzicato strings were not clearly present in the official page results.
+- **What we can learn:** Use VCSL as the legally safe source-of-truth for any bundled Orchestral Ensemble samples, but curate a very small subset and lazy-load it. Convert selected WAV/SFZ material into compact browser formats and ship attribution/license metadata even though CC0 does not require attribution.
+- **License:** CC0-1.0/Public Domain dedication.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://versilian-studios.com/vcsl/ and https://github.com/sgossner/VCSL
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-11: FreePats CC0 harp and orchestral percussion banks
+
+- **URL:** https://freepats.zenvoid.org/OrchestralStrings/harp.html
+- **What it does well:** Provides compact CC0 Concert Harp sound banks derived from VCSL, with SFZ+FLAC, SFZ+WAV, and SF2 variants. The full harp bank is small enough for web consideration (single-digit MiB sizes listed), and FreePats also surfaces CC0 orchestral percussion/timpani options in search results.
+- **What it lacks:** The harp page states only two velocity layers and does not describe round-robin, detailed articulations, or browser-ready MP3/OGG packaging. It covers individual instruments, not the full requested ensemble.
+- **What we can learn:** For the first Orchestral Ensemble implementation, start with one or two compact CC0 FreePats/VCSL-derived instruments, such as harp and timpani, and design the loader so celeste, pizzicato strings, woodwinds, and brass can be added later without touching mode logic.
+- **License:** CC0-1.0.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://freepats.zenvoid.org/OrchestralStrings/harp.html; WebSearch — https://freepats.zenvoid.org/Percussion/orchestral-percussion.html
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-12: Signature Sounds Orchestral CC0 sample pack
+
+- **URL:** https://signaturesounds.org/store/p/orchestral-cc0
+- **What it does well:** Offers a free CC0-positioned orchestral WAV pack with 23 orchestral score loops and individual instrument loops covering strings, brass, woodwinds, percussion, and full score-style material. The 87 MB zipped size is manageable for offline asset review.
+- **What it lacks:** It appears loop/motif-based rather than a playable multi-sampled instrument library. The page does not expose detailed metadata such as tempo, key, sample rate, bit depth, stems, velocity layers, or browser-ready formats.
+- **What we can learn:** Consider it only for optional future ambience or one-shot accents after license verification. Do not make it the foundation for event-responsive Orchestral Ensemble, where per-event note triggering from CC0 instrument samples is a better fit.
+- **License:** Claimed Royalty-Free CC0 on product page.
+- **Confidence:** MEDIUM
+- **Source:** WebFetch — https://signaturesounds.org/store/p/orchestral-cc0
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-13: ZzFX tiny procedural sound effects
+
+- **URL:** https://github.com/KilledByAPixel/ZzFX
+- **What it does well:** Provides a tiny JavaScript/Web Audio procedural sound-effect generator with no audio assets, no dependencies, one-line sounds, and a permissive MIT license. It is well-suited to short pings, zaps, UI cues, alerts, and game-like effects without downloading samples.
+- **What it lacks:** It is not map-specific, does not expose an obvious laser preset in the fetched README, and is intentionally synthetic rather than cinematic. Music requires ZzFXM or another sequencer.
+- **What we can learn:** Space Blaster should be procedural, not sampled. ZzFX is the safest prior-art model for license-safe sci-fi zaps: generate short oscillator/noise/filter/envelope sounds and randomize parameters slightly per event.
+- **License:** MIT.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://github.com/KilledByAPixel/ZzFX
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-14: jsfxr / sfxr laser sound designer
+
+- **URL:** https://sfxr.me/
+- **What it does well:** Browser-based 8-bit sound generator with explicit `Laser/shoot` preset generation, mutation, waveform/envelope/frequency/vibrato/arpeggiation/duty-cycle/retrigger/flanger/filter controls, WAV/JSON export, permalinks, code copy, and unrestricted commercial use via Unlicense-linked terms.
+- **What it lacks:** Its aesthetic is retro 8-bit, not polished cinematic sci-fi. Free exports shown are WAV/JSON only, and it is a design tool/library rather than a full mixing/scheduling framework.
+- **What we can learn:** Use jsfxr/sfxr as a parameter-design workbench for Space Blaster. Generate a few laser/zap parameter recipes, then implement equivalent procedural Web Audio/ZzFX-style synthesis in the overlay so no Star Wars or third-party samples are shipped.
+- **License:** Unlicense for jsfxr repository/page indications.
+- **Confidence:** HIGH
+- **Source:** WebFetch — https://sfxr.me/ and https://github.com/chr15m/jsfxr
+- **Checked:** 2026-05-14
+
+### ITEM-prior-art-15: howler.js for sample playback and sprites
+
+- **URL:** https://howlerjs.com/
+- **What it does well:** Provides a small modern web audio playback abstraction with audio sprites, fades, looping, playback rate, format fallback, auto caching, Web Audio default with HTML5 Audio fallback, and spatial/stereo features. It is strong for UI/game sample playback.
+- **What it lacks:** It is not a synth, sequencer, or generative music library. It does not solve musical key/chord/arpeggio logic and overlaps with Tone.js if Tone is already selected.
+- **What we can learn:** If Native+ uses pre-rendered one-shot UI samples, audio sprites are the right pattern. However, do not add howler.js if Tone.js is already introduced; use one audio engine to avoid duplicate lifecycle, unlock, and mixing code.
+- **License:** Not visible from fetched page; project license should be verified before adoption.
+- **Confidence:** MEDIUM
+- **Source:** WebFetch — https://howlerjs.com/
+- **Checked:** 2026-05-14
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-prior-art-1 | HIGH | GitHub CLI + README/LICENSE | https://github.com/Kpa-clawbot/CoreScope |
-| ITEM-prior-art-2 | MEDIUM | WebFetch | https://analyzer.00id.net/api/spec |
-| ITEM-prior-art-3 | HIGH | Local repo | /Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx |
-| ITEM-prior-art-4 | HIGH | GitHub CLI README/repo metadata | https://github.com/yellowcooln/meshcore-mqtt-live-map |
-| ITEM-prior-art-5 | HIGH | GitHub CLI + WebFetch | https://github.com/meshcore-dev/map.meshcore.io; https://blog.meshcore.io/2026/04/04/meshcore-map |
-| ITEM-prior-art-6 | HIGH | Local repo | /Users/cjvana/Documents/GitHub/denvermc-org/.gitmodules; /Users/cjvana/Documents/GitHub/denvermc-org/scripts/check-utilities-submodule.mjs |
-| ITEM-prior-art-7 | HIGH | GitHub CLI README/repo metadata | https://github.com/Cisien/meshcoretomqtt; https://github.com/agessaman/meshcore-packet-capture |
-| ITEM-prior-art-8 | MEDIUM | WebFetch | https://meshcore-map.ctmesh.org/ |
-| ITEM-prior-art-9 | MEDIUM | GitHub CLI README/repo metadata | https://github.com/ajvpot/meshexplorer |
-| ITEM-prior-art-10 | HIGH | GitHub CLI README/repo metadata | https://github.com/brad28b/meshcore_mqtt_triangulator |
-| ITEM-prior-art-11 | HIGH | GitHub CLI README/repo metadata | https://github.com/recrof/map.meshcore.io-uploader |
+| ITEM-prior-art-1 | HIGH | WebFetch | https://paulvickers.github.io/SoNSTAR/; https://github.com/nuson/SoNSTAR |
+| ITEM-prior-art-2 | MEDIUM | WebFetch | https://github.com/dmeldrum6/Network-Sonification |
+| ITEM-prior-art-3 | MEDIUM | WebFetch | https://sonnet.cs.princeton.edu/ |
+| ITEM-prior-art-4 | MEDIUM | WebFetch | https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c |
+| ITEM-prior-art-5 | HIGH | WebFetch | https://tonejs.github.io/; https://github.com/Tonejs/Tone.js |
+| ITEM-prior-art-6 | MEDIUM | WebFetch | https://scribbletune.com/ |
+| ITEM-prior-art-7 | HIGH | WebFetch | https://surikov.github.io/webaudiofont/ |
+| ITEM-prior-art-8 | HIGH | WebFetch | https://github.com/g200kg/webaudio-tinysynth |
+| ITEM-prior-art-9 | HIGH | WebFetch | https://github.com/nbrosowsky/tonejs-instruments |
+| ITEM-prior-art-10 | HIGH | WebFetch | https://versilian-studios.com/vcsl/; https://github.com/sgossner/VCSL |
+| ITEM-prior-art-11 | HIGH | WebFetch/WebSearch | https://freepats.zenvoid.org/OrchestralStrings/harp.html; https://freepats.zenvoid.org/Percussion/orchestral-percussion.html |
+| ITEM-prior-art-12 | MEDIUM | WebFetch | https://signaturesounds.org/store/p/orchestral-cc0 |
+| ITEM-prior-art-13 | HIGH | WebFetch | https://github.com/KilledByAPixel/ZzFX |
+| ITEM-prior-art-14 | HIGH | WebFetch | https://sfxr.me/; https://github.com/chr15m/jsfxr |
+| ITEM-prior-art-15 | MEDIUM | WebFetch | https://howlerjs.com/ |

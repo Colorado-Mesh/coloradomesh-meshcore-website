@@ -22,9 +22,11 @@
  *   - denvermc-default-route.js  early <head> redirect /map -> #/live
  *   - denvermc-shell.css         minimal/fullscreen Colorado Mesh shell
  *   - denvermc-shell.js          shell DOM + state + a11y controls
+ *   - denvermc-sound.js          Colorado Mesh sound-mode bootstrap/bridge
+ *   - sound/                     optional lazy-loaded sound assets
  */
 
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
 const publicDir = process.argv[2] || process.env.CORESCOPE_PUBLIC_DIR || '/app/corescope/public';
@@ -42,6 +44,7 @@ const HEAD_ASSETS = [
 ];
 const BODY_ASSETS = [
   { kind: 'script', name: 'denvermc-shell.js' },
+  { kind: 'script', name: 'denvermc-sound.js' },
 ];
 const ALL_ASSETS = [...HEAD_ASSETS, ...BODY_ASSETS];
 
@@ -78,12 +81,28 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function copyDirectory(srcDir, destDir) {
+  if (!existsSync(srcDir)) return;
+  mkdirSync(destDir, { recursive: true });
+  for (const entry of readdirSync(srcDir)) {
+    const src = path.join(srcDir, entry);
+    const dest = path.join(destDir, entry);
+    const stats = statSync(src);
+    if (stats.isDirectory()) {
+      copyDirectory(src, dest);
+    } else if (stats.isFile()) {
+      copyFileSync(src, dest);
+    }
+  }
+}
+
 function main() {
   mkdirSync(publicDir, { recursive: true });
 
   for (const asset of ALL_ASSETS) {
     copyFileSync(path.join(overlayDir, asset.name), path.join(publicDir, asset.name));
   }
+  copyDirectory(path.join(overlayDir, 'sound'), path.join(publicDir, 'sound'));
 
   let html;
   try {

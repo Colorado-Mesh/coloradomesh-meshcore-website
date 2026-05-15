@@ -22,7 +22,7 @@
   var PATH_PREFIX = '/map';
   var STORAGE_KEY = 'denvermc.shell.userPreference';
   var DEFAULT_HASH = '#/live';
-  var BRAND_LOGO_SRC = '/logo.png'; // Served by Next app (public/logo.png)
+  var BRAND_LOGO_SRC = '/brand/linux/256x256.png'; // Same asset used by the main site header
 
   // Where Colorado Mesh's site root lives. This overlay is served from
   // the same origin as the Next app via nginx, so a relative path works.
@@ -144,8 +144,8 @@
     var brand = document.createElement('a');
     brand.className = 'denvermc-topbar__brand';
     brand.href = SITE_HOME_HREF;
-    brand.setAttribute('aria-label', 'Colorado Mesh — back to main site');
-    brand.title = 'Back to Colorado Mesh';
+    brand.setAttribute('aria-label', 'Colorado MeshCore — Home');
+    brand.title = 'Colorado MeshCore — Home';
 
     var mark = buildBrandMark();
 

@@ -1,42 +1,44 @@
-# Step 1 Execution Plan: Add and verify the CoreScope submodule
+# Step 1 Execution Plan: Add overlay sound asset plumbing, branding corrections, and non-visual shell integration seams
 
 ## Goal
-Vendor CoreScope as a pinned git submodule and add an early verification script so Docker/runtime work fails clearly when the submodule is missing or structurally incompatible.
+Make the build/runtime able to serve new sound overlay assets and correct the map logo/favicon foundations before adding sound behavior.
 
 ## Current Code Observations
-- `.gitmodules` currently contains `vendor/meshcore-utilities-site` only.
-- `.github/dependabot.yml` already has a weekly `gitsubmodule` update entry for the repository root, so a new submodule should be covered automatically.
-- `scripts/check-utilities-submodule.mjs` provides a good pattern: resolve repo root, check required upstream files, verify `git rev-parse HEAD`, and print a clear recovery command.
-- `package.json` already has utility submodule scripts and can add a parallel `corescope:check-submodule` script.
-- CoreScope upstream has the required runtime/build files: `Dockerfile`, `config.example.json`, `cmd/server/go.mod`, `cmd/ingestor/go.mod`, `public/index.html`, `public/live.js`, `public/app.js`, and `LICENSE`.
+- `scripts/apply-corescope-overlay.mjs` currently copies a flat list of overlay assets and injects `denvermc-leaflet-zoom.js`, `denvermc-default-route.js`, `denvermc-shell.css`, and `denvermc-shell.js`.
+- `docker/nginx.conf` proxies `/map` and a narrow allowlist of CoreScope root `.js/.css` assets, currently including `denvermc-default-route`, `denvermc-leaflet-zoom`, and `denvermc-shell`, but not a sound overlay or `/sound/` assets.
+- `corescope-overlay/denvermc-shell.js` currently sets `BRAND_LOGO_SRC = '/logo.png'`, while the main-site header `BrandMark` uses `SITE_LOGO_PATH`, currently `/brand/linux/256x256.png`.
+- `src/components/Navigation.tsx` uses `BrandMark size="md" href="/" ariaLabel={`${SITE_NAME} — Home`}`; the map brand link should match the same `/` target and main-site asset.
+- `src/app/layout.tsx` already points metadata icons to `/brand/win/colorado-mesh.ico`, `/brand/linux/16x16.png`, `/brand/linux/32x32.png`, and `/brand/linux/256x256.png`; public root favicon files may still need checking/replacement if stale.
+- `vendor/CoreScope/public/live.js:2366` calls `MeshAudio.sonifyPacket(consolidated)`, confirming the later sound bridge can wrap the CoreScope public seam without editing vendor files.
 
 ## Files to Change
-- `.gitmodules` — add the CoreScope submodule entry.
-- `vendor/CoreScope` — gitlink to the pinned upstream commit.
-- `scripts/check-corescope-submodule.mjs` — new submodule structure checker.
-- `package.json` — add the `corescope:check-submodule` script.
-- `.forge/steps/step-1-plan.md` — this execution plan.
+- `scripts/apply-corescope-overlay.mjs` — add sound overlay asset injection/copying and optional recursive sample asset copy support.
+- `docker/nginx.conf` — proxy the new sound overlay asset(s) and `/sound/` static sample/provenance files to CoreScope.
+- `corescope-overlay/denvermc-shell.js` — switch the map shell logo source to the main-site header asset and align the accessible label/title.
+- `corescope-overlay/denvermc-sound.js` — create a no-playback bootstrap/test seam for later steps.
+- `src/app/layout.tsx` and public favicon files — only change if current favicon routing/assets are demonstrably not using the correct brand logo.
 
 ## Ordered Implementation Checklist
-1. Add CoreScope as a submodule at `vendor/CoreScope` from `https://github.com/Kpa-clawbot/CoreScope`.
-2. Create `scripts/check-corescope-submodule.mjs` modeled after `scripts/check-utilities-submodule.mjs`.
-3. Require CoreScope files that future Docker/runtime steps depend on.
-4. Add `corescope:check-submodule` to `package.json` without changing existing scripts.
-5. Run the new checker and `git submodule status vendor/CoreScope`.
-6. Stage only Step 1 files for Forge review.
-7. Save the Claude review JSON to `.forge/reviews/claude-step-1.json` after review.
+1. Verify whether public root favicon files differ from the correct brand favicon/icon assets using file metadata/hashes; only replace or reroute if they are stale.
+2. Create `corescope-overlay/denvermc-sound.js` with a safe no-audio bootstrap that exposes `window.__coloradoMeshSound` and a backwards-compatible internal alias if needed.
+3. Update `scripts/apply-corescope-overlay.mjs` to inject/copy `denvermc-sound.js` after `denvermc-shell.js` and support recursive copy of `corescope-overlay/sound/` to public `/sound/` when present.
+4. Update `docker/nginx.conf` to proxy `denvermc-sound.js` and `/sound/` assets to CoreScope without broadening unrelated routes.
+5. Update `corescope-overlay/denvermc-shell.js` so `BRAND_LOGO_SRC` uses `/brand/linux/256x256.png` and the brand `aria-label`/title matches the main-site home behavior.
+6. Run overlay application and validation commands.
+7. Stage only Step 1 files and run the Forge Claude step review.
 
 ## Interfaces and Data Contracts
-- `npm run corescope:check-submodule` must exit `0` when `vendor/CoreScope` is initialized at a readable git commit.
-- On failure, the checker must print `git submodule update --init --recursive vendor/CoreScope`.
-- The checker validates only source structure; it does not build CoreScope or inspect credentials.
+- New static overlay script: `/denvermc-sound.js?v=denvermc`.
+- New optional static sample/provenance prefix: `/sound/...` served from CoreScope public output.
+- `window.__coloradoMeshSound` bootstrap shape: `{ version, status, getState() }` initially no-op/no-audio.
+- Logo asset path: `/brand/linux/256x256.png`.
 
 ## Verification Plan
-- Automated: `npm run corescope:check-submodule`
-- Automated: `git submodule status vendor/CoreScope`
-- Regression: ensure existing `utilities:check-submodule` remains unchanged and package scripts still parse as JSON.
+- Automated: `npm run corescope:apply-overlay`; `npm run lint`; `npm run typecheck`; `git diff --check`.
+- Manual: inspect generated CoreScope public `index.html` for `denvermc-sound.js` injection and verify bootstrap/global in browser if a dev/server check is available.
+- Regression: existing `/map` overlay assets still inject once, map shell still loads, and favicon metadata still resolves to Colorado Mesh brand assets.
 
 ## Stop Conditions
-- Pause if `git submodule add` fails because `vendor/CoreScope` already exists with unexpected content.
-- Pause if CoreScope upstream does not expose the required files at the pinned commit.
-- Pause if adding the submodule would require overwriting existing tracked files.
+- If favicon files need image conversion but no reliable local tool exists, stop and ask rather than committing a guessed binary asset.
+- If adding `/sound/` proxy would conflict with existing Next routes, stop and narrow the route instead of broadening the proxy.
+- If any change requires visual layout/CSS decisions, delegate that portion to Opus UI rather than editing visual styling directly in this Codex-backed session.

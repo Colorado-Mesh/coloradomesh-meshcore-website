@@ -1,140 +1,118 @@
-# Stack Research: Replace Denver MeshCore Live Map with CoreScope
+# Stack Research — Map Sound Modes
 
-Project date checked: 2026-05-13
+Project: add opt-in sound modes to the embedded CoreScope live map via the existing CoreScope packet/audio/visualization event stream, without editing `vendor/CoreScope` directly and without adding copyrighted samples.
 
-## Findings
+### ITEM-stack-1: Implement the feature as CoreScope overlay assets, not a Next/React feature
 
-### ITEM-stack-1: Keep the existing Denver site on Next.js 16, React 19, TypeScript, Node 24, npm, and Docker
-
-- **Recommendation:** Do not re-platform the Denver MeshCore site. Keep the current Next.js App Router application on Node.js 24, React 19, TypeScript, Tailwind CSS 4, npm, Vitest, Playwright, and the existing Docker standalone runtime; limit the live-map replacement to routing, deployment, configuration, and cleanup work around `/map`.
-- **Rationale:** The local repository is already a modern Next.js 16/React 19 app with `output: 'standalone'`, Docker-first deployment, npm lockfile, Vitest, Playwright, and a Node `>=24 <26` engine. Official Next.js 16 docs require Node.js 20.9+ and TypeScript 5.1+, so Node 24 satisfies the framework requirement. Re-platforming would add unnecessary migration risk and distract from the goal: making CoreScope the canonical map/analyzer experience.
+- **Recommendation:** Add one or two vanilla browser overlay files under `corescope-overlay/` (for example `denvermc-map-sound.js` and optional `denvermc-map-sound.css`) and inject/copy them through `scripts/apply-corescope-overlay.mjs`. Keep the feature in the CoreScope static page runtime rather than building a new React component in the Next app.
+- **Rationale:** The live map UI, packet WebSocket, existing audio engine, and `renderPacketTree()` audio hook all live in `vendor/CoreScope/public/*.js`, while the local customization pattern already copies overlay assets into CoreScope public and injects them into `index.html`. Staying in the overlay layer respects the “do not edit vendor/CoreScope” constraint and avoids coupling sound controls to the separate Next application shell.
 - **Confidence:** HIGH
-- **Source:** Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`, `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`, `/Users/cjvana/Documents/GitHub/denvermc-org/README.md`; Official docs — https://nextjs.org/docs/app/guides/upgrading/version-16
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Rebuilding the site in Go/vanilla JS to match CoreScope is unnecessary; downgrading to older Node/Next versions would fight the current repo and official Next.js support baseline; replacing all map code with new hand-coded React UI is explicitly outside this session's constraints.
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/index.html`
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not edit `vendor/CoreScope/public/live.js`, `audio.js`, or `index.html` directly; upstream CoreScope updates would overwrite or conflict with the change. Do not implement the selector in Next/React because the relevant DOM and packet events are inside the CoreScope static app.
 
-### ITEM-stack-2: Treat CoreScope as a separate analyzer application, not a React component library
+### ITEM-stack-2: Use native Web Audio APIs as the core audio stack
 
-- **Recommendation:** Run CoreScope as its own service and route users to it as the replacement map/analyzer experience; do not attempt to import CoreScope's frontend files into the Next.js bundle.
-- **Rationale:** CoreScope is not packaged as a React library. Its stack is a Go HTTP server, Go MQTT ingestor, SQLite persistence, in-memory indexed packet store, REST API, WebSocket broadcast, and a vanilla JavaScript SPA in `public/`. The existing Denver map is a React Leaflet client component fed by Next API routes; direct replacement by code import would require a large port of CoreScope's routing, APIs, WebSocket lifecycle, CSS, Leaflet plugins, Chart.js usage, and global scripts. A service boundary preserves CoreScope's intended runtime and update path.
+- **Recommendation:** Build all five modes on the browser Web Audio API: `AudioContext`, `OscillatorNode`, `GainNode`, `BiquadFilterNode`, `StereoPannerNode`, `DynamicsCompressorNode`, and, for optional orchestral samples, `AudioBufferSourceNode` plus `decodeAudioData()`.
+- **Rationale:** Web Audio is broadly supported in modern browsers and already matches the existing CoreScope audio code. MDN documents Web Audio as an audio graph of source and processing nodes; Can I Use reports about 95.95% global support for the API. The current CoreScope engine already uses oscillators, gains, filters, panners, and compression, so the lowest-risk path is to extend that model rather than add a framework.
 - **Confidence:** HIGH
-- **Source:** GitHub/WebFetch — https://github.com/Kpa-clawbot/CoreScope; GitHub API — `Kpa-clawbot/CoreScope` `README.md`, `Dockerfile`, `cmd/server/go.mod`, `cmd/ingestor/go.mod`, `public/index.html`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Porting CoreScope into `src/components/NetworkMap.tsx` would discard most upstream value and make future CoreScope updates hard; iframe embedding should be avoided because the current site sends `X-Frame-Options: DENY` and because iframe integration complicates routing, accessibility, auth, CSP, and mobile layout.
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API; Compatibility — https://caniuse.com/audio-api; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js`
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not add Tone.js for this feature; it is a full music framework and the npm package is ~5.4 MB unpacked. Do not add howler.js; it is useful for playback but not for procedural synthesis. Do not add superdough; it is AGPL-3.0-or-later and inappropriate for this site’s current dependency/license profile.
 
-### ITEM-stack-3: Add CoreScope as a pinned git submodule under `vendor/corescope`, but deploy a pinned container image unless a source build is required
+### ITEM-stack-3: Extend CoreScope’s existing `MeshAudio` voice registry instead of replacing it
 
-- **Recommendation:** Add `https://github.com/Kpa-clawbot/CoreScope` as `vendor/corescope` and pin it to the reviewed release commit for v3.7.2 or a newer reviewed release. Use the submodule for source availability, review, config templates, and optional source builds; for production deployment, prefer a pinned GHCR image reference such as `ghcr.io/kpa-clawbot/corescope:v3.7.2` and ideally pin by digest after verification.
-- **Rationale:** Git submodules let the Denver repository record the exact upstream CoreScope commit without copying the project or losing upstream history. CoreScope's own docs recommend pre-built GHCR images for most production deployments. A container-image deployment avoids introducing a Go toolchain into the Next.js build and matches CoreScope's supported path. However, the submodule is still valuable for reproducibility, GPL source availability, code review, and future source-build fallback.
+- **Recommendation:** Register new voices/modes through `window.MeshAudio.registerVoice()` where possible, and add a thin DenverMC controller that maps selector values to `MeshAudio` enabled state and voice names: `off`, `native-plus`, `generative-key`, `orchestral-ensemble`, `space-blaster`.
+- **Rationale:** `audio.js` already exposes `MeshAudio.sonifyPacket()`, `setEnabled()`, `setVoice()`, `registerVoice()`, volume/BPM controls, localStorage restore, voice caps, and helper utilities. `live.js` already calls `MeshAudio.sonifyPacket(consolidated)` inside `renderPacketTree()`, so no new event bus or packet stream is needed. The DenverMC layer only needs to make “Sound Off” authoritative and provide richer voice implementations.
 - **Confidence:** HIGH
-- **Source:** Official docs — https://git-scm.com/docs/gitsubmodules; GitHub API/WebSearch — https://github.com/Kpa-clawbot/CoreScope/releases/tag/v3.7.2, https://github.com/Kpa-clawbot/CoreScope/pkgs/container/corescope, https://github.com/Kpa-clawbot/CoreScope
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Vendoring a tarball loses upstream history and update ergonomics; using `latest` without a pinned digest makes deployments non-reproducible; using remote Compose files directly in CI/deploy bypasses local review; copying CoreScope files into `src/` would create a permanent fork.
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js`
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not build a parallel WebSocket listener just for sound; it would duplicate packet filtering, replay behavior, and deduplication. Do not bypass `MeshAudio.sonifyPacket()` unless a specific event category cannot be represented by the existing packet object.
 
-### ITEM-stack-4: Use CoreScope's SQLite data layer as the canonical live-map storage, isolated from the Next.js site
+### ITEM-stack-4: Make Sound Off the authoritative default with a new DenverMC localStorage key
 
-- **Recommendation:** Let CoreScope own packet ingestion, decoding, retention, node state, analytics, and SQLite persistence in `/app/data/meshcore.db`; mount a persistent bind volume or named volume for `/app/data`; keep the Denver Next.js app stateless for this feature except for redirects/proxy settings and documentation.
-- **Rationale:** CoreScope is designed around SQLite persistence plus an in-memory packet store with indexes for low-latency API reads. The current Denver site has no database; it fetches an analyzer node API or an optional sidecar and normalizes map snapshots in memory. Reusing the old map store would block CoreScope features such as packet replay, node analytics, channel decode, observer analytics, route tracing, and WebSocket live updates.
+- **Recommendation:** Store the selected mode in a DenverMC-specific key such as `denvermc.map.soundMode`, default to `off`, and on first load explicitly disable `MeshAudio` unless this key contains an enabled mode. Keep volume and optional advanced controls in localStorage as small local-only preferences.
+- **Rationale:** CoreScope currently persists `live-audio-enabled=true` and may recreate an `AudioContext` on restore. The project requires sound to be opt-in because browser autoplay policies require user activation and because sound should not surprise users. A new project-owned key avoids accidentally honoring old CoreScope audio state as an enabled map mode.
 - **Confidence:** HIGH
-- **Source:** GitHub/WebFetch — https://github.com/Kpa-clawbot/CoreScope, https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md; Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/map/config.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/live-map/client.ts`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Adding Postgres/Supabase is unnecessary for the initial replacement and unsupported by CoreScope; forcing CoreScope to consume only the current `/api/map/nodes` snapshot would reduce it to a static node map and lose its analyzer value; sharing SQLite between multiple CoreScope instances should be avoided because SQLite is single-writer oriented.
+- **Source:** MDN — https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage; MDN — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js`
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not store the mode server-side or in cookies. Do not rely only on CoreScope’s existing `live-audio-enabled` key, because it cannot represent the requested five-mode selector and could preserve legacy “on” state against the new default-off requirement.
 
-### ITEM-stack-5: Put a real reverse proxy in front of CoreScope for `/map` or a dedicated analyzer subdomain, with WebSocket support
+### ITEM-stack-5: Gate audio unlock behind explicit user gestures
 
-- **Recommendation:** Use Docker deployment routing to make CoreScope the canonical `/map` experience, preferably through an external reverse proxy or site-level Caddy/nginx/Traefik route that forwards HTTP and WebSocket upgrade traffic to the CoreScope service. If using a dedicated hostname is operationally easier, make `/map` issue a permanent or temporary redirect to that hostname and update navigation/canonical metadata accordingly.
-- **Rationale:** CoreScope serves a full SPA plus REST and WebSocket endpoints. Reverse proxying is the clean boundary for that stack. CoreScope's own container includes Caddy, but Denver already has a Next.js web container and security headers; running a single deployment-level proxy avoids nested proxy confusion. CoreScope docs specifically call out WebSocket upgrade headers when behind an external proxy.
+- **Recommendation:** Create or resume `AudioContext` only in response to the user selecting an enabled sound mode or pressing an Enable/Preview button. If the context is still `suspended`, show a small unlock affordance and do not schedule packet sounds until `resume()` resolves.
+- **Rationale:** MDN and Chrome both state that Web Audio can be blocked or start suspended unless created/resumed from a user gesture. Chrome’s autoplay policy has applied to Web Audio since Chrome 71. This makes the selector interaction the right activation point and reinforces that “Sound Off” is the safe default.
+- **Confidence:** HIGH
+- **Source:** MDN — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; Chrome Developers — https://developer.chrome.com/blog/autoplay/
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not initialize or resume audio on page load. Do not count a passive packet arrival, WebSocket connect, or route change as consent to play sound.
+
+### ITEM-stack-6: Use procedural synthesis for Native+, Generative Key, and Space Blaster
+
+- **Recommendation:** Keep Native+, Generative Key, and Space Blaster fully procedural and license-safe: short envelopes, oscillators/noise buffers, filters, pitch variation, stereo panning, compression, and per-mode rate limiting. Use packet fields already available to CoreScope (`payloadTypeName`, text/message payloads, hops, observation count, raw bytes, hash, path) as synthesis inputs.
+- **Rationale:** Procedural Web Audio avoids asset licensing risk, adds no network cost, and fits the existing `audio-v1-constellation.js` pattern. Native+ should polish packet/message one-shots; Generative Key should quantize packet activity into one musical key; Space Blaster should use oscillators/noise/filter sweeps rather than copyrighted samples.
+- **Confidence:** HIGH
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js`; MDN — https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createOscillator
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not use Star Wars samples, Andrew Huang Collisions assets, or cloned trademarked blaster sounds. Do not fetch remote sound packs at runtime; same-origin procedural audio is safer and faster.
+
+### ITEM-stack-7: Make Orchestral Ensemble a manifest-driven lazy sampler with empty-safe fallback
+
+- **Recommendation:** Implement an orchestral sample loader around a same-origin JSON manifest, `fetch()`, `arrayBuffer()`, and `audioCtx.decodeAudioData()`. Lazy-load samples only after the user selects Orchestral Ensemble. Each manifest entry should include instrument, note/root, file path, license, author/source URL, and attribution text. If no bundled CC0/safe samples exist, the mode should fall back to lightweight Web Audio approximations and clearly keep the manifest empty.
+- **Rationale:** MDN’s sample playback path is fetch → ArrayBuffer → `decodeAudioData()` → `AudioBufferSourceNode`. Lazy loading defers non-critical media until needed and avoids slowing initial map load. The University of Iowa sample library states samples may be used for any projects without restrictions, and Freesound has individual CC0 instrument one-shots, but provenance must be stored per file before bundling.
+- **Confidence:** HIGH
+- **Source:** MDN — https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData; MDN — https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Lazy_loading; University of Iowa — https://theremin.music.uiowa.edu/MIS.html; Freesound search results — https://freesound.org/
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not bundle samples without per-file license/provenance metadata. Do not import a large sampler library just for a handful of one-shots. Do not make Orchestral Ensemble block initial CoreScope map load.
+
+### ITEM-stack-8: Preserve the single-container Docker/static deployment
+
+- **Recommendation:** Keep deployment unchanged: the Next standalone app, CoreScope Go binaries, nginx, supervisor, and CoreScope public assets remain in one Docker image. If sample files are added, place them under `corescope-overlay/` and update `apply-corescope-overlay.mjs` to copy that static directory into `/app/corescope/public/` during the existing image build.
+- **Rationale:** The Dockerfile already copies `corescope-overlay` into the image and applies the overlay to `/app/corescope/public`. The feature is entirely browser-side after static asset delivery, so no new service, database table, API, queue, or persistent volume is warranted.
+- **Confidence:** HIGH
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`, `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs`
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not add a server-side audio renderer or extra container. Do not store selected mode in SQLite or CoreScope config. Do not put audio samples in `vendor/CoreScope/public` directly.
+
+### ITEM-stack-9: Keep dependencies unchanged; use the existing test stack
+
+- **Recommendation:** Add no runtime npm dependency for the sound modes. Use existing test tools: Vitest/jsdom for pure mapping/rate-limit/storage logic, and Playwright for browser-level selector behavior, localStorage persistence, and audio-unlock UX. Mock Web Audio nodes in unit tests and use Playwright for real browser smoke coverage.
+- **Rationale:** `package.json` already includes Vitest, jsdom, Testing Library, Playwright, TypeScript, and Docker smoke scripts. The sound feature is static browser JavaScript and can be tested without adding bundlers or libraries. jsdom will not provide real Web Audio behavior, so unit tests should validate deterministic mapping/controller logic while Playwright covers DOM and browser policy flows.
+- **Confidence:** HIGH
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; MDN — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not add Jest, Cypress, Vite app wiring, or a TypeScript build just for overlay scripts. Do not rely only on manual listening tests; persistence/default-off behavior needs automated coverage.
+
+### ITEM-stack-10: Use a small controller/state boundary for mode selection and packet throttling
+
+- **Recommendation:** Structure the overlay as a controller with four clear boundaries: UI adapter (selector/buttons), storage adapter (`localStorage` with try/catch), audio engine adapter (`MeshAudio` and Web Audio context), and mode implementations. Add per-mode throttles/debouncing above `MeshAudio.sonifyPacket()` so high packet bursts cannot overwhelm the mix.
+- **Rationale:** The current engine caps voices at 12, but polished map sound needs more than a global cap: per-event rate limits, tasteful mixing, and “last important event wins” behavior. A small controller also makes the new default-off semantics independent from CoreScope’s existing audio toggle and keeps mode implementation testable.
+- **Confidence:** HIGH
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js`; MDN — https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not scatter mode-specific conditionals across DOM event handlers. Do not depend only on `MAX_VOICES`; without rate shaping, bursty packet traffic can still sound chaotic even if technically capped.
+
+### ITEM-stack-11: Prefer same-origin assets and avoid CSP/network changes
+
+- **Recommendation:** Serve all new JS, CSS, optional manifest files, and optional samples from the same CoreScope public origin. Do not add external CDNs or remote sample domains for this feature.
+- **Rationale:** Same-origin static assets avoid CSP expansion, privacy concerns, offline/cache surprises, and third-party availability issues. `next.config.js` already defines tight security headers for the Next side, and the CoreScope deployment already serves overlay files locally through nginx. The feature does not need external network access after page load except the existing map/data streams.
 - **Confidence:** MEDIUM
-- **Source:** GitHub/WebFetch — https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md; Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Next.js-only rewrites are risky for a full analyzer app with WebSockets and many root-relative assets; iframe embedding is not the right canonical replacement; leaving the old React Leaflet map at `/map` and linking to CoreScope elsewhere fails the project goal.
-
-### ITEM-stack-6: Feed CoreScope raw MeshCore MQTT packets, not just normalized node snapshots
-
-- **Recommendation:** Configure CoreScope `mqttSources` for the Colorado MeshCore packet feed, with server-side credentials, appropriate topics, `defaultRegion`/`regions`, optional IATA filters, and optional `geo_filter`. Disable CoreScope's internal Mosquitto only if Colorado already supplies an external broker; otherwise expose or bridge MQTT deliberately.
-- **Rationale:** CoreScope's value comes from ingesting raw MeshCore packets, decoding them, storing observations, and broadcasting packet events. The current Denver site defaults to `https://analyzer.meshcore.coloradomesh.org/api/nodes`, which is enough for markers but not enough for CoreScope's packet feed, live VCR replay, channel chat, observer status, route analytics, and node analytics.
-- **Confidence:** HIGH
-- **Source:** GitHub API/WebFetch — https://github.com/Kpa-clawbot/CoreScope/blob/master/config.example.json, https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md; Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/.env.example`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.live-map.yaml`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Continuing to operate the current `yellowcooln/meshcore-mqtt-live-map` sidecar as the canonical backend duplicates CoreScope; browser-side MQTT is inappropriate for credentials and reliability; using sample/demo data in production should remain disabled.
-
-### ITEM-stack-7: Use CoreScope's configuration/theme hooks for branding; do not add new map UI libraries to Denver
-
-- **Recommendation:** For visual integration, configure CoreScope through `/app/data/config.json`, `/app/data/theme.json`, its branding fields, and its built-in theme customizer/export flow. Keep Denver's Tailwind/React map components only as removable legacy code or temporary fallback until routing is switched.
-- **Rationale:** CoreScope already ships Leaflet 1.9.4, marker clustering, Leaflet heat, Chart.js, and a substantial vanilla JS UI. Adding React Leaflet, Mapbox, Deck.gl, or a new design-system layer in Denver would not affect CoreScope unless its upstream frontend is forked. The project constraint also says frontend UI/design implementation should be delegated to `co-ui`/native Opus UI rather than hand-coded here.
-- **Confidence:** HIGH
-- **Source:** GitHub API — `Kpa-clawbot/CoreScope` `public/index.html`, `config.example.json`; Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx`, `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Adding Mapbox GL/MapLibre/deck.gl now would be unused by CoreScope; rebuilding CoreScope in React would create a fork; keeping two separate public map UIs would confuse operators.
-
-### ITEM-stack-8: Verification stack should cover both the existing site and CoreScope as a service
-
-- **Recommendation:** Keep the Denver verification gates `npm run lint`, `npm run typecheck`, `npm run test:unit`, `npm run build`, and Playwright smoke/a11y tests. Add deployment verification that starts CoreScope, checks `/api/stats`, `/api/health` or `/api/spec`, verifies the `/map` route reaches CoreScope, and verifies WebSocket connectivity through the chosen proxy.
-- **Rationale:** The local repo already has lint, TypeScript, Vitest, Playwright, Lighthouse CI, and Docker smoke patterns. CoreScope has its own Go, Node, and Playwright tests upstream, but the Denver integration risk is mostly routing, headers, container health, data volume, MQTT configuration, and WebSocket proxying. Service-level smoke tests catch those risks without importing CoreScope's entire upstream test suite into Denver's npm workflow.
-- **Confidence:** HIGH
-- **Source:** Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`, `/Users/cjvana/Documents/GitHub/denvermc-org/playwright.config.ts`, `/Users/cjvana/Documents/GitHub/denvermc-org/vitest.config.ts`; GitHub/WebFetch — https://github.com/Kpa-clawbot/CoreScope, https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Relying only on `next build` will not prove CoreScope works; importing CoreScope's full test matrix into Denver CI may be slow and brittle; skipping WebSocket verification would miss the most likely proxy integration failure.
-
-### ITEM-stack-9: Treat CoreScope as GPL-3.0 for stack and deployment decisions
-
-- **Recommendation:** Treat CoreScope as GPL-3.0-licensed unless upstream resolves the README/license inconsistency; keep source availability prominent and make the submodule/update workflow part of compliance. Update Denver's map attribution from the old `yellowcooln/meshcore-mqtt-live-map` lineage to CoreScope once replacement is complete.
-- **Rationale:** GitHub repository metadata and the `LICENSE` file identify CoreScope as GPL-3.0, while the README currently says MIT. The license file is the safer authority for compliance planning. The existing Denver map page already displays GPL source attribution for its current upstream-derived map, so compliance-aware attribution is already part of the stack.
-- **Confidence:** HIGH
-- **Source:** GitHub API/WebFetch — https://github.com/Kpa-clawbot/CoreScope, https://github.com/Kpa-clawbot/CoreScope/blob/master/LICENSE; Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Assuming MIT because of the README is unsafe; hiding CoreScope source or failing to publish the exact vendored revision creates avoidable compliance risk; removing attribution entirely would regress the current practice.
-
-### ITEM-stack-10: Docker production is the canonical deployment target; Netlify previews can only provide a fallback or redirect
-
-- **Recommendation:** Implement the production replacement in the Docker/Compose deployment path. For Netlify previews, either redirect `/map` to a deployed CoreScope instance or show a clear fallback page explaining that the live analyzer requires the Docker runtime.
-- **Rationale:** CoreScope is a long-running server/ingestor with SQLite, MQTT, WebSockets, and persistent volumes. That does not fit static/secondary Netlify previews. The Denver repo already says Docker is the primary runtime and Netlify is a secondary preview path, so the stack decision should reflect that hierarchy.
-- **Confidence:** HIGH
-- **Source:** Local repo — `/Users/cjvana/Documents/GitHub/denvermc-org/README.md`, `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml`, `/Users/cjvana/Documents/GitHub/denvermc-org/compose.yaml`; GitHub/WebFetch — https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Trying to run CoreScope on Netlify functions is a poor fit for persistent MQTT/WebSocket/SQLite workloads; keeping a separate React map only for previews increases divergence; blocking the production replacement on preview parity is unnecessary.
-
-### ITEM-stack-11: Be cautious with CoreScope source builds because upstream currently builds with Go 1.22
-
-- **Recommendation:** Prefer the reviewed GHCR release image initially. If Denver must build CoreScope from the submodule, first verify or patch the build to a supported Go release line in a fork or upstream PR, then run CoreScope's Go tests and integration smoke tests.
-- **Rationale:** CoreScope's current Dockerfile uses `golang:1.22-alpine`. Official Go policy supports each major release only until two newer major releases exist; Go 1.22 became unsupported when Go 1.24 shipped. That does not block using CoreScope as a product, but it is a stack risk if Denver starts owning source builds.
-- **Confidence:** MEDIUM
-- **Source:** Official docs — https://go.dev/doc/devel/release#policy; GitHub API — `Kpa-clawbot/CoreScope` `Dockerfile`, `Dockerfile.go`, `cmd/server/go.mod`, `cmd/ingestor/go.mod`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Blindly building the submodule in Denver CI would silently adopt an unsupported Go toolchain; rewriting CoreScope in Node to avoid Go is unjustified; ignoring the issue is acceptable only if Denver treats CoreScope as an externally supplied image and monitors upstream updates.
-
-### ITEM-stack-12: Harden Compose/image supply-chain handling for a vendored analyzer service
-
-- **Recommendation:** Review CoreScope Compose and Docker configuration as code, run `docker compose config` in verification, avoid unreviewed remote Compose includes, pin images by immutable digest for production, and treat submodule updates as dependency-update PRs with smoke tests.
-- **Rationale:** Docker Compose files can mount host paths, expose ports, run privileged containers, and consume secrets. CoreScope's deployment model includes bind mounts for data, optional Caddy config, optional MQTT exposure, and a public container image. That is normal for this stack but should be reviewed like executable deployment code, especially when pulled through a submodule.
-- **Confidence:** HIGH
-- **Source:** Official docs — https://docs.docker.com/compose/trust-model/, https://docs.docker.com/compose/; GitHub API — `Kpa-clawbot/CoreScope` `docker-compose.example.yml`, `docker-compose.yml`, `Dockerfile`
-- **Checked:** 2026-05-13
-- **Alternatives rejected:** Running upstream Compose files directly from GitHub is less reviewable; mutable `latest` images are not reproducible; mounting broad host directories or Docker sockets is unnecessary for this integration.
-
-## Current Version Snapshot
-
-| Component | Local/current finding | Recommendation |
-|-----------|-----------------------|----------------|
-| Denver app runtime | Node `>=24 <26`, Next `^16.2.5`, React `19.2.3`, TypeScript `^5` | Keep; update lockfile only if normal dependency verification passes. |
-| Current npm registry checks | Next `16.2.6`, React/React DOM `19.2.6`, Leaflet `1.9.4`, react-leaflet `5.0.0`, mqtt `5.15.1`, TypeScript `6.0.3`, Vitest `4.1.6`, Playwright `1.60.0` | Do not couple CoreScope work to broad dependency upgrades unless tests require it. |
-| CoreScope release | v3.7.2, published 2026-05-06, latest visible release at time checked | Pin v3.7.2 or a newer reviewed release; avoid `latest` in production. |
-| CoreScope runtime | Go server + Go ingestor + SQLite + vanilla JS SPA + Leaflet/Chart.js + WebSocket + Docker | Run as sidecar/app service. |
-| Deployment | Denver Docker primary; Netlify secondary previews | Make Docker canonical for CoreScope; preview fallback/redirect only. |
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile`; MDN — https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Lazy_loading
+- **Checked:** 2026-05-14
+- **Alternatives rejected:** Do not load Tone.js, howler.js, samples, or manifests from CDNs. Do not fetch samples from Freesound or other public sites at runtime; download/review/license-track any approved files and serve them locally.
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-stack-1 | HIGH | Local repo + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://nextjs.org/docs/app/guides/upgrading/version-16 |
-| ITEM-stack-2 | HIGH | GitHub/WebFetch + GitHub API | https://github.com/Kpa-clawbot/CoreScope |
-| ITEM-stack-3 | HIGH | Official docs + GitHub API/WebSearch | https://git-scm.com/docs/gitsubmodules; https://github.com/Kpa-clawbot/CoreScope/releases/tag/v3.7.2 |
-| ITEM-stack-4 | HIGH | GitHub/WebFetch + Local repo | https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md; `/Users/cjvana/Documents/GitHub/denvermc-org/src/lib/live-map/client.ts` |
-| ITEM-stack-5 | MEDIUM | GitHub/WebFetch + Local repo | https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md; `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js` |
-| ITEM-stack-6 | HIGH | GitHub API/WebFetch + Local repo | https://github.com/Kpa-clawbot/CoreScope/blob/master/config.example.json; `/Users/cjvana/Documents/GitHub/denvermc-org/.env.example` |
-| ITEM-stack-7 | HIGH | GitHub API + Local repo | `Kpa-clawbot/CoreScope public/index.html`; `/Users/cjvana/Documents/GitHub/denvermc-org/src/components/NetworkMap.tsx` |
-| ITEM-stack-8 | HIGH | Local repo + GitHub/WebFetch | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md |
-| ITEM-stack-9 | HIGH | GitHub API/WebFetch + Local repo | https://github.com/Kpa-clawbot/CoreScope/blob/master/LICENSE; `/Users/cjvana/Documents/GitHub/denvermc-org/src/app/map/page.tsx` |
-| ITEM-stack-10 | HIGH | Local repo + GitHub/WebFetch | `/Users/cjvana/Documents/GitHub/denvermc-org/netlify.toml`; https://github.com/Kpa-clawbot/CoreScope/blob/master/docs/deployment.md |
-| ITEM-stack-11 | MEDIUM | Official docs + GitHub API | https://go.dev/doc/devel/release#policy; `Kpa-clawbot/CoreScope Dockerfile` |
-| ITEM-stack-12 | HIGH | Official docs + GitHub API | https://docs.docker.com/compose/trust-model/; `Kpa-clawbot/CoreScope docker-compose.example.yml` |
+| ITEM-stack-1 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs` |
+| ITEM-stack-2 | HIGH | Official docs / compatibility / codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API; https://caniuse.com/audio-api |
+| ITEM-stack-3 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js` |
+| ITEM-stack-4 | HIGH | MDN / codebase | https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage |
+| ITEM-stack-5 | HIGH | MDN / Chrome Developers | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; https://developer.chrome.com/blog/autoplay/ |
+| ITEM-stack-6 | HIGH | Codebase / MDN | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js`; https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/createOscillator |
+| ITEM-stack-7 | HIGH | MDN / sample-library docs | https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/decodeAudioData; https://theremin.music.uiowa.edu/MIS.html |
+| ITEM-stack-8 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |
+| ITEM-stack-9 | HIGH | Codebase / MDN | `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices |
+| ITEM-stack-10 | HIGH | Codebase / MDN | `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js`; https://developer.mozilla.org/en-US/docs/Web/API/DynamicsCompressorNode |
+| ITEM-stack-11 | MEDIUM | Codebase / MDN | `/Users/cjvana/Documents/GitHub/denvermc-org/next.config.js`; https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Lazy_loading |

@@ -27,6 +27,16 @@
   var masterGain = null;
   var suppressObserver = null;
   var suppressTimer = null;
+  var dedupeWindowMs = 2500;
+  var dedupeSeen = new Map();
+  var buckets = {
+    priority: { capacity: 6, tokens: 6, refillPerSecond: 3, updatedAt: Date.now() },
+    normal: { capacity: 4, tokens: 4, refillPerSecond: 1.5, updatedAt: Date.now() },
+    low: { capacity: 2, tokens: 2, refillPerSecond: 0.75, updatedAt: Date.now() },
+  };
+  var lastNormalizedEvent = null;
+  var lastEvent = null;
+  var lastDroppedReason = null;
   var counters = {
     modeChanges: 0,
     volumeChanges: 0,
@@ -35,6 +45,17 @@
     suppressions: 0,
     suppressedPackets: 0,
     testEvents: 0,
+    received: 0,
+    normalized: 0,
+    routed: 0,
+    dropped: 0,
+    deduped: 0,
+    throttled: 0,
+    locked: 0,
+    off: 0,
+    malformed: 0,
+    priority: 0,
+    played: 0,
   };
 
   function readStorage(key) {
@@ -78,6 +99,23 @@
     });
   }
 
+  function cloneEvent(event) {
+    if (!event) return null;
+    return {
+      id: event.id,
+      type: event.type,
+      modeHint: event.modeHint,
+      channelName: event.channelName,
+      channelHash: event.channelHash,
+      isEmergency: event.isEmergency,
+      isPriority: event.isPriority,
+      observationCount: event.observationCount,
+      hopCount: event.hopCount,
+      intensity: event.intensity,
+      timestamp: event.timestamp,
+    };
+  }
+
   function getState() {
     return {
       mode: state.mode,
@@ -86,6 +124,9 @@
       status: state.status,
       available: state.available,
       counters: Object.assign({}, counters),
+      lastNormalizedEvent: cloneEvent(lastNormalizedEvent),
+      lastEvent: cloneEvent(lastEvent),
+      lastDroppedReason: lastDroppedReason,
     };
   }
 
@@ -221,10 +262,262 @@
     };
   }
 
-  function injectTestEvent() {
-    counters.testEvents += 1;
+  function numberFrom(value, fallback) {
+    var next = typeof value === 'number' ? value : parseFloat(value);
+    if (!Number.isFinite(next)) return fallback;
+    return next;
+  }
+
+  function intFrom(value, fallback) {
+    var next = Math.round(numberFrom(value, fallback));
+    return Number.isFinite(next) ? next : fallback;
+  }
+
+  function stringFrom(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return '';
+  }
+
+  function parseMaybeJson(value) {
+    if (!value || typeof value !== 'string') return null;
+    try { return JSON.parse(value); }
+    catch { return null; }
+  }
+
+  function decodedFromPacket(pkt) {
+    if (!pkt || typeof pkt !== 'object') return {};
+    if (pkt.decoded && typeof pkt.decoded === 'object') return pkt.decoded;
+    var decoded = parseMaybeJson(pkt.decoded_json);
+    return decoded && typeof decoded === 'object' ? decoded : {};
+  }
+
+  function pathFromPacket(pkt, decoded) {
+    var path = decoded && decoded.path && typeof decoded.path === 'object' ? decoded.path : {};
+    if (Array.isArray(path.hops)) return path.hops;
+    var parsed = parseMaybeJson(pkt && pkt.path_json);
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
+  function rawHexFromPacket(pkt) {
+    return stringFrom(pkt && (pkt.raw || pkt.raw_hex || (pkt.packet && (pkt.packet.raw || pkt.packet.raw_hex))));
+  }
+
+  function byteAt(hex, index, fallback) {
+    if (!hex || hex.length < index * 2 + 2) return fallback;
+    var parsed = parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function firstString(values) {
+    for (var i = 0; i < values.length; i++) {
+      var value = stringFrom(values[i]).trim();
+      if (value) return value;
+    }
+    return '';
+  }
+
+  function firstValue(values) {
+    for (var i = 0; i < values.length; i++) {
+      if (values[i] != null && values[i] !== '') return values[i];
+    }
+    return null;
+  }
+
+  function isEmergencyChannel(channelName, channelHash, type) {
+    var name = stringFrom(channelName).toLowerCase();
+    var hash = stringFrom(channelHash).toLowerCase();
+    return name.indexOf('emergency') !== -1
+        || hash.indexOf('emergency') !== -1
+        || stringFrom(type).toUpperCase() === 'EMERGENCY';
+  }
+
+  function normalizeChannelHash(value) {
+    if (value == null || value === '') return null;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    var raw = stringFrom(value).trim();
+    if (!raw) return null;
+    return raw;
+  }
+
+  function eventLane(event) {
+    if (event.isPriority) return 'priority';
+    if (event.type === 'ADVERT' || event.type === 'NODEINFO') return 'low';
+    return 'normal';
+  }
+
+  function normalizePacket(pkt) {
+    if (!pkt || typeof pkt !== 'object') return null;
+    var decoded = decodedFromPacket(pkt);
+    var header = decoded.header || {};
+    var payload = decoded.payload || decoded;
+    var type = firstString([
+      header.payloadTypeName,
+      header.type,
+      payload.payloadTypeName,
+      payload.type,
+      pkt.type,
+    ]).toUpperCase() || 'UNKNOWN';
+    var hops = pathFromPacket(pkt, decoded);
+    var rawHex = rawHexFromPacket(pkt);
+    var hash = firstString([
+      pkt.hash,
+      pkt.packet && pkt.packet.hash,
+      payload.hash,
+      rawHex ? rawHex.slice(0, 16) : '',
+    ]);
+    if (!hash && type === 'UNKNOWN' && !rawHex) return null;
+
+    var channelName = firstString([
+      payload.channelName,
+      payload.channel,
+      payload.channel_name,
+      decoded.channelName,
+      pkt.channelName,
+      pkt.channel,
+    ]);
+    var channelHash = normalizeChannelHash(firstValue([
+      payload.channelHash,
+      payload.channelHashByte,
+      payload.channel_hash,
+      decoded.channelHash,
+      decoded.channelHashByte,
+      pkt.channelHash,
+      pkt.channelHashByte,
+    ]));
+    var observationCount = Math.max(1, intFrom(pkt.observation_count || (pkt.packet && pkt.packet.observation_count), 1));
+    var hopCount = Math.max(1, intFrom(hops.length || payload.hopCount || decoded.hopCount || pkt.hop_count, 1));
+    var byteSeed = byteAt(rawHex, 3, observationCount * 17 + hopCount * 13);
+    var intensity = Math.max(0.05, Math.min(1, (byteSeed / 255) * 0.65 + Math.min(observationCount, 6) * 0.05 + Math.min(hopCount, 8) * 0.025));
+    var isEmergency = isEmergencyChannel(channelName, channelHash, type);
+    var isPriority = isEmergency || type === 'GRP_TXT' || type === 'CHAN' || observationCount >= 4;
+    var timestamp = intFrom(pkt._ts || pkt.timestamp || pkt.received_at || Date.now(), Date.now());
+
+    return {
+      id: hash || [type, channelName || channelHash || 'no-channel', timestamp].join(':'),
+      type: type,
+      modeHint: eventLane({ type: type, isPriority: isPriority }),
+      channelName: channelName || null,
+      channelHash: channelHash,
+      isEmergency: isEmergency,
+      isPriority: isPriority,
+      observationCount: observationCount,
+      hopCount: hopCount,
+      intensity: intensity,
+      timestamp: timestamp,
+    };
+  }
+
+  function rememberDrop(reason) {
+    counters.dropped += 1;
+    lastDroppedReason = reason;
+  }
+
+  function pruneDedupe(now) {
+    dedupeSeen.forEach(function (seenAt, id) {
+      if (now - seenAt > dedupeWindowMs) dedupeSeen.delete(id);
+    });
+  }
+
+  function acceptDedupe(event, now) {
+    if (!event.id) return true;
+    pruneDedupe(now);
+    var seenAt = dedupeSeen.get(event.id);
+    if (seenAt && now - seenAt < dedupeWindowMs) {
+      counters.deduped += 1;
+      rememberDrop('dedupe');
+      return false;
+    }
+    dedupeSeen.set(event.id, now);
+    return true;
+  }
+
+  function acceptBucket(event, now) {
+    var lane = eventLane(event);
+    var bucket = buckets[lane] || buckets.normal;
+    var elapsed = Math.max(0, (now - bucket.updatedAt) / 1000);
+    bucket.tokens = Math.min(bucket.capacity, bucket.tokens + elapsed * bucket.refillPerSecond);
+    bucket.updatedAt = now;
+    if (bucket.tokens < 1) {
+      counters.throttled += 1;
+      rememberDrop('throttle:' + lane);
+      return false;
+    }
+    bucket.tokens -= 1;
+    return true;
+  }
+
+  function markPlaceholderPlayed(event) {
+    counters.played += 1;
+    lastEvent = cloneEvent(event);
+    return true;
+  }
+
+  function routeEvent(event) {
+    if (!event) {
+      counters.malformed += 1;
+      rememberDrop('malformed');
+      notify();
+      return false;
+    }
+    if (state.mode === 'off') {
+      counters.off += 1;
+      rememberDrop('off');
+      notify();
+      return false;
+    }
+    if (!state.unlocked || !state.available) {
+      counters.locked += 1;
+      rememberDrop(state.available ? 'locked' : 'unavailable');
+      notify();
+      return false;
+    }
+
+    var now = Date.now();
+    if (!acceptDedupe(event, now)) {
+      notify();
+      return false;
+    }
+    if (!acceptBucket(event, now)) {
+      notify();
+      return false;
+    }
+
+    counters.routed += 1;
+    if (event.isPriority) counters.priority += 1;
+    lastDroppedReason = null;
+    var accepted = markPlaceholderPlayed(event);
     notify();
-    return false;
+    return accepted;
+  }
+
+  function handlePacket(pkt) {
+    counters.received += 1;
+    var event = normalizePacket(pkt);
+    if (!event) {
+      counters.malformed += 1;
+      rememberDrop('malformed');
+      notify();
+      return false;
+    }
+    counters.normalized += 1;
+    lastNormalizedEvent = cloneEvent(event);
+    return routeEvent(event);
+  }
+
+  function injectTestEvent(eventOrPacket) {
+    counters.testEvents += 1;
+    if (eventOrPacket && typeof eventOrPacket === 'object' && eventOrPacket.type && eventOrPacket.id) {
+      lastNormalizedEvent = cloneEvent(eventOrPacket);
+      return routeEvent(Object.assign({}, eventOrPacket));
+    }
+    return handlePacket(eventOrPacket || {
+      hash: 'test-' + counters.testEvents,
+      raw_hex: '010203040506',
+      observation_count: 1,
+      decoded: { header: { payloadTypeName: 'TEST' }, payload: {} },
+    });
   }
 
   function persistCoreScopeDisabled() {
@@ -292,9 +585,9 @@
       forceOff();
       return false;
     };
-    meshAudio.sonifyPacket = function () {
+    meshAudio.sonifyPacket = function (pkt) {
       counters.suppressedPackets += 1;
-      return undefined;
+      return handlePacket(pkt);
     };
 
     try {
@@ -355,6 +648,8 @@
     setVolume: setVolume,
     isUnlocked: isUnlocked,
     subscribe: subscribe,
+    normalizePacket: normalizePacket,
+    routeEvent: routeEvent,
     injectTestEvent: injectTestEvent,
     suppressCoreScopeAudio: suppressCoreScopeAudio,
   };

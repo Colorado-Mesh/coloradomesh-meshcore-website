@@ -23,7 +23,7 @@ Colorado MeshCore is the public website for Colorado Mesh's MeshCore community. 
 
 ### Prerequisites
 
-- Node.js 24 or later, matching the `package.json` engine range
+- Node.js 24 or 25, matching the `package.json` engine range
 - npm
 
 ### Install and run locally
@@ -48,6 +48,7 @@ npm run build
 Build and run the standalone Docker image:
 
 ```bash
+git submodule update --init --recursive
 docker build -t colorado-meshcore-site:local .
 docker run --rm -p 3000:3000 --env-file .env.example colorado-meshcore-site:local
 ```
@@ -63,7 +64,7 @@ Production uses one container. nginx listens on public port `3000`, sends the no
 
 `/map` is Docker-owned CoreScope, not the old in-app React map. Loading `/map` defaults to `/map#/live` and applies the local `corescope-overlay/` shell during the Docker build. The minimal Colorado Mesh live-map view hides CoreScope chrome by default, while the **Full analyzer** control exposes the stock CoreScope routes such as `#/packets`, `#/nodes`, `#/channels`, `#/analytics`, and `#/perf`.
 
-CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
+CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Retention defaults mark nodes inactive after 7 days, remove observers after 14 days, and prune packet history after 30 days. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
 
 Run the container smoke test after building an image:
 
@@ -88,24 +89,25 @@ The smoke test starts a temporary container, verifies the Next site, CoreScope `
 | `CORESCOPE_MAP_CENTER_LAT` / `CORESCOPE_MAP_CENTER_LON` | No | CoreScope map center; defaults to Colorado. |
 | `CORESCOPE_MAP_ZOOM` | No | CoreScope map zoom; defaults to `7`. |
 | `CORESCOPE_TILE_URL` | No | CoreScope tile URL template. |
-| `CORESCOPE_MQTT_BROKER` | Yes for live ingest | Full CoreScope MQTT broker URL; overrides server/port/transport when set. |
-| `CORESCOPE_MQTT_SERVER` / `CORESCOPE_MQTT_PORT` | Yes for live ingest | MQTT broker host and port; defaults to the Colorado Mesh broker on `8883`. |
-| `CORESCOPE_MQTT_TRANSPORT` / `CORESCOPE_MQTT_TLS_ENABLED` | No | Broker transport and TLS mode; defaults to secure websockets. |
+| `CORESCOPE_MQTT_BROKER` | No | Optional full CoreScope MQTT broker URL; overrides server/port/transport when set. |
+| `CORESCOPE_MQTT_SERVER` / `CORESCOPE_MQTT_PORT` | Yes for live ingest | MQTT broker host and port; defaults to the Colorado Mesh broker on `1883`. |
+| `CORESCOPE_MQTT_TRANSPORT` / `CORESCOPE_MQTT_TLS_ENABLED` | No | Broker transport and TLS mode; defaults to secure WebSocket MQTT (`wss://`). |
 | `CORESCOPE_MQTT_TOPICS` | Yes for live ingest | Comma-separated MQTT topics; defaults to `meshcore/#`. |
 | `CORESCOPE_MQTT_USERNAME` / `CORESCOPE_MQTT_PASSWORD` | Yes for authenticated live ingest | CoreScope MQTT credentials. Prefer runtime env or mount the password at `CORESCOPE_MQTT_PASSWORD_FILE` (image default: `/run/secrets/corescope_mqtt_password`); do not bake secrets into the image. |
+| `CORESCOPE_BOOTSTRAP_NODES` / `CORESCOPE_BOOTSTRAP_NODES_URL` | No | Seed the local CoreScope DB with public analyzer node locations at startup so fresh VPS volumes show nodes immediately; defaults enabled. |
 | `CORESCOPE_MQTT_SOURCE_NAME` | No | Name for the default MQTT source; defaults to `coloradomesh`. |
 | `CORESCOPE_MQTT_REGION` | No | Region tag for the default MQTT source; defaults to `CO`. |
 | `CORESCOPE_MQTT_IATA_FILTER` | No | Optional observer IATA filter for the default MQTT source. |
 | `CORESCOPE_MQTT_REJECT_UNAUTHORIZED` | No | TLS certificate validation flag; defaults to `true`. |
 | `CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC` | No | MQTT connect timeout; defaults to `45`. |
 | `CORESCOPE_MQTT_SOURCES_JSON` | No | Advanced JSON array override for multiple CoreScope MQTT sources. |
-| `CORESCOPE_CHANNEL_KEYS_JSON` | No | Optional channel-key JSON object; defaults to `{}`. |
-| `CORESCOPE_HASH_CHANNELS` | No | Optional CoreScope hash-channel list. |
+| `CORESCOPE_CHANNEL_KEYS_JSON` / `CORESCOPE_CHANNEL_KEYS_JSON_FILE` | No | Optional channel-key JSON object, or a mounted file containing it, used to decrypt group text so message contents appear on the map; defaults to the well-known MeshCore `Public` key. |
+| `CORESCOPE_HASH_CHANNELS` | No | Optional CoreScope hash-channel list for channels whose keys are derived from their names; defaults to `#bot,#testing,#emergency,#wardriving`. |
 | `CORESCOPE_OBSERVER_IATA_WHITELIST` | No | Optional observer whitelist. |
 | `CORESCOPE_NODE_BLACKLIST` | No | Optional node blacklist. |
 | `CORESCOPE_OBSERVER_BLACKLIST` | No | Optional observer blacklist. |
-| `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows. |
-| `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits. |
+| `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows; defaults are nodes inactive after `7` days, observers removed after `14` days, packet history pruned after `30` days, and metrics pruned after `30` days. |
+| `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits; defaults to `256` MB and `168` hours to stay safe on small VPS instances. |
 | `MESHCORE_MAP_TILE_URL` / `MESHCORE_MAP_TILE_ATTRIBUTION` | No | Legacy Next `/api/map/runtime` tile values for compatibility endpoints. |
 | `MESHCORE_MAP_SAMPLE_DATA` / `MESHCORE_MAP_DEMO_MODE` | No | Legacy Next map demo flags; defaults to `false`. |
 | `MESHCORE_LIVE_MAP_API_URL` | No | Legacy Next `/api/map/*` compatibility source; defaults to the same-container CoreScope `/api/nodes`. |
@@ -117,7 +119,7 @@ The smoke test starts a temporary container, verifies the Next site, CoreScope `
 
 ## API Overview
 
-Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`, `/api/health*`, `/api/stats`, `/api/nodes*`, `/api/packets*`, `/api/channels*`, `/api/analytics/*`, `/api/audio-lab/*`, `/api/observers*`, `/api/traces/*`, `/api/perf*`, `/api/admin/*`, and `/api/debug/*`. Existing Next compatibility APIs stay available under `/api/map/*` and `/api/live-map/*` for tools that still call them.
+Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`, `/api/health*`, `/api/stats`, `/api/nodes*`, `/api/packets*`, `/api/channels*`, `/api/analytics/*`, `/api/audio-lab/*`, `/api/observers*`, `/api/traces/*`, `/api/perf*`, the protected `/api/admin/prune` endpoint, and `/api/debug/*`. Existing Next compatibility APIs stay available under `/api/map/*` and `/api/live-map/*` for tools that still call them.
 
 | Endpoint | Owner | Method | Description |
 |----------|-------|--------|-------------|
@@ -151,7 +153,7 @@ Then browser-test `/map` in Docker. Confirm `/map` redirects to `/map#/live`, th
 ## Project Structure
 
 ```text
-coloradomesh-meshcore/
+denvermc-org/
 ├── content/                    # MDX blog and guide content
 ├── corescope-overlay/          # Local CoreScope shell assets injected at Docker build time
 ├── docker/                     # nginx, supervisord, and container startup config

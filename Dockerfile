@@ -45,19 +45,29 @@ ENV NODE_ENV=production \
     CORESCOPE_CONFIG_DIR=/app/corescope \
     CORESCOPE_DB_PATH=/app/corescope/data/meshcore.db \
     CORESCOPE_PUBLIC_DIR=/app/corescope/public \
-    CORESCOPE_MQTT_SERVER=meshcore_mqtt.coloradomesh.org \
-    CORESCOPE_MQTT_PORT=8883 \
+    CORESCOPE_MQTT_SERVER=mqtt.meshcore.coloradomesh.org \
+    CORESCOPE_MQTT_PORT=1883 \
     CORESCOPE_MQTT_TRANSPORT=websockets \
     CORESCOPE_MQTT_TLS_ENABLED=true \
     CORESCOPE_MQTT_SOURCE_NAME=coloradomesh \
     CORESCOPE_MQTT_USERNAME=website \
     CORESCOPE_MQTT_PASSWORD_FILE=/run/secrets/corescope_mqtt_password \
+    CORESCOPE_CHANNEL_KEYS_JSON_FILE=/run/secrets/corescope_channel_keys_json \
+    CORESCOPE_HASH_CHANNELS=#bot,#testing,#emergency,#wardriving \
+    CORESCOPE_BOOTSTRAP_NODES=true \
+    CORESCOPE_BOOTSTRAP_NODES_URL=https://analyzer.meshcore.coloradomesh.org/api/nodes?limit=1000 \
+    CORESCOPE_BOOTSTRAP_NODES_MAX=1000 \
+    CORESCOPE_BOOTSTRAP_NODES_TIMEOUT_MS=10000 \
     CORESCOPE_ENABLE_INGESTOR=auto \
     CORESCOPE_INGESTOR_STATS=/app/corescope/data/ingestor-stats.json \
     MESHCORE_MAP_SAMPLE_DATA=false \
     MESHCORE_MAP_DEMO_MODE=false \
     MESHCORE_LIVE_MAP_API_URL=http://127.0.0.1:3002/api/nodes \
-    MESHCORE_LIVE_MAP_API_REFRESH_SECONDS=30
+    MESHCORE_LIVE_MAP_API_REFRESH_SECONDS=30 \
+    CORESCOPE_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
+    CORESCOPE_TILE_LIGHT_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
+    CORESCOPE_TILE_DARK_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
+    MESHCORE_MAP_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
 
 RUN apk add --no-cache nginx supervisor sqlite ca-certificates tzdata \
   && addgroup --system --gid 1001 nodejs \
@@ -79,8 +89,10 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/start.sh /usr/local/bin/start.sh
 COPY scripts/render-corescope-config.mjs /usr/local/bin/render-corescope-config.mjs
+COPY scripts/bootstrap-corescope-nodes.mjs /usr/local/bin/bootstrap-corescope-nodes.mjs
+COPY scripts/prune-corescope-retention.mjs /usr/local/bin/prune-corescope-retention.mjs
 COPY scripts/apply-corescope-overlay.mjs /usr/local/bin/apply-corescope-overlay.mjs
-RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/render-corescope-config.mjs /usr/local/bin/apply-corescope-overlay.mjs \
+RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/render-corescope-config.mjs /usr/local/bin/bootstrap-corescope-nodes.mjs /usr/local/bin/prune-corescope-retention.mjs /usr/local/bin/apply-corescope-overlay.mjs \
   && /usr/local/bin/apply-corescope-overlay.mjs /app/corescope/public /app/corescope-overlay \
   && chown -R nextjs:nodejs /app/corescope /app/corescope-overlay /app/public /app/.next
 

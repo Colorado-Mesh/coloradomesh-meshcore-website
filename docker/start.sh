@@ -129,6 +129,9 @@ CREATE VIEW packets_v AS
     LEFT JOIN observers obs ON obs.rowid = o.observer_idx AND (obs.inactive IS NULL OR obs.inactive = 0);
 SQL
 
+/usr/local/bin/bootstrap-corescope-nodes.mjs
+/usr/local/bin/prune-corescope-retention.mjs
+
 chown -R nextjs:nodejs "$CORESCOPE_CONFIG_DIR"
 
 CORESCOPE_MQTT_READY=$(node -e "const fs=require('fs'); const cfg=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); const sources=Array.isArray(cfg.mqttSources) ? cfg.mqttSources : []; const ready=sources.some((source)=>source && source.broker && (!source.username || source.password)); console.log(ready ? 'true' : 'false')" "$CORESCOPE_CONFIG_DIR/config.json")

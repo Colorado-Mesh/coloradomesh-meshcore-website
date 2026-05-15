@@ -374,6 +374,9 @@
     body.classList.toggle('denvermc-minimal', mode === 'minimal');
     body.classList.toggle('denvermc-analyzer', mode === 'analyzer');
     body.classList.toggle('denvermc-focus', mode === 'focus');
+    // Lets CSS suppress chrome that collides with the live-page's bottom
+    // VCR bar (e.g. the FAB in analyzer mode) without inspecting hashes.
+    body.classList.toggle('denvermc-on-live', mode !== 'off' && isLiveRoute());
 
     if (mode === 'off') {
       if (topbarEl) topbarEl.setAttribute('hidden', '');

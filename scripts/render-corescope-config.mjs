@@ -12,24 +12,17 @@ function text(name, fallback = '') {
   return value == null || value === '' ? fallback : value;
 }
 
-function fileText(name, fallback = '') {
-  const filePath = env[`${name}_FILE`];
-  if (filePath != null && filePath !== '') {
-    try {
-      return readFileSync(filePath, 'utf8').trim();
-    } catch (error) {
-      if (error.code === 'ENOENT') return fallback;
-      fail(`${name}_FILE could not be read: ${error.message}`);
-    }
-  }
-  return text(name, fallback);
-}
-
 function firstFileText(names, fallback = '') {
   for (const name of names) {
-    if ((env[`${name}_FILE`] != null && env[`${name}_FILE`] !== '') || (env[name] != null && env[name] !== '')) {
-      return fileText(name, fallback);
+    const filePath = env[`${name}_FILE`];
+    if (filePath != null && filePath !== '') {
+      try {
+        return readFileSync(filePath, 'utf8').trim();
+      } catch (error) {
+        if (error.code !== 'ENOENT') fail(`${name}_FILE could not be read: ${error.message}`);
+      }
     }
+    if (env[name] != null && env[name] !== '') return env[name];
   }
   return fallback;
 }
@@ -81,9 +74,7 @@ function list(name, fallback = []) {
     .filter(Boolean);
 }
 
-function jsonObject(name, fallback = {}) {
-  const raw = env[name];
-  if (raw == null || raw.trim() === '') return fallback;
+function parseJsonObject(name, raw) {
   try {
     const parsed = JSON.parse(raw);
     if (parsed == null || Array.isArray(parsed) || typeof parsed !== 'object') {
@@ -95,10 +86,22 @@ function jsonObject(name, fallback = {}) {
   }
 }
 
+function jsonObject(name, fallback = {}) {
+  const raw = env[name];
+  if (raw == null || raw.trim() === '') return fallback;
+  return parseJsonObject(name, raw);
+}
+
+function fileJsonObject(name, fallback = {}) {
+  const raw = firstFileText([name]);
+  if (raw.trim() === '') return fallback;
+  return parseJsonObject(name, raw);
+}
+
 function optionalJsonObject(name) {
   const raw = env[name];
   if (raw == null || raw.trim() === '') return undefined;
-  return jsonObject(name);
+  return parseJsonObject(name, raw);
 }
 
 function fail(message) {
@@ -133,8 +136,10 @@ function mqttBrokerFromEnv() {
 }
 
 const defaultRegion = text('CORESCOPE_DEFAULT_REGION', 'CO');
+const defaultChannelKeys = { Public: '8b3387e9c5cdea6ac9e5edbaa115cd72' };
 const regions = jsonObject('CORESCOPE_REGIONS_JSON', { [defaultRegion]: 'Colorado, US' });
-const tileUrl = text('CORESCOPE_TILE_URL', text('MESHCORE_MAP_TILE_URL', 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'));
+const defaultTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+const tileUrl = text('CORESCOPE_TILE_URL', text('MESHCORE_MAP_TILE_URL', defaultTileUrl));
 const mqttBroker = mqttBrokerFromEnv();
 const mqttTopics = list('CORESCOPE_MQTT_TOPICS', list('MESHCORE_MQTT_TOPIC', ['meshcore/#']));
 const mqttSourcesJson = env.CORESCOPE_MQTT_SOURCES_JSON;
@@ -216,7 +221,7 @@ const config = {
     incrementalVacuumPages: int('CORESCOPE_DB_INCREMENTAL_VACUUM_PAGES', 1024),
   },
   packetStore: {
-    maxMemoryMB: int('CORESCOPE_PACKET_STORE_MAX_MEMORY_MB', 1024),
+    maxMemoryMB: int('CORESCOPE_PACKET_STORE_MAX_MEMORY_MB', 256),
     retentionHours: int('CORESCOPE_PACKET_STORE_RETENTION_HOURS', 168),
   },
   liveMap: {
@@ -236,7 +241,7 @@ const config = {
     nodeSilentHours: number('CORESCOPE_HEALTH_NODE_SILENT_HOURS', 24),
     relayActiveHours: number('CORESCOPE_HEALTH_RELAY_ACTIVE_HOURS', 24),
   },
-  channelKeys: jsonObject('CORESCOPE_CHANNEL_KEYS_JSON'),
+  channelKeys: fileJsonObject('CORESCOPE_CHANNEL_KEYS_JSON', defaultChannelKeys),
   hashChannels: list('CORESCOPE_HASH_CHANNELS'),
 };
 

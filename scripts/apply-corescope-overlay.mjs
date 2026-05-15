@@ -15,6 +15,10 @@
  *                                     <cwd>/corescope-overlay)
  *
  * Assets (each must exist in the overlay source dir):
+ *   - denvermc-leaflet-zoom.js   patches L.Map defaults for finer zoom
+ *                                (zoomSnap/zoomDelta) before any CoreScope
+ *                                script calls L.map(...). Must run before
+ *                                the body scripts that build maps.
  *   - denvermc-default-route.js  early <head> redirect /map -> #/live
  *   - denvermc-shell.css         minimal/fullscreen Colorado Mesh shell
  *   - denvermc-shell.js          shell DOM + state + a11y controls
@@ -27,7 +31,12 @@ const publicDir = process.argv[2] || process.env.CORESCOPE_PUBLIC_DIR || '/app/c
 const overlayDir = process.argv[3] || path.resolve(process.cwd(), 'corescope-overlay');
 const indexPath = path.join(publicDir, 'index.html');
 
+// Order matters: leaflet-zoom must precede default-route so the L.Map
+// patch is queued ahead of the redirect (both are defer so they run in
+// document order). Either way it runs before live.js/map.js construct
+// any Leaflet instance, since those are body scripts.
 const HEAD_ASSETS = [
+  { kind: 'script', name: 'denvermc-leaflet-zoom.js' },
   { kind: 'script', name: 'denvermc-default-route.js' },
   { kind: 'style', name: 'denvermc-shell.css' },
 ];

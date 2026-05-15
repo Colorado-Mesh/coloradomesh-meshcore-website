@@ -123,7 +123,7 @@ try {
   await waitFor(`${baseUrl}/api/map/runtime`);
   await expectTextIncludes('/', 'Colorado MeshCore');
   const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
-  for (const expected of ['denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc']) {
+  for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc']) {
     if (!mapHtml.includes(expected)) {
       throw new Error(`/map did not include expected CoreScope overlay asset: ${expected}`);
     }

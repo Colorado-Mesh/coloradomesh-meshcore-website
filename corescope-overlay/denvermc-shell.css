@@ -312,10 +312,15 @@ body.denvermc-minimal .live-node-detail {
   top: calc(var(--denvermc-topbar-h) + 14px + env(safe-area-inset-top, 0px));
 }
 
-/* In minimal mode, force the upstream live-header into its compact
- * "critical-only" state at all viewports: only the beacon + pkt count
- * + 📊 toggle are visible. The operator expands for full stats. */
-body.denvermc-minimal .live-header { gap: 8px !important; padding: 4px 6px !important; max-height: none !important; }
+/* Keep the compact live-header horizontal despite upstream column flex. */
+body.denvermc-minimal .live-header {
+  gap: 8px !important;
+  padding: 4px 6px !important;
+  max-height: none !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
 body.denvermc-minimal .live-header .live-header-toggle { display: inline-flex !important; }
 body.denvermc-minimal .live-header:not(.is-expanded) .live-header-body { display: none !important; }
 
@@ -349,6 +354,53 @@ body.denvermc-minimal .feed-show-btn { left: 14px; }
 
 /* Hide upstream's auto-hide nav effects in minimal — we own the bar */
 body.denvermc-minimal .nav-autohide { display: none !important; }
+
+/* ---------- Analyzer mode: keep CoreScope chrome readable ---------- */
+body.denvermc-analyzer .live-header {
+  top: 64px;
+  left: 12px;
+  right: auto;
+  z-index: 1200;
+  max-width: calc(100vw - 24px);
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 10px;
+  max-height: none;
+}
+body.denvermc-analyzer .live-header-body {
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
+}
+body.denvermc-analyzer .live-stats-row {
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+body.denvermc-analyzer .live-stats-row::-webkit-scrollbar { display: none; }
+
+body.denvermc-analyzer .live-controls,
+body.denvermc-analyzer .live-feed,
+body.denvermc-analyzer .live-legend,
+body.denvermc-analyzer .live-node-detail {
+  z-index: 1150;
+}
+
+@media (max-width: 640px) {
+  body.denvermc-analyzer .live-header {
+    top: 60px;
+    left: 8px;
+    right: 8px;
+    max-width: calc(100vw - 16px);
+    padding: 4px 8px;
+    gap: 6px;
+  }
+  body.denvermc-analyzer .live-header .live-header-toggle { display: inline-flex; }
+  body.denvermc-analyzer .live-header:not(.is-expanded) .live-header-body { display: none; }
+}
 
 /* ---------- Floating FAB shown in full-analyzer mode ---------- *
  * Anchored bottom-center so it never collides with CoreScope's top-nav
@@ -394,6 +446,13 @@ body.denvermc-minimal .nav-autohide { display: none !important; }
 .denvermc-fab:focus-visible { outline: 2px solid var(--denvermc-accent); outline-offset: 3px; }
 .denvermc-fab[hidden] { display: none !important; }
 body.denvermc-analyzer .denvermc-fab { display: inline-flex; }
+/* On the live route the VCR bar pins itself across the bottom edge of
+ * .live-page (position:absolute; bottom:0; full-width) and would collide
+ * with the bottom-centred FAB. Suppress the FAB on the live route in
+ * analyzer mode — operators still have the topbar's "Minimal map"
+ * toggle, so no affordance is lost. The body class is set by
+ * denvermc-shell.js when the hash route is /live. */
+body.denvermc-analyzer.denvermc-on-live .denvermc-fab { display: none !important; }
 .denvermc-fab__label { white-space: nowrap; }
 
 /* ---------- Focus mode: zero-distraction map + nodes ---------- *
@@ -444,7 +503,8 @@ body.denvermc-focus .live-page .leaflet-top.leaflet-right {
   bottom: calc(14px + env(safe-area-inset-bottom, 0px));
 }
 body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom {
-  opacity: 0.55;
+  opacity: 0.85;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45));
   transition: opacity 160ms ease;
 }
 body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:hover,
@@ -453,12 +513,15 @@ body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:
 }
 
 /* Focus-exit pill — only affordance shown in focus mode. Anchored
- * top-right with a soft accent ring so it reads as an interactive
- * element without competing with the map. */
+ * top-left so it never collides with .live-node-detail (which pins
+ * itself top-right at 320px wide whenever an operator clicks a node
+ * in focus mode). Baseline contrast kept legible against bright basemap
+ * tiles — accent ring + near-opaque background read as interactive
+ * without competing with the map. */
 .denvermc-focus-exit {
   position: fixed;
   top: calc(14px + env(safe-area-inset-top, 0px));
-  right: 14px;
+  left: 14px;
   z-index: 1600;
   display: none;
   align-items: center;
@@ -466,7 +529,7 @@ body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:
   height: 36px;
   padding: 0 14px;
   border-radius: 999px;
-  border: 1px solid var(--denvermc-border);
+  border: 1px solid rgba(0, 212, 170, 0.45);
   background: var(--denvermc-bg-strong);
   color: var(--denvermc-text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -477,7 +540,7 @@ body.denvermc-focus .live-page .leaflet-top.leaflet-right .leaflet-control-zoom:
   box-shadow: var(--denvermc-shadow);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  opacity: 0.78;
+  opacity: 0.95;
   transition: opacity 160ms ease, border-color 160ms ease, background 160ms ease, transform 100ms ease;
 }
 .denvermc-focus-exit:hover {

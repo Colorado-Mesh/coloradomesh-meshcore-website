@@ -41,6 +41,14 @@ export const MESHCORE_DOCS_URL = BRAND.meshcoreDocsUrl;
 export const LETSMESH_URL = BRAND.letsMeshUrl;
 export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
 
+export const BOT_FIRMWARE_REPO = 'Colorado-Mesh/meshcore-bot-firmware';
+export const BOT_FIRMWARE_REPO_URL = `https://github.com/${BOT_FIRMWARE_REPO}`;
+export const BOT_FIRMWARE_RELEASES_URL = `${BOT_FIRMWARE_REPO_URL}/releases`;
+export const BOT_FIRMWARE_LATEST_RELEASE_URL = `${BOT_FIRMWARE_REPO_URL}/releases/latest`;
+export const BOT_FIRMWARE_API_LATEST_URL = `https://api.github.com/repos/${BOT_FIRMWARE_REPO}/releases/latest`;
+export const BOT_FIRMWARE_API_RELEASES_URL = `https://api.github.com/repos/${BOT_FIRMWARE_REPO}/releases`;
+export const MESHCORE_FLASHER_URL = 'https://flasher.meshcore.io';
+
 // =============================================================================
 // CoreScope Analyzer API Configuration
 // =============================================================================

@@ -21,6 +21,7 @@ const VISIBLE_SITEMAP_PATHS = [
   '/tools/companion-name',
   '/tools/prefix-matrix',
   '/tools/serial-usb',
+  '/bot',
   '/guides',
   '/guides/getting-started',
   '/guides/radio-settings',

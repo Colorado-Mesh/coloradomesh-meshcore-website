@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 
-export type SiteSection = 'home' | 'start' | 'map' | 'tools' | 'guides' | 'learn' | 'about';
+export type SiteSection = 'home' | 'start' | 'map' | 'tools' | 'guides' | 'learn' | 'about' | 'bot';
 export type FooterGroupKey = 'explore' | 'tools' | 'learn';
 export type SitemapChangeFrequency = NonNullable<MetadataRoute.Sitemap[number]['changeFrequency']>;
 
@@ -72,6 +72,14 @@ export const SITE_ROUTES: readonly SiteRoute[] = [
     footerGroup: 'explore',
     criticalTestOrder: 4,
     sitemap: { changeFrequency: 'monthly', priority: 0.75 },
+  },
+  {
+    path: '/bot',
+    label: 'Bot Firmware',
+    description: 'Colorado Mesh Bot — companion-radio firmware with an on-device chat bot, supported boards, and the latest release.',
+    section: 'bot',
+    footerGroup: 'tools',
+    sitemap: { changeFrequency: 'weekly', priority: 0.7 },
   },
   {
     path: '/tools/repeater-name',

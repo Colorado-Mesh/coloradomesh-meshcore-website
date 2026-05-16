@@ -156,6 +156,34 @@ type SoundState = {
       maxFrequency: number;
       semitoneGlide: number;
     }>;
+    lastBlasterPatch: string | null;
+    recentBlasterPatches: string[];
+    lastBlasterCue: {
+      patch: string;
+      lane: string;
+      baseFrequency: number;
+      endFrequency: number;
+      maxFrequency: number;
+      semitoneGlide: number;
+      filterQ: number;
+      noiseGain: number;
+      duration: number;
+      coalesced: boolean;
+      burstCount: number;
+    } | null;
+    recentBlasterCues: Array<{
+      patch: string;
+      lane: string;
+      baseFrequency: number;
+      endFrequency: number;
+      maxFrequency: number;
+      semitoneGlide: number;
+      filterQ: number;
+      noiseGain: number;
+      duration: number;
+      coalesced: boolean;
+      burstCount: number;
+    }>;
     queueLength: number;
     active: boolean;
     nextTime: number;
@@ -907,7 +935,7 @@ test.describe('critical page smoke', () => {
     expect(state.cleanupTimers).toBeLessThanOrEqual(96);
   });
 
-  test('map sound Space Blaster keeps pitch movement in a narrow usable range', async ({ page }) => {
+  test('map sound Space Blaster uses musical patch bounds for normal and priority traffic', async ({ page }) => {
     await installAudioProbe(page);
     await mountMapSoundOverlay(page);
     await chooseSoundMode(page, 'blaster');
@@ -948,12 +976,90 @@ test.describe('critical page smoke', () => {
     });
 
     const state = await getSoundState(page);
-    expect(state.sequencer.recentBlasterPitches.length).toBeGreaterThanOrEqual(8);
-    for (const pitch of state.sequencer.recentBlasterPitches) {
-      expect(pitch.maxFrequency).toBeLessThanOrEqual(523.26);
-      expect(pitch.baseFrequency).toBeGreaterThanOrEqual(293.66);
-      expect(pitch.semitoneGlide).toBeLessThanOrEqual(pitch.lane === 'priority' ? 3.01 : 2.01);
+    expect(state.sequencer.recentBlasterCues.length).toBeGreaterThanOrEqual(8);
+    expect(state.sequencer.recentBlasterPatches).toEqual(expect.arrayContaining(['node-beacon', 'signal-pulse', 'priority-chime']));
+    for (const cue of state.sequencer.recentBlasterCues) {
+      expect(cue.maxFrequency).toBeLessThanOrEqual(523.26);
+      expect(cue.baseFrequency).toBeGreaterThanOrEqual(130.81);
+      expect(cue.semitoneGlide).toBeLessThanOrEqual(cue.lane === 'priority' ? 2.01 : 2.01);
+      expect(cue.filterQ).toBeLessThanOrEqual(1.1);
+      expect(cue.noiseGain).toBeLessThanOrEqual(cue.lane === 'priority' ? 0.012 : 0.006);
+      expect(cue.duration).toBeLessThanOrEqual(0.65);
     }
+  });
+
+  test('map sound Space Blaster uses softer burst patches within resource bounds', async ({ page }) => {
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'blaster');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'blaster',
+      unlocked: true,
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 10; i += 1) {
+        api.injectTestEvent({
+          id: 'blaster-normal-duplicate-burst',
+          type: 'GRP_TXT',
+          modeHint: 'normal',
+          channelName: 'Public',
+          channelHash: null,
+          isEmergency: false,
+          isPriority: false,
+          isReplay: false,
+          observationCount: 2,
+          hopCount: 2,
+          intensity: 0.56,
+          seed: 5100 + i,
+          timestamp: 1715806000000 + i,
+        });
+      }
+      for (let i = 0; i < 10; i += 1) {
+        api.injectTestEvent({
+          id: 'blaster-priority-duplicate-burst',
+          type: 'GRP_TXT',
+          modeHint: 'priority',
+          channelName: '#emergency',
+          channelHash: 'emergency',
+          isEmergency: true,
+          isPriority: true,
+          isReplay: false,
+          observationCount: 5,
+          hopCount: 1,
+          intensity: 0.78,
+          seed: 6100 + i,
+          timestamp: 1715807000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        routed: 20,
+        coalesced: expect.any(Number),
+        burstAccents: expect.any(Number),
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: expect.any(Number),
+      }),
+    });
+
+    const state = await getSoundState(page);
+    expect(state.counters.coalesced).toBeGreaterThan(0);
+    expect(state.counters.burstAccents).toBeGreaterThan(0);
+    expect(state.sequencer.recentBlasterPatches).toEqual(expect.arrayContaining(['traffic-sweep', 'priority-surge']));
+    for (const cue of state.sequencer.recentBlasterCues) {
+      expect(cue.maxFrequency).toBeLessThanOrEqual(523.26);
+      expect(cue.filterQ).toBeLessThanOrEqual(1.1);
+      expect(cue.noiseGain).toBeLessThanOrEqual(cue.lane === 'priority' ? 0.022 : 0.014);
+      expect(cue.duration).toBeLessThanOrEqual(0.75);
+    }
+    expect(state.activeVoices).toBeLessThanOrEqual(14);
+    expect(state.scheduledSources).toBeLessThanOrEqual(48);
+    expect(state.cleanupTimers).toBeLessThanOrEqual(96);
   });
 
   test('map sound burst cleanup stays bounded after switching Off', async ({ page }) => {

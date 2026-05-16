@@ -74,6 +74,10 @@
     recentBlasterFrequencies: [],
     lastBlasterPitch: null,
     recentBlasterPitches: [],
+    lastBlasterPatch: null,
+    recentBlasterPatches: [],
+    lastBlasterCue: null,
+    recentBlasterCues: [],
     lastAdmission: null,
     lastBurst: null,
   };
@@ -488,6 +492,10 @@
     sequencerState.recentBlasterFrequencies = [];
     sequencerState.lastBlasterPitch = null;
     sequencerState.recentBlasterPitches = [];
+    sequencerState.lastBlasterPatch = null;
+    sequencerState.recentBlasterPatches = [];
+    sequencerState.lastBlasterCue = null;
+    sequencerState.recentBlasterCues = [];
     sequencerState.lastAdmission = null;
     sequencerState.lastBurst = null;
   }
@@ -1520,69 +1528,118 @@
     }, options);
   }
 
+  function blasterPatchForEvent(event, options) {
+    options = options || {};
+    var lane = eventLane(event);
+    var burstCount = Math.max(1, intFrom(options.burstCount, 1));
+    var observationCount = Math.max(1, intFrom(event.observationCount, 1));
+    var burst = !!options.coalesced || burstCount >= COALESCE_THRESHOLD || observationCount >= 5;
+    if (burst && lane === 'priority') {
+      return { name: 'priority-surge', lane: lane, rootMidi: 48, degrees: [0, 3, 7, 10], glide: 2, type: 'triangle', duration: 0.28, gain: 0.06, attack: 0.018, decay: 0.07, sustain: 0.02, release: 0.22, filterFrequency: 2300, endFilterFrequency: 1300, q: 1.1, supportInterval: 12, supportOffset: 0.08, supportDuration: 0.28, supportGain: 0.026, supportQ: 0.55, extraInterval: 7, extraOffset: 0.16, extraDuration: 0.22, extraGain: 0.018, noiseGain: 0.022, noiseDuration: 0.07, noiseOffset: 0.035, noiseFrequency: 1180, noiseQ: 1.05, burstCount: burstCount, coalesced: !!options.coalesced };
+    }
+    if (burst) {
+      return { name: 'traffic-sweep', lane: lane, rootMidi: 50, degrees: [0, 3, 5, 7], glide: -1, type: 'triangle', duration: 0.24, gain: 0.05, attack: 0.02, decay: 0.065, sustain: 0.017, release: 0.2, filterFrequency: 2050, endFilterFrequency: 1150, q: 0.95, supportInterval: 10, supportOffset: 0.07, supportDuration: 0.22, supportGain: 0.021, supportQ: 0.5, extraInterval: 5, extraOffset: 0.15, extraDuration: 0.18, extraGain: 0.015, noiseGain: 0.014, noiseDuration: 0.055, noiseOffset: 0.04, noiseFrequency: 980, noiseQ: 0.9, burstCount: burstCount, coalesced: !!options.coalesced };
+    }
+    if (lane === 'priority') {
+      return { name: 'priority-chime', lane: lane, rootMidi: 50, degrees: [0, 3, 7, 10], glide: 1, type: 'triangle', duration: 0.24, gain: 0.054, attack: 0.016, decay: 0.06, sustain: 0.018, release: 0.18, filterFrequency: 2400, endFilterFrequency: 1450, q: 0.95, supportInterval: 12, supportOffset: 0.075, supportDuration: 0.2, supportGain: 0.022, supportQ: 0.5, noiseGain: 0.012, noiseDuration: 0.045, noiseOffset: 0.03, noiseFrequency: 1100, noiseQ: 0.85, burstCount: burstCount, coalesced: false };
+    }
+    if (lane === 'low') {
+      return { name: 'node-beacon', lane: lane, rootMidi: 52, degrees: [0, 3, 7], glide: -1, type: 'sine', duration: 0.16, gain: 0.032, attack: 0.018, decay: 0.05, sustain: 0.012, release: 0.13, filterFrequency: 1550, endFilterFrequency: 1050, q: 0.65, supportInterval: 7, supportOffset: 0.055, supportDuration: 0.14, supportGain: 0.012, supportQ: 0.42, noiseGain: 0, noiseDuration: 0, noiseOffset: 0, noiseFrequency: 0, noiseQ: 0, burstCount: burstCount, coalesced: false };
+    }
+    return { name: 'signal-pulse', lane: lane, rootMidi: 53, degrees: [0, 3, 7, 10], glide: -2, type: 'triangle', duration: 0.19, gain: 0.04, attack: 0.016, decay: 0.052, sustain: 0.014, release: 0.16, filterFrequency: 2100, endFilterFrequency: 1200, q: 0.8, supportInterval: 7, supportOffset: 0.07, supportDuration: 0.16, supportGain: 0.016, supportQ: 0.45, noiseGain: 0.006, noiseDuration: 0.035, noiseOffset: 0.028, noiseFrequency: 920, noiseQ: 0.7, burstCount: burstCount, coalesced: false };
+  }
+
+  function blasterCueGain(value, intensity, replay) {
+    return value * (0.74 + clamp(intensity, 0.05, 1) * 0.42) * (replay ? 0.62 : 1);
+  }
+
+  function rememberBlasterCue(cue) {
+    rememberSequencerValue('lastBlasterFrequency', 'recentBlasterFrequencies', cue.maxFrequency);
+    rememberSequencerValue('lastBlasterPatch', 'recentBlasterPatches', cue.patch);
+    rememberSequencerValue('lastBlasterPitch', 'recentBlasterPitches', cue);
+    rememberSequencerValue('lastBlasterCue', 'recentBlasterCues', cue, 48);
+  }
+
   function playBlaster(event, options) {
     options = options || {};
     return scheduleModeCue('blaster', event, function (soundEvent, cueOptions) {
       var seed = eventSeed(soundEvent, 'blaster') + (cueOptions.ordinal || 0);
-      var lane = eventLane(soundEvent);
       var start = cueOptions.start || audioCtx.currentTime + 0.012;
       var intensity = clamp(soundEvent.intensity, 0.05, 1);
-      var offsets = lane === 'priority' ? [0, 1, 2, 3] : lane === 'low' ? [-2, -1, 0, 1] : [-1, 0, 1, 2];
-      var offset = offsets[seed % offsets.length];
-      var base = midiToFreq(64 + offset);
-      var glide = lane === 'priority' ? 3 : lane === 'low' ? -1 : -2;
-      var end = base * semitoneRatio(glide);
-      var blasterPitch = {
-        lane: lane,
+      var patch = blasterPatchForEvent(soundEvent, cueOptions);
+      var degree = patch.degrees[(seed + Math.max(1, intFrom(soundEvent.hopCount, 1))) % patch.degrees.length];
+      var baseMidi = patch.rootMidi + degree;
+      var base = midiToFreq(baseMidi);
+      var end = base * semitoneRatio(patch.glide);
+      var support = midiToFreq(baseMidi + patch.supportInterval);
+      var maxFrequency = Math.max(base, end, support);
+      var total = scheduleTone(base, start, patch.duration, {
+        type: patch.type,
+        endFrequency: end,
+        gain: blasterCueGain(patch.gain, intensity, soundEvent.isReplay),
+        attack: patch.attack,
+        decay: patch.decay,
+        sustain: patch.sustain,
+        release: patch.release,
+        filterFrequency: patch.filterFrequency,
+        endFilterFrequency: patch.endFilterFrequency,
+        q: patch.q,
+      });
+      total = Math.max(total, scheduleTone(support, start + patch.supportOffset, patch.supportDuration, {
+        type: 'sine',
+        gain: blasterCueGain(patch.supportGain, intensity, soundEvent.isReplay),
+        attack: 0.026,
+        decay: 0.07,
+        sustain: patch.supportGain * 0.35,
+        release: patch.release,
+        filterFrequency: Math.max(780, patch.filterFrequency * 0.58),
+        endFilterFrequency: Math.max(620, patch.endFilterFrequency * 0.62),
+        q: patch.supportQ,
+      }));
+      if (patch.extraInterval) {
+        var extra = midiToFreq(baseMidi + patch.extraInterval);
+        maxFrequency = Math.max(maxFrequency, extra);
+        total = Math.max(total, scheduleTone(extra, start + patch.extraOffset, patch.extraDuration, {
+          type: 'sine',
+          gain: blasterCueGain(patch.extraGain, intensity, soundEvent.isReplay),
+          attack: 0.02,
+          decay: 0.06,
+          sustain: patch.extraGain * 0.3,
+          release: patch.release * 0.75,
+          filterFrequency: Math.max(760, patch.filterFrequency * 0.5),
+          endFilterFrequency: Math.max(560, patch.endFilterFrequency * 0.58),
+          q: 0.48,
+        }));
+      }
+      if (patch.noiseGain > 0) {
+        total = Math.max(total, scheduleNoiseBurst(start + patch.noiseOffset, patch.noiseDuration, blasterCueGain(patch.noiseGain, intensity, soundEvent.isReplay), patch.noiseFrequency + (seed % 120), {
+          q: patch.noiseQ,
+          attack: 0.008,
+          decay: 0.03,
+          release: 0.075,
+          filterType: 'bandpass',
+        }));
+      }
+      var cueDuration = Math.max(
+        patch.duration + patch.release,
+        patch.supportOffset + patch.supportDuration + patch.release,
+        patch.extraInterval ? patch.extraOffset + patch.extraDuration + patch.release * 0.75 : 0,
+        patch.noiseGain > 0 ? patch.noiseOffset + patch.noiseDuration + 0.075 : 0
+      );
+      var cue = {
+        patch: patch.name,
+        lane: patch.lane,
         baseFrequency: base,
         endFrequency: end,
-        maxFrequency: Math.max(base, end),
+        maxFrequency: maxFrequency,
         semitoneGlide: Math.abs(12 * Math.log(end / base) / Math.log(2)),
+        filterQ: Math.max(patch.q, patch.supportQ, patch.noiseQ || 0),
+        noiseGain: patch.noiseGain,
+        duration: cueDuration,
+        coalesced: patch.coalesced,
+        burstCount: patch.burstCount,
       };
-      rememberSequencerValue('lastBlasterFrequency', 'recentBlasterFrequencies', blasterPitch.maxFrequency);
-      rememberSequencerValue('lastBlasterPitch', 'recentBlasterPitches', blasterPitch);
-      var total;
-      if (lane === 'priority') {
-        total = scheduleTone(base, start, 0.2, {
-          type: 'sawtooth',
-          endFrequency: end,
-          gain: 0.07 + intensity * 0.06,
-          attack: 0.003,
-          decay: 0.025,
-          sustain: 0.012,
-          release: 0.12,
-          filterFrequency: 5200,
-          endFilterFrequency: 1800,
-          q: 4.2,
-        });
-        total = Math.max(total, scheduleNoiseBurst(start + 0.024, 0.11, 0.044 + intensity * 0.035, 1800 + (seed % 900), { q: 5, release: 0.1 }));
-        total = Math.max(total, scheduleTone(midiToFreq(52 + (offset % 3)), start + 0.075, 0.2, {
-          type: 'triangle',
-          endFrequency: midiToFreq(52 + (offset % 3) - 2),
-          gain: 0.032 + intensity * 0.024,
-          attack: 0.014,
-          decay: 0.055,
-          release: 0.18,
-          filterFrequency: 900,
-          q: 1.4,
-        }));
-        return total;
-      }
-      total = scheduleTone(base, start, lane === 'low' ? 0.105 : 0.145, {
-        type: lane === 'low' ? 'square' : 'sawtooth',
-        endFrequency: end,
-        gain: (lane === 'low' ? 0.032 : 0.052) + intensity * 0.028,
-        attack: 0.002,
-        decay: 0.022,
-        sustain: 0.008,
-        release: lane === 'low' ? 0.055 : 0.1,
-        filterFrequency: lane === 'low' ? 2900 : 4600,
-        endFilterFrequency: lane === 'low' ? 1800 : 1700,
-        q: lane === 'low' ? 2.6 : 3.6,
-      });
-      if (lane === 'normal') {
-        total = Math.max(total, scheduleNoiseBurst(start + 0.018, 0.06, 0.022 + intensity * 0.02, 2300 + (seed % 800), { q: 4, release: 0.065 }));
-      }
+      rememberBlasterCue(cue);
       return total;
     }, options);
   }

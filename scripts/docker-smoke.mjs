@@ -22,6 +22,63 @@ function docker(args, options = {}) {
   });
 }
 
+function validateOrchestralManifest(orchestralManifest, attributionText = '') {
+  if (orchestralManifest?.version === undefined || !Array.isArray(orchestralManifest.samples) || !orchestralManifest.samples.length) {
+    throw new Error('/sound/orchestral/manifest.json did not include a valid sample manifest');
+  }
+
+  const ids = new Set();
+  const requiredSampleFields = ['id', 'url', 'rootNote', 'minMidi', 'maxMidi', 'license', 'sourceUrl', 'attribution'];
+  for (const sample of orchestralManifest.samples) {
+    for (const field of requiredSampleFields) {
+      if (sample[field] === undefined || sample[field] === null || sample[field] === '') {
+        throw new Error(`/sound/orchestral/manifest.json sample is missing ${field}`);
+      }
+    }
+    for (const field of ['instrument', 'family', 'articulation']) {
+      if (!sample[field]) {
+        throw new Error(`/sound/orchestral/manifest.json sample ${sample.id} is missing ${field}`);
+      }
+    }
+    if (ids.has(sample.id)) {
+      throw new Error(`/sound/orchestral/manifest.json duplicated sample id ${sample.id}`);
+    }
+    if (!String(sample.url).startsWith('/sound/orchestral/samples/') || !String(sample.url).endsWith('.wav')) {
+      throw new Error(`/sound/orchestral/manifest.json sample ${sample.id} has invalid same-origin wav url`);
+    }
+    if (sample.minMidi > sample.rootNote || sample.maxMidi < sample.rootNote) {
+      throw new Error(`/sound/orchestral/manifest.json sample ${sample.id} rootNote is outside min/max range`);
+    }
+    ids.add(sample.id);
+  }
+
+  for (const role of ['messages', 'node', 'priority']) {
+    if (!Array.isArray(orchestralManifest.roles?.[role]) || orchestralManifest.roles[role].length < 3) {
+      throw new Error(`/sound/orchestral/manifest.json did not include at least three role mappings for ${role}`);
+    }
+  }
+
+  for (const [role, roleIds] of Object.entries(orchestralManifest.roles ?? {})) {
+    if (!Array.isArray(roleIds) || !roleIds.length) {
+      throw new Error(`/sound/orchestral/manifest.json role ${role} is empty`);
+    }
+    for (const id of roleIds) {
+      if (!ids.has(id)) {
+        throw new Error(`/sound/orchestral/manifest.json role ${role} references missing sample ${id}`);
+      }
+    }
+  }
+
+  if (attributionText) {
+    for (const sample of orchestralManifest.samples) {
+      const fileName = String(sample.url).split('/').pop();
+      if (!fileName || !attributionText.includes(fileName)) {
+        throw new Error(`/sound/orchestral/ATTRIBUTION.md did not mention ${fileName}`);
+      }
+    }
+  }
+}
+
 async function waitFor(url, timeoutMs = 30_000) {
   const started = Date.now();
   let lastError;
@@ -148,23 +205,11 @@ try {
   await expectContentType('/favicon.ico', 'image/');
 
   const orchestralManifest = await expectJson('/sound/orchestral/manifest.json');
-  if (orchestralManifest?.version === undefined || !Array.isArray(orchestralManifest.samples) || !orchestralManifest.samples.length) {
-    throw new Error('/sound/orchestral/manifest.json did not include a valid sample manifest');
-  }
-  for (const role of ['messages', 'node', 'priority']) {
-    if (!Array.isArray(orchestralManifest.roles?.[role]) || !orchestralManifest.roles[role].length) {
-      throw new Error(`/sound/orchestral/manifest.json did not include role mappings for ${role}`);
-    }
-  }
+  const attributionText = await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
+  validateOrchestralManifest(orchestralManifest, attributionText);
   for (const sample of orchestralManifest.samples) {
-    for (const field of ['id', 'url', 'rootNote', 'license', 'sourceUrl', 'attribution']) {
-      if (sample[field] === undefined || sample[field] === null || sample[field] === '') {
-        throw new Error(`/sound/orchestral/manifest.json sample is missing ${field}`);
-      }
-    }
     await expectNonEmpty(sample.url);
   }
-  await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
 
   await expectStatus('/api/map/nodes', 404);
   await expectStatus('/api/map/stats', 404);

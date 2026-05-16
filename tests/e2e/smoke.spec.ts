@@ -298,17 +298,26 @@ async function mockOrchestralManifest(page: Page) {
     await route.fulfill({
       contentType: 'application/json',
       body: JSON.stringify({
-        version: 1,
+        version: 2,
         samples: [
-          { id: 'harp-c5', role: 'messages', url: '/test-audio/harp.wav', rootNote: 72, minMidi: 67, maxMidi: 77 },
-          { id: 'clarinet-f4', role: 'messages', url: '/test-audio/clarinet.wav', rootNote: 65, minMidi: 60, maxMidi: 70 },
+          { id: 'harp-c5-forte', role: 'messages', url: '/test-audio/harp.wav', rootNote: 72, minMidi: 67, maxMidi: 77 },
+          { id: 'harp-a4-warm', role: 'messages', url: '/test-audio/harp-warm.wav', rootNote: 69, minMidi: 64, maxMidi: 74 },
+          { id: 'clarinet-f4-short', role: 'messages', url: '/test-audio/clarinet.wav', rootNote: 65, minMidi: 60, maxMidi: 70 },
+          { id: 'flute-c5-staccato', role: 'messages', url: '/test-audio/flute.wav', rootNote: 72, minMidi: 67, maxMidi: 79 },
           { id: 'violin-pizz-c4', role: 'node', url: '/test-audio/pizzicato.wav', rootNote: 60, minMidi: 55, maxMidi: 65 },
+          { id: 'viola-pizz-b3-soft', role: 'node', url: '/test-audio/viola.wav', rootNote: 59, minMidi: 54, maxMidi: 64 },
+          { id: 'marimba-c4-hit', role: 'node', url: '/test-audio/marimba.wav', rootNote: 60, minMidi: 55, maxMidi: 67 },
           { id: 'timpani-hit-3', role: 'priority', url: '/test-audio/timpani.wav', rootNote: 50, minMidi: 45, maxMidi: 55 },
+          { id: 'horn-c3-sustain', role: 'priority', url: '/test-audio/horn.wav', rootNote: 48, minMidi: 43, maxMidi: 55 },
         ],
         roles: {
-          messages: ['harp-c5', 'clarinet-f4'],
-          node: ['violin-pizz-c4'],
-          priority: ['timpani-hit-3', 'harp-c5'],
+          messages: ['harp-c5-forte', 'harp-a4-warm', 'clarinet-f4-short', 'flute-c5-staccato'],
+          node: ['violin-pizz-c4', 'viola-pizz-b3-soft', 'marimba-c4-hit'],
+          priority: ['timpani-hit-3', 'horn-c3-sustain', 'harp-c5-forte'],
+          woodwinds: ['clarinet-f4-short', 'flute-c5-staccato'],
+          strings: ['violin-pizz-c4', 'viola-pizz-b3-soft'],
+          mallets: ['harp-c5-forte', 'harp-a4-warm', 'marimba-c4-hit'],
+          brass: ['horn-c3-sustain'],
         },
       }),
     });
@@ -760,7 +769,7 @@ test.describe('critical page smoke', () => {
       expect(allowedPitchClasses.has(((midi % 12) + 12) % 12)).toBe(true);
     }
     expect(new Set(state.sequencer.recentSampleIds).size).toBeGreaterThan(1);
-    expect(state.sequencer.recentSampleIds).toEqual(expect.arrayContaining(['harp-c5', 'clarinet-f4']));
+    expect(state.sequencer.recentSampleIds).toEqual(expect.arrayContaining(['harp-c5-forte', 'clarinet-f4-short']));
   });
 
   test('map sound Space Blaster keeps pitch movement in a narrow usable range', async ({ page }) => {

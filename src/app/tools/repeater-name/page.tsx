@@ -43,7 +43,7 @@ export default function RepeaterNamePage() {
           </>
         }
         description={PAGE_DESCRIPTION}
-        apiTag="GET /api/map/nodes"
+        apiTag="GET /api/nodes?limit=1000"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Tools', href: '/tools' },
@@ -62,8 +62,8 @@ export default function RepeaterNamePage() {
             </p>
             <p>
               The prefix conflict check below pulls live data from{' '}
-              <code className="text-mesh">/api/map/nodes</code>, so freshly heard
-              nodes will appear within the map snapshot interval.
+              <code className="text-mesh">/api/nodes?limit=1000</code>, so freshly heard
+              nodes will appear through the CoreScope analyzer feed.
             </p>
           </>
         }

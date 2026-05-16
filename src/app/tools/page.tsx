@@ -5,7 +5,6 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import JsonLd from '@/components/JsonLd';
 import { HeroPanel, SectionEyebrow, ToolCard } from '@/components/brand';
 import {
-  ANALYZER_URL,
   BASE_URL,
   COMMUNITY_NAME,
   DISCORD_INVITE_URL,
@@ -176,20 +175,19 @@ export default function ToolsPage() {
               <ToolCard
                 tone="sky"
                 glyph="◎"
-                tag="LIVE COVERAGE"
-                title="Live Map"
-                description="See current node freshness, coverage, and conflicts before you generate keys or pick a site. Prefix planning consumes the same snapshot."
+                tag="LIVE STATUS"
+                title="Network status map"
+                description="Open the CoreScope-backed live map for current node freshness, packet flow, coverage, and conflicts before you generate keys or pick a site."
                 href="/map"
                 headingLevel="h3"
               />
               <ToolCard
                 tone="mesh"
                 glyph="◉"
-                tag="EXTERNAL · TELEMETRY"
-                title="Network analyzer"
-                description={`External dashboard for per-node link quality, neighbors, and routing across ${COMMUNITY_NAME} — useful for deeper operator telemetry.`}
-                href={ANALYZER_URL}
-                external
+                tag="FULL ANALYZER"
+                title="CoreScope analyzer"
+                description={`Use the full analyzer views for per-node link quality, neighbors, packets, channels, and routing across ${COMMUNITY_NAME}.`}
+                href="/map#/nodes"
                 headingLevel="h3"
               />
             </div>

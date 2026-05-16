@@ -1,9 +1,0 @@
-services:
-  web:
-    environment:
-      MESHCORE_LIVE_MAP_API_URL: ${MESHCORE_LIVE_MAP_API_URL:-http://live-map:8080/api/nodes}
-      MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS: ${MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS:-true}
-    depends_on:
-      live-map:
-        condition: service_started
-        required: true

@@ -3,8 +3,8 @@ export type ParityDomain =
   | 'repeater-config'
   | 'serial-usb'
   | 'prefix-matrix'
-  | 'live-map-api'
-  | 'live-map-ui'
+  | 'corescope-api'
+  | 'corescope-ui'
   | 'docker'
   | 'ci';
 
@@ -114,7 +114,7 @@ export const PARITY_MANIFEST: ParityItem[] = [
       { type: 'unit', ref: 'src/lib/meshcore-tools/__tests__/prefixes.test.ts' },
       { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/tools/prefix-matrix)' },
     ],
-    notes: 'PrefixMatrix and NamingWizard share `buildPrefixAnalysis` over the canonical `/api/map/snapshot`, render a primary 16×16 first-byte grid plus a 4-character subgrid, surface reserved/duplicate/repeater-collision states, and offer a deterministic Suggest Free Prefix. The reserved-prefix list is intentionally small and typed locally; expand only with a documented upstream source.',
+    notes: 'PrefixMatrix and NamingWizard share `buildPrefixAnalysis` over normalized CoreScope `/api/nodes?limit=1000` analyzer data, render a primary 16×16 first-byte grid plus a 4-character subgrid, surface reserved/duplicate/repeater-collision states, and offer a deterministic Suggest Free Prefix. The reserved-prefix list is intentionally small and typed locally; expand only with a documented upstream source.',
   },
   {
     id: 'serial-usb-settings-json-apply',
@@ -145,69 +145,65 @@ export const PARITY_MANIFEST: ParityItem[] = [
     notes: 'Settings JSON can be pasted or uploaded for an explicit command preview and confirmation-gated apply flow. Only locally documented name/radio write commands are auto-applied; node type, role, region, owner info, companion metadata, and other unverified keys remain visible as unsupported manual-review fields.',
   },
   {
-    id: 'live-map-service-api-consumer',
-    domain: 'live-map-api',
-    title: 'Server-side meshcore-mqtt-live-map API consumer',
+    id: 'corescope-analyzer-api-consumer',
+    domain: 'corescope-api',
+    title: 'CoreScope analyzer API consumer',
     upstream: [
       {
-        label: 'meshcore-mqtt-live-map API',
-        url: 'https://github.com/yellowcooln/meshcore-mqtt-live-map',
-        path: 'backend/app.py',
+        label: 'CoreScope API server',
+        url: 'https://github.com/Kpa-clawbot/CoreScope',
+        path: 'cmd/server',
       },
     ],
     local: [
-      'src/lib/map/store.ts',
-      'src/lib/live-map/client.ts',
-      'src/app/api/map/snapshot/route.ts',
-      'src/app/api/map/runtime/route.ts',
-      'src/app/api/map/nodes/route.ts',
-      'src/app/api/map/stats/route.ts',
-      'src/app/api/live-map/*/route.ts',
+      'src/hooks/useMapSnapshot.ts',
+      'src/lib/map/normalize.ts',
+      'src/lib/constants.ts',
+      'src/components/StatsSection.tsx',
     ],
     status: 'implemented',
     coverage: [
-      { type: 'unit', ref: 'src/lib/map/__tests__/store.test.ts' },
-      { type: 'unit', ref: 'src/lib/live-map/__tests__/client.test.ts' },
+      { type: 'unit', ref: 'src/lib/map/__tests__/normalize.test.ts' },
+      { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/tools/prefix-matrix, /tools/repeater-name)' },
     ],
-    notes: 'Current site exposes canonical snapshot/runtime contracts plus server-side advanced HTTP proxy routes with bearer-auth upstream fetches; WebSocket, debug, and Turnstile upstream routes are intentionally deferred.',
+    notes: 'Site tools consume CoreScope `/api/nodes?limit=1000` and `/api/stats` directly, normalize analyzer nodes into local MapNode types, and no longer expose or depend on Next `/api/map/*` or `/api/live-map/*` compatibility routes.',
   },
   {
-    id: 'live-map-full-in-site-ui',
-    domain: 'live-map-ui',
-    title: 'Full in-site live-map UI parity',
+    id: 'corescope-full-analyzer-ui',
+    domain: 'corescope-ui',
+    title: 'Same-container CoreScope map and analyzer UI',
     upstream: [
       {
-        label: 'meshcore-mqtt-live-map browser app',
-        url: 'https://github.com/yellowcooln/meshcore-mqtt-live-map',
-        path: 'backend/static/app.js',
+        label: 'CoreScope public app',
+        url: 'https://github.com/Kpa-clawbot/CoreScope',
+        path: 'public',
       },
     ],
-    local: ['src/app/map/page.tsx', 'src/components/NetworkMap.tsx', 'src/components/map/*'],
+    local: ['vendor/CoreScope', 'corescope-overlay/*', 'docker/nginx.conf'],
     status: 'implemented',
     coverage: [
       { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/map)' },
       { type: 'review', ref: '.forge/reviews/claude-step-4.json' },
     ],
-    notes: 'Opus-delegated map UI consumes snapshot/runtime and live-map proxy contracts, surfaces diagnostics, sample warnings, preferences, filters, popups, and advanced operator panels backed by local snapshot fallbacks when full upstream endpoints are unavailable.',
+    notes: 'Docker serves CoreScope directly at `/map`, defaults to the polished Colorado Mesh live-map shell, and keeps full analyzer routes such as `#/nodes`, `#/packets`, `#/channels`, and `#/perf` available without a redirect.',
   },
   {
-    id: 'docker-live-map-sidecar-topology',
+    id: 'docker-corescope-single-container-topology',
     domain: 'docker',
-    title: 'Docker topology for Next site plus live-map sidecar service',
+    title: 'Docker topology for Next site plus same-container CoreScope',
     upstream: [
       {
-        label: 'meshcore-mqtt-live-map compose examples',
-        url: 'https://github.com/yellowcooln/meshcore-mqtt-live-map',
-        path: 'docker-compose.yaml',
+        label: 'CoreScope runtime',
+        url: 'https://github.com/Kpa-clawbot/CoreScope',
       },
     ],
     local: ['Dockerfile', 'compose.yaml', '.env.example', 'scripts/docker-smoke.mjs'],
     status: 'implemented',
     coverage: [
       { type: 'ci', ref: '.github/workflows/ci.yml docker-smoke' },
-      { type: 'manual', ref: 'docker compose --profile live-map config' },
+      { type: 'manual', ref: 'docker compose config' },
     ],
-    notes: 'Docker build/run smoke now validates the standalone image at runtime while Compose keeps the live-map sidecar as an opt-in profile.',
+    notes: 'Docker build/run smoke validates one image with nginx, Next, CoreScope server, optional CoreScope ingestor, overlay assets, sound assets, CoreScope API routes, and 404s for removed Next map compatibility APIs.',
   },
   {
     id: 'ci-pr-quality-gates',

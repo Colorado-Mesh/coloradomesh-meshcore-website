@@ -110,7 +110,7 @@ function fail(message) {
 }
 
 function mqttBrokerFromEnv() {
-  const explicitBroker = text('CORESCOPE_MQTT_BROKER', text('MESHCORE_MQTT_URL'));
+  const explicitBroker = text('CORESCOPE_MQTT_BROKER');
   if (explicitBroker !== '') return explicitBroker;
 
   const server = text('CORESCOPE_MQTT_SERVER');
@@ -147,9 +147,9 @@ const defaultRegion = text('CORESCOPE_DEFAULT_REGION', 'CO');
 const defaultChannelKeys = { Public: '8b3387e9c5cdea6ac9e5edbaa115cd72' };
 const regions = jsonObject('CORESCOPE_REGIONS_JSON', { [defaultRegion]: 'Colorado, US' });
 const defaultTileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
-const tileUrl = tileTemplate('CORESCOPE_TILE_URL', tileTemplate('MESHCORE_MAP_TILE_URL', defaultTileUrl));
+const tileUrl = tileTemplate('CORESCOPE_TILE_URL', defaultTileUrl);
 const mqttBroker = mqttBrokerFromEnv();
-const mqttTopics = list('CORESCOPE_MQTT_TOPICS', list('MESHCORE_MQTT_TOPIC', ['meshcore/#']));
+const mqttTopics = list('CORESCOPE_MQTT_TOPICS', ['meshcore/#']);
 const mqttSourcesJson = env.CORESCOPE_MQTT_SOURCES_JSON;
 
 let mqttSources = [];
@@ -169,8 +169,8 @@ if (mqttSourcesJson && mqttSourcesJson.trim() !== '') {
     region: text('CORESCOPE_MQTT_REGION', defaultRegion),
     connectTimeoutSec: int('CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC', 45),
   };
-  const username = firstFileText(['CORESCOPE_MQTT_USERNAME', 'MESHCORE_MQTT_USERNAME']);
-  const password = firstFileText(['CORESCOPE_MQTT_PASSWORD', 'MESHCORE_MQTT_PASSWORD']);
+  const username = firstFileText(['CORESCOPE_MQTT_USERNAME']);
+  const password = firstFileText(['CORESCOPE_MQTT_PASSWORD']);
   const iataFilter = list('CORESCOPE_MQTT_IATA_FILTER');
   if (username !== '') source.username = username;
   if (password !== '') source.password = password;
@@ -204,10 +204,10 @@ const config = {
   defaultRegion,
   mapDefaults: {
     center: [
-      firstNumber(['CORESCOPE_MAP_CENTER_LAT', 'MESHCORE_MAP_DEFAULT_LATITUDE'], 39.5501),
-      firstNumber(['CORESCOPE_MAP_CENTER_LON', 'MESHCORE_MAP_DEFAULT_LONGITUDE'], -105.7821),
+      firstNumber(['CORESCOPE_MAP_CENTER_LAT'], 39.5501),
+      firstNumber(['CORESCOPE_MAP_CENTER_LON'], -105.7821),
     ],
-    zoom: firstInt(['CORESCOPE_MAP_ZOOM', 'MESHCORE_MAP_DEFAULT_ZOOM'], 7),
+    zoom: firstInt(['CORESCOPE_MAP_ZOOM'], 7),
   },
   regions,
   tiles: {

@@ -15,14 +15,14 @@
       "usage": "Submodule-backed source data for generated local utility artifacts and parity checks."
     },
     {
-      "name": "yellowcooln/meshcore-mqtt-live-map",
-      "url": "https://github.com/yellowcooln/meshcore-mqtt-live-map/",
-      "localPath": "/tmp/meshcore-mqtt-live-map",
+      "name": "Kpa-clawbot/CoreScope",
+      "url": "https://github.com/Kpa-clawbot/CoreScope",
+      "localPath": "vendor/CoreScope",
       "files": [
-        "tests/test_api_nodes_modes.py",
-        "backend/app.py"
+        "cmd/server",
+        "public"
       ],
-      "usage": "Representative node API payload fixture for local normalization and proxy tests."
+      "usage": "Submodule-backed live map, analyzer API, and Docker runtime source."
     }
   ]
 }

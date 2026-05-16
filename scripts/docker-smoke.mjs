@@ -82,12 +82,11 @@ async function expectContentType(path, expected) {
   return body;
 }
 
-async function expectApiSuccess(path) {
-  const body = await expectJson(path);
-  if (body?.success !== true || body.data === undefined) {
-    throw new Error(`${path} did not return ApiResponse success data`);
+async function expectStatus(path, expectedStatus) {
+  const response = await fetch(`${baseUrl}${path}`);
+  if (response.status !== expectedStatus) {
+    throw new Error(`${path} returned ${response.status}, expected ${expectedStatus}`);
   }
-  return body.data;
 }
 
 async function expectWebSocket(path) {
@@ -111,10 +110,6 @@ async function expectWebSocket(path) {
   });
 }
 
-function hasWarning(warnings, id) {
-  return Array.isArray(warnings) && warnings.some((warning) => warning?.id === id);
-}
-
 try {
   const existing = docker(['ps', '-aq', '--filter', `name=^/${containerName}$`]);
   if (existing.status === 0 && existing.stdout.trim()) {
@@ -129,12 +124,6 @@ try {
     containerName,
     '-p',
     `${port}:3000`,
-    '-e',
-    'MESHCORE_LIVE_MAP_API_URL=',
-    '-e',
-    'MESHCORE_MAP_SAMPLE_DATA=true',
-    '-e',
-    'MESHCORE_MAP_DEMO_MODE=true',
     image,
   ]);
 
@@ -142,7 +131,7 @@ try {
     throw new Error(run.stderr || run.stdout || 'docker run failed');
   }
 
-  await waitFor(`${baseUrl}/api/map/runtime`);
+  await waitFor(`${baseUrl}/api/healthz`);
   await expectTextIncludes('/', 'Colorado MeshCore');
   const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
   for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc', 'denvermc-sound.js?v=denvermc']) {
@@ -177,45 +166,9 @@ try {
   }
   await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
 
-  const runtime = await expectApiSuccess('/api/map/runtime');
-  const snapshot = await expectApiSuccess('/api/map/snapshot');
-  const nextNodes = await expectApiSuccess('/api/map/nodes');
-
-  if (!Array.isArray(snapshot.nodes)) {
-    throw new Error('/api/map/snapshot data.nodes is not an array');
-  }
-
-  if (!Array.isArray(nextNodes)) {
-    throw new Error('/api/map/nodes data is not an array');
-  }
-
-  if (runtime.sampleData !== true || runtime.demoMode !== true) {
-    throw new Error('/api/map/runtime did not report sampleData=true and demoMode=true under smoke env');
-  }
-
-  if (runtime.sourceLabel !== 'Demo map data') {
-    throw new Error('/api/map/runtime did not report the demo source label under smoke env');
-  }
-
-  if (!hasWarning(runtime.warnings, 'map-demo-data')) {
-    throw new Error('/api/map/runtime did not include the demo-data warning under smoke env');
-  }
-
-  if (hasWarning(runtime.warnings, 'map-production-sample-data')) {
-    throw new Error('/api/map/runtime included a production sample-data warning while demo mode is enabled');
-  }
-
-  if (snapshot.source?.type !== 'sample' || snapshot.connection?.sampleData !== true) {
-    throw new Error('/api/map/snapshot did not report sample source and connection state under smoke env');
-  }
-
-  if (!hasWarning(snapshot.warnings, 'map-demo-data')) {
-    throw new Error('/api/map/snapshot did not include the demo-data warning under smoke env');
-  }
-
-  if (hasWarning(snapshot.warnings, 'map-production-sample-data')) {
-    throw new Error('/api/map/snapshot included a production sample-data warning while demo mode is enabled');
-  }
+  await expectStatus('/api/map/nodes', 404);
+  await expectStatus('/api/map/stats', 404);
+  await expectStatus('/api/live-map/nodes', 404);
 
   const health = await expectJson('/api/healthz');
   if (health.ready !== true) {

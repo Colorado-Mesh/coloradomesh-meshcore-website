@@ -74,7 +74,7 @@ Run the container smoke test after building an image:
 npm run docker:smoke -- --image colorado-meshcore-site:local
 ```
 
-The smoke test starts a temporary container, verifies the Next site, CoreScope `/map`, overlay asset injection, bundled sound assets, CoreScope health/config/stats/node/packet endpoints, preserved Next `/api/map/*` compatibility endpoints, and the root WebSocket route.
+The smoke test starts a temporary container, verifies the Next site, CoreScope `/map`, overlay asset injection, bundled sound assets, CoreScope health/config/stats/node/packet endpoints, removal of the old Next map compatibility endpoints, and the root WebSocket route.
 
 ## Runtime Environment
 
@@ -110,18 +110,10 @@ The smoke test starts a temporary container, verifies the Next site, CoreScope `
 | `CORESCOPE_OBSERVER_BLACKLIST` | No | Optional observer blacklist. |
 | `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows; defaults are nodes inactive after `7` days, observers removed after `14` days, packet history pruned after `30` days, and metrics pruned after `30` days. |
 | `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits; defaults to `256` MB and `168` hours to stay safe on small VPS instances. |
-| `MESHCORE_MAP_TILE_URL` / `MESHCORE_MAP_TILE_ATTRIBUTION` | No | Legacy Next `/api/map/runtime` tile values for compatibility endpoints. |
-| `MESHCORE_MAP_SAMPLE_DATA` / `MESHCORE_MAP_DEMO_MODE` | No | Legacy Next map demo flags; defaults to `false`. |
-| `MESHCORE_LIVE_MAP_API_URL` | No | Legacy Next `/api/map/*` compatibility source; defaults to the same-container CoreScope `/api/nodes`. |
-| `MESHCORE_LIVE_MAP_API_TOKEN` | No | Optional server-side token for protected compatibility API sources. |
-| `MESHCORE_LIVE_MAP_ALLOW_PRIVATE_URLS` | No | Required for trusted internal compatibility API URLs; Compose defaults to `true`. |
-| `MESHCORE_LIVE_MAP_PUBLIC_TOKEN_PROXY_ENABLED` | No | Allow public compatibility proxy endpoints to use the API token; defaults to `false`. |
-| `MESHCORE_LIVE_MAP_API_REFRESH_SECONDS` | No | Minimum compatibility API refresh interval; defaults to `30`. |
-| `MESHCORE_MAP_HISTORY_ENABLED` | No | Reserved for future map history support. |
 
 ## API Overview
 
-Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`, `/api/health*`, `/api/stats`, `/api/nodes*`, `/api/packets*`, `/api/channels*`, `/api/analytics/*`, `/api/audio-lab/*`, `/api/observers*`, `/api/traces/*`, `/api/perf*`, the protected `/api/admin/prune` endpoint, and `/api/debug/*`. Existing Next compatibility APIs stay available under `/api/map/*` and `/api/live-map/*` for tools that still call them.
+Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`, `/api/health*`, `/api/stats`, `/api/nodes*`, `/api/packets*`, `/api/channels*`, `/api/analytics/*`, `/api/audio-lab/*`, `/api/observers*`, `/api/traces/*`, `/api/perf*`, the protected `/api/admin/prune` endpoint, and `/api/debug/*`. The old Next `/api/map/*` and `/api/live-map/*` compatibility APIs have been removed; site tools now consume CoreScope analyzer endpoints directly.
 
 | Endpoint | Owner | Method | Description |
 |----------|-------|--------|-------------|
@@ -130,10 +122,10 @@ Docker routes CoreScope-owned API paths to CoreScope, including `/api/config/*`,
 | `/api/healthz` | CoreScope | GET | CoreScope readiness. |
 | `/api/config/map` | CoreScope | GET | CoreScope map defaults. |
 | `/api/stats` | CoreScope | GET | CoreScope network counters. |
-| `/api/map/nodes` | Next compatibility | GET | Current map node snapshot for older site tooling. |
-| `/api/map/stats` | Next compatibility | GET | Current map-derived network summary for older site tooling. |
+| `/api/nodes?limit=1000` | CoreScope | GET | Current analyzer node list used by prefix and naming tools. |
+| `/api/packets?limit=1` | CoreScope | GET | Recent packet feed smoke-test probe. |
 
-Legacy observer, cleanup, and Discord webhook APIs have been removed. Removed routes intentionally return 404 instead of redirecting.
+Legacy observer, cleanup, Discord webhook, and old Next map compatibility APIs have been removed. Removed routes intentionally return 404 instead of redirecting.
 
 ## CoreScope Update Workflow
 

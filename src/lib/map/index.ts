@@ -19,8 +19,6 @@ export type {
   MapSnapshotWarningSeverity,
   MapStats,
 } from './types';
-export type { MapRuntimeConfig } from './config';
-export { getMapFeatures, getMapPublicRuntimeConfig, getMapRuntimeConfig, getMapWarnings } from './config';
 export {
   buildMapStats,
   deriveMapNodeStatus,
@@ -30,5 +28,3 @@ export {
   normalizeTimestamp,
   uniqueMapNodes,
 } from './normalize';
-export { buildSampleMapSnapshot } from './sample-data';
-export { getMapNodes, getMapSnapshot, getMapStats } from './store';

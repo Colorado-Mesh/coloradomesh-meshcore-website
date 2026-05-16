@@ -2,28 +2,6 @@ const DEFAULT_BASE_URL = 'https://meshcore.coloradomesh.org';
 
 const trimTrailingSlash = (url: string) => url.replace(/\/+$/, '');
 
-export const RUNTIME_ENV = {
-  SITE_URL: 'NEXT_PUBLIC_SITE_URL',
-  MAP_TILE_URL: 'MESHCORE_MAP_TILE_URL',
-  LEGACY_PUBLIC_MAP_TILE_URL: 'NEXT_PUBLIC_MAP_TILE_URL',
-  MAP_TILE_ATTRIBUTION: 'MESHCORE_MAP_TILE_ATTRIBUTION',
-  MAP_DEFAULT_LATITUDE: 'MESHCORE_MAP_DEFAULT_LATITUDE',
-  MAP_DEFAULT_LONGITUDE: 'MESHCORE_MAP_DEFAULT_LONGITUDE',
-  MAP_DEFAULT_ZOOM: 'MESHCORE_MAP_DEFAULT_ZOOM',
-  MAP_DEMO_MODE: 'MESHCORE_MAP_DEMO_MODE',
-  LIVE_MAP_API_URL: 'MESHCORE_LIVE_MAP_API_URL',
-  LIVE_MAP_API_TOKEN: 'MESHCORE_LIVE_MAP_API_TOKEN',
-  LIVE_MAP_API_REFRESH_SECONDS: 'MESHCORE_LIVE_MAP_API_REFRESH_SECONDS',
-  MQTT_URL: 'MESHCORE_MQTT_URL',
-  MQTT_USERNAME: 'MESHCORE_MQTT_USERNAME',
-  MQTT_PASSWORD: 'MESHCORE_MQTT_PASSWORD',
-  MQTT_TOPIC: 'MESHCORE_MQTT_TOPIC',
-  MQTT_CLIENT_ID: 'MESHCORE_MQTT_CLIENT_ID',
-  MAP_HISTORY_ENABLED: 'MESHCORE_MAP_HISTORY_ENABLED',
-  MAP_SAMPLE_DATA: 'MESHCORE_MAP_SAMPLE_DATA',
-  TRUST_PROXY_HEADERS: 'MESHCORE_TRUST_PROXY_HEADERS',
-} as const;
-
 export const BRAND = {
   communityName: 'Colorado Mesh',
   siteName: 'Colorado MeshCore',
@@ -36,7 +14,6 @@ export const BRAND = {
   meshcoreDocsUrl: 'https://meshcore.io',
   letsMeshUrl: 'https://letsmesh.net',
   githubOrgUrl: 'https://github.com/Colorado-Mesh',
-  analyzerUrl: 'https://analyzer.meshcore.coloradomesh.org',
   logoPath: '/brand/color/mesh-color.png',
   logoMarkPath: '/brand/color/mesh-color-256.png',
   iconPath: '/favicon.ico',
@@ -63,26 +40,16 @@ export const DISCORD_INVITE_URL = BRAND.discordInviteUrl;
 export const MESHCORE_DOCS_URL = BRAND.meshcoreDocsUrl;
 export const LETSMESH_URL = BRAND.letsMeshUrl;
 export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
-export const ANALYZER_URL = BRAND.analyzerUrl;
 
 // =============================================================================
-// API Configuration
+// CoreScope Analyzer API Configuration
 // =============================================================================
 
-export const API_ROUTES = {
-  MAP_SNAPSHOT: '/api/map/snapshot',
-  MAP_RUNTIME: '/api/map/runtime',
-  MAP_NODES: '/api/map/nodes',
-  MAP_STATS: '/api/map/stats',
-  MAP_STREAM: '/api/map/stream',
-  LIVE_MAP_STATUS: '/api/live-map/status',
-  LIVE_MAP_SNAPSHOT: '/api/live-map/snapshot',
-  LIVE_MAP_STATS: '/api/live-map/stats',
-  LIVE_MAP_NODES: '/api/live-map/nodes',
-  LIVE_MAP_COVERAGE: '/api/live-map/coverage',
-  LIVE_MAP_LOS: '/api/live-map/los',
-  LIVE_MAP_LOS_ELEVATIONS: '/api/live-map/los/elevations',
-  LIVE_MAP_WEATHER_RADAR_COUNTRY_BOUNDS: '/api/live-map/weather/radar/country-bounds',
+export const CORESCOPE_API_ROUTES = {
+  NODES: '/api/nodes?limit=1000',
+  STATS: '/api/stats',
+  PACKETS: '/api/packets',
+  CHANNELS: '/api/channels',
 } as const;
 
 // =============================================================================

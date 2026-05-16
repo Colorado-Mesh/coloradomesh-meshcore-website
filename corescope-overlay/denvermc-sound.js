@@ -13,6 +13,12 @@
   var ENSEMBLE_MANIFEST_URL = '/sound/orchestral/manifest.json';
   var DENSITY_WORKLET_URL = '/sound/denvermc-density-worklet.js';
   var TRAFFIC_WINDOW_MS = 4000;
+  var MUSIC_QUEUE_MAX = 96;
+  var MUSIC_SCHEDULE_AHEAD_SECONDS = 0.9;
+  var MUSIC_TICK_MS = 28;
+  var ENSEMBLE_ROOT_MIDI = 60;
+  var ENSEMBLE_SCALE = [0, 2, 3, 5, 7, 9, 10];
+  var ENSEMBLE_CHORD = [0, 3, 7, 10];
   var AudioCtor = window.AudioContext || window.webkitAudioContext || null;
   var modes = [
     { value: 'off', label: 'Sound Off' },
@@ -43,6 +49,25 @@
   var scheduledSources = new Set();
   var scheduledNodes = new Set();
   var cachedNoiseBuffer = null;
+  var musicQueue = [];
+  var musicTimer = null;
+  var musicNextTime = 0;
+  var musicOrdinal = 0;
+  var ensembleRoundRobin = {};
+  var sequencerState = {
+    queued: 0,
+    scheduled: 0,
+    coalesced: 0,
+    lastCue: null,
+    lastMidi: null,
+    lastSampleId: null,
+    recentMidi: [],
+    recentSampleIds: [],
+    lastBlasterFrequency: null,
+    recentBlasterFrequencies: [],
+    lastBlasterPitch: null,
+    recentBlasterPitches: [],
+  };
   var ensembleManifest = null;
   var ensembleManifestPromise = null;
   var ensembleBuffers = {};
@@ -186,6 +211,14 @@
     });
   }
 
+  function sequencerSnapshot() {
+    return Object.assign({}, sequencerState, {
+      queueLength: musicQueue.length,
+      active: !!musicTimer,
+      nextTime: musicNextTime,
+    });
+  }
+
   function getState() {
     return {
       mode: state.mode,
@@ -203,6 +236,7 @@
       scheduledSources: scheduledSources.size,
       scheduledNodes: scheduledNodes.size,
       cleanupTimers: cleanupTimers.size,
+      sequencer: sequencerSnapshot(),
       ensemble: Object.assign({}, ensembleState),
     };
   }
@@ -413,7 +447,34 @@
     return densityWorkletPromise;
   }
 
+  function clearMusicQueue() {
+    if (musicTimer) {
+      window.clearInterval(musicTimer);
+      musicTimer = null;
+    }
+    musicQueue = [];
+    musicNextTime = 0;
+    sequencerState.queued = 0;
+  }
+
+  function resetSequencerDiagnostics() {
+    sequencerState.queued = 0;
+    sequencerState.scheduled = 0;
+    sequencerState.coalesced = 0;
+    sequencerState.lastCue = null;
+    sequencerState.lastMidi = null;
+    sequencerState.lastSampleId = null;
+    sequencerState.recentMidi = [];
+    sequencerState.recentSampleIds = [];
+    sequencerState.lastBlasterFrequency = null;
+    sequencerState.recentBlasterFrequencies = [];
+    sequencerState.lastBlasterPitch = null;
+    sequencerState.recentBlasterPitches = [];
+  }
+
   function stopAccentCues() {
+    clearMusicQueue();
+    resetSequencerDiagnostics();
     scheduledSources.forEach(function (source) {
       if (source && typeof source.stop === 'function') {
         try { source.stop(audioCtx ? audioCtx.currentTime : 0); }
@@ -727,6 +788,34 @@
     catch { /* node may already be disconnected */ }
   }
 
+  function inScaleMidi(root, scale, index, octaveOffset) {
+    var span = scale.length;
+    var degree = ((index % span) + span) % span;
+    var octave = Math.floor(index / span) + (octaveOffset || 0);
+    return root + octave * 12 + scale[degree];
+  }
+
+  function nearestInScaleMidi(target, root, scale, min, max) {
+    var best = root;
+    var bestDistance = Infinity;
+    for (var octave = -3; octave <= 4; octave++) {
+      for (var i = 0; i < scale.length; i++) {
+        var midi = root + octave * 12 + scale[i];
+        if (midi < min || midi > max) continue;
+        var distance = Math.abs(midi - target);
+        if (distance < bestDistance) {
+          best = midi;
+          bestDistance = distance;
+        }
+      }
+    }
+    return best;
+  }
+
+  function semitoneRatio(semitones) {
+    return Math.pow(2, semitones / 12);
+  }
+
   function scheduleCleanup(nodes, delaySeconds) {
     nodes.forEach(function (node) { scheduledNodes.add(node); });
     var timer = window.setTimeout(function () {
@@ -938,23 +1027,51 @@
     return 'messages';
   }
 
-  function loadedSampleForRole(role, seed) {
+  function loadedSamplesForRole(role) {
     var ids = ensembleRoleIds(role);
     var candidates = [];
     ids.forEach(function (id) {
       var sample = sampleById(id);
       if (sample && ensembleBuffers[id]) candidates.push(sample);
     });
-    if (!candidates.length) return null;
-    return candidates[seed % candidates.length];
+    return candidates;
   }
 
-  function noteForEnsembleEvent(event, role, seed) {
-    var scale = role === 'priority' ? [0, 3, 7, 10] : [0, 2, 3, 5, 7, 9, 10];
-    var root = role === 'node' ? 60 : role === 'priority' ? 50 : 62;
-    var span = scale.length * 2;
-    var index = seed % span;
-    return root + Math.floor(index / scale.length) * 12 + scale[index % scale.length];
+  function loadedSampleForRole(role, seed, ordinal) {
+    var candidates = loadedSamplesForRole(role);
+    if (!candidates.length) return null;
+    var offset = seed % candidates.length;
+    var cursor = ensembleRoundRobin[role] || 0;
+    ensembleRoundRobin[role] = cursor + 1;
+    return candidates[(offset + cursor + (ordinal || 0)) % candidates.length];
+  }
+
+  function noteForEnsembleEvent(event, role, seed, ordinal) {
+    ordinal = ordinal || 0;
+    if (role === 'priority') {
+      var priorityDegrees = [0, 3, 7, 10, 7, 3];
+      return ENSEMBLE_ROOT_MIDI - 12 + priorityDegrees[(seed + ordinal) % priorityDegrees.length];
+    }
+    if (role === 'node') {
+      var chordDegree = ENSEMBLE_CHORD[(seed + ordinal) % ENSEMBLE_CHORD.length];
+      return ENSEMBLE_ROOT_MIDI + chordDegree;
+    }
+    var step = ordinal + (seed % 5) + Math.max(0, intFrom(event.hopCount, 1) - 1);
+    return inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, step, 0);
+  }
+
+  function clampSampleMidi(sample, midi) {
+    var root = intFrom(sample.rootNote, midi);
+    var min = intFrom(sample.minMidi, root - 7);
+    var max = intFrom(sample.maxMidi, root + 7);
+    if (midi >= min && midi <= max) return midi;
+    return nearestInScaleMidi(midi, ENSEMBLE_ROOT_MIDI, ENSEMBLE_SCALE, min, max);
+  }
+
+  function rememberSequencerValue(key, listKey, value, limit) {
+    sequencerState[key] = value;
+    sequencerState[listKey].push(value);
+    if (sequencerState[listKey].length > (limit || 24)) sequencerState[listKey].shift();
   }
 
   function scheduleSample(sample, midi, start, duration, gainValue, options) {
@@ -966,7 +1083,10 @@
     var nodes = [source, env];
     var end = start + duration;
     source.buffer = buffer;
+    midi = clampSampleMidi(sample, midi);
     source.playbackRate.value = Math.pow(2, (midi - sample.rootNote) / 12);
+    rememberSequencerValue('lastMidi', 'recentMidi', midi);
+    rememberSequencerValue('lastSampleId', 'recentSampleIds', sample.id);
     envelopeGain(env, start, duration, gainValue, options.attack || 0.006, options.decay || 0.08, options.sustain || gainValue * 0.45, options.release || 0.18);
     source.connect(env);
     env.connect(options.destination || accentGain || masterGain);
@@ -984,57 +1104,71 @@
     return end - audioCtx.currentTime + (options.release || 0.18);
   }
 
-  function fallbackEnsemble(event) {
+  function fallbackEnsemble(event, options) {
     var lane = eventLane(event);
-    if (lane === 'priority') return playGenerative(event);
-    return playNative(event);
+    if (lane === 'priority') return playGenerative(event, options);
+    return playNative(event, options);
   }
 
-  function playEnsemble(event) {
+  function playEnsemble(event, options) {
+    options = options || {};
     if (!ensembleManifest) {
       primeEnsembleSamples();
-      return fallbackEnsemble(event);
+      return fallbackEnsemble(event, options);
     }
     var role = chooseEnsembleRole(event);
     var seed = eventSeed(event, 'ensemble');
-    var sample = loadedSampleForRole(role, seed);
+    var ordinal = options.ordinal || 0;
+    var sample = loadedSampleForRole(role, seed, ordinal);
     if (!sample) {
       primeEnsembleSamples();
-      return fallbackEnsemble(event);
+      return fallbackEnsemble(event, options);
     }
-    return scheduleModeCue('ensemble', event, function (soundEvent) {
+    return scheduleModeCue('ensemble', event, function (soundEvent, cueOptions) {
       var lane = eventLane(soundEvent);
       var intensity = clamp(soundEvent.intensity, 0.05, 1);
-      var start = audioCtx.currentTime + 0.018;
-      var midi = noteForEnsembleEvent(soundEvent, role, seed);
-      var gain = role === 'priority' ? 0.16 : role === 'node' ? 0.082 : 0.105;
-      var duration = role === 'priority' ? 0.42 : role === 'node' ? 0.22 : 0.34;
-      var total = scheduleSample(sample, midi, start, duration, gain * (0.7 + intensity * 0.55), {
+      var start = cueOptions.start || audioCtx.currentTime + 0.018;
+      var midi = noteForEnsembleEvent(soundEvent, role, seed, cueOptions.ordinal || 0);
+      var gain = role === 'priority' ? 0.14 : role === 'node' ? 0.074 : 0.095;
+      var duration = role === 'priority' ? 0.36 : role === 'node' ? 0.2 : 0.3;
+      var total = scheduleSample(sample, midi, start, duration, gain * (0.68 + intensity * 0.5), {
         attack: role === 'priority' ? 0.003 : 0.008,
-        decay: role === 'node' ? 0.045 : 0.075,
-        sustain: role === 'priority' ? 0.3 : 0.38,
-        release: role === 'priority' ? 0.32 : 0.2,
+        decay: role === 'node' ? 0.04 : 0.07,
+        sustain: role === 'priority' ? 0.26 : 0.34,
+        release: role === 'priority' ? 0.26 : 0.18,
       });
+      var layerMidi = role === 'priority' ? ENSEMBLE_ROOT_MIDI + 7 : role === 'node' ? midi + 12 : inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, (cueOptions.ordinal || 0) + 2, 0);
+      total = Math.max(total, scheduleTone(midiToFreq(layerMidi), start + (role === 'node' ? 0.012 : 0.045), role === 'priority' ? 0.28 : 0.22, {
+        type: role === 'priority' ? 'triangle' : 'sine',
+        gain: gain * (role === 'priority' ? 0.34 : 0.22),
+        attack: role === 'node' ? 0.018 : 0.024,
+        decay: 0.08,
+        sustain: gain * 0.08,
+        release: role === 'priority' ? 0.22 : 0.18,
+        filterFrequency: role === 'priority' ? 1600 : 2600,
+        q: 0.45,
+      }));
       if (role === 'messages' && lane !== 'low') {
-        var second = loadedSampleForRole('messages', seed + 1) || sample;
-        total = Math.max(total, scheduleSample(second, midi + (seed % 2 ? 3 : 7), start + 0.16, 0.28, gain * 0.54, {
-          attack: 0.01,
-          decay: 0.06,
-          sustain: 0.32,
-          release: 0.18,
+        var second = loadedSampleForRole('messages', seed + 1, ordinal + 1) || sample;
+        var harmony = inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, (ordinal || 0) + 4, 0);
+        total = Math.max(total, scheduleSample(second, harmony, start + 0.13, 0.24, gain * 0.45, {
+          attack: 0.012,
+          decay: 0.055,
+          sustain: 0.026,
+          release: 0.16,
         }));
       }
-      if (role === 'priority' && event.observationCount >= 3) {
-        var accent = loadedSampleForRole('priority', seed + 3) || sample;
-        total = Math.max(total, scheduleSample(accent, midi + 12, start + 0.11, 0.28, gain * 0.5, {
+      if (role === 'priority' && soundEvent.observationCount >= 3) {
+        var accent = loadedSampleForRole('priority', seed + 3, ordinal + 2) || sample;
+        total = Math.max(total, scheduleSample(accent, ENSEMBLE_ROOT_MIDI, start + 0.09, 0.24, gain * 0.44, {
           attack: 0.004,
-          decay: 0.05,
-          sustain: 0.22,
-          release: 0.24,
+          decay: 0.045,
+          sustain: 0.018,
+          release: 0.2,
         }));
       }
       return total;
-    });
+    }, options);
   }
 
   function cooldownForMode(mode, event) {
@@ -1044,7 +1178,8 @@
     return lane === 'priority' ? 45 : lane === 'low' ? 160 : 85;
   }
 
-  function scheduleModeCue(mode, event, play) {
+  function scheduleModeCue(mode, event, play, options) {
+    options = options || {};
     if (!audioCtx || !masterGain || state.mode === 'off' || !audioContextIsRunning()) return false;
     var lane = eventLane(event);
     var nowMs = Date.now();
@@ -1054,16 +1189,16 @@
       rememberAccentDrop('audio-cap');
       return false;
     }
-    if (nowMs - (modeCooldowns[key] || 0) < cooldownForMode(mode, event)) {
+    if (!options.sequenced && nowMs - (modeCooldowns[key] || 0) < cooldownForMode(mode, event)) {
       counters.throttled += 1;
       rememberAccentDrop('audio-cooldown:' + lane);
       return false;
     }
-    modeCooldowns[key] = nowMs;
+    if (!options.sequenced) modeCooldowns[key] = nowMs;
     activeVoices += 1;
     try {
       var generation = cueGeneration;
-      var duration = Math.max(0.05, numberFrom(play(event), 0.25));
+      var duration = Math.max(0.05, numberFrom(play(event, options), 0.25));
       var timer = window.setTimeout(function () {
         cleanupTimers.delete(timer);
         if (generation === cueGeneration) activeVoices = Math.max(0, activeVoices - 1);
@@ -1077,11 +1212,72 @@
     }
   }
 
-  function playNative(event) {
-    return scheduleModeCue('native', event, function (soundEvent) {
-      var seed = eventSeed(soundEvent, 'native');
+  function currentMusicStep(event) {
+    var lane = eventLane(event);
+    if (lane === 'priority') return 0.072;
+    if (lane === 'low') return 0.12;
+    return 0.088;
+  }
+
+  function drainMusicQueue() {
+    if (!audioCtx || state.mode === 'off' || !audioContextIsRunning()) {
+      clearMusicQueue();
+      return;
+    }
+    var now = audioCtx.currentTime;
+    if (!musicNextTime || musicNextTime < now + 0.025) musicNextTime = now + 0.035;
+    var horizon = now + MUSIC_SCHEDULE_AHEAD_SECONDS;
+    var scheduled = 0;
+    while (musicQueue.length && musicNextTime <= horizon && scheduled < 18 && activeVoices < maxActiveVoices) {
+      var item = musicQueue.shift();
+      sequencerState.queued = musicQueue.length;
+      var accepted = playCurrentMode(item.event, {
+        start: musicNextTime,
+        ordinal: item.ordinal,
+        sequenced: true,
+        coalesced: item.coalesced,
+      });
+      if (accepted) {
+        sequencerState.scheduled += 1;
+        counters.played += 1;
+        lastEvent = cloneEvent(item.event);
+      }
+      musicNextTime += currentMusicStep(item.event);
+      scheduled += 1;
+    }
+    if (!musicQueue.length && musicTimer) {
+      window.clearInterval(musicTimer);
+      musicTimer = null;
+    }
+  }
+
+  function enqueueMusicalEvent(event) {
+    if (!audioCtx || state.mode === 'off' || !audioContextIsRunning()) return false;
+    var ordinal = musicOrdinal += 1;
+    if (musicQueue.length >= MUSIC_QUEUE_MAX) {
+      var keep = Math.max(0, MUSIC_QUEUE_MAX - 12);
+      musicQueue.splice(0, musicQueue.length - keep);
+      sequencerState.coalesced += 1;
+    }
+    musicQueue.push({ event: cloneEvent(event), ordinal: ordinal, coalesced: false });
+    sequencerState.queued = musicQueue.length;
+    sequencerState.lastCue = {
+      mode: state.mode,
+      type: event.type,
+      lane: eventLane(event),
+      ordinal: ordinal,
+    };
+    if (!musicTimer) musicTimer = window.setInterval(drainMusicQueue, MUSIC_TICK_MS);
+    drainMusicQueue();
+    return true;
+  }
+
+  function playNative(event, options) {
+    options = options || {};
+    return scheduleModeCue('native', event, function (soundEvent, cueOptions) {
+      var seed = eventSeed(soundEvent, 'native') + (cueOptions.ordinal || 0);
       var lane = eventLane(soundEvent);
-      var start = audioCtx.currentTime + 0.018;
+      var start = cueOptions.start || audioCtx.currentTime + 0.018;
       var intensity = clamp(soundEvent.intensity, 0.05, 1);
       var root = soundEvent.isPriority ? 57 : 50;
       var freq = scaleFreq(seed, root, [0, 2, 4, 7, 9], 3);
@@ -1110,14 +1306,15 @@
         }));
       }
       return total;
-    });
+    }, options);
   }
 
-  function playGenerative(event) {
-    return scheduleModeCue('generative', event, function (soundEvent) {
-      var seed = eventSeed(soundEvent, 'generative');
+  function playGenerative(event, options) {
+    options = options || {};
+    return scheduleModeCue('generative', event, function (soundEvent, cueOptions) {
+      var seed = eventSeed(soundEvent, 'generative') + (cueOptions.ordinal || 0);
       var lane = eventLane(soundEvent);
-      var start = audioCtx.currentTime + 0.025;
+      var start = cueOptions.start || audioCtx.currentTime + 0.025;
       var scale = [0, 2, 3, 5, 7, 9, 10];
       var intensity = clamp(soundEvent.intensity, 0.05, 1);
       var hopCount = Math.max(1, intFrom(soundEvent.hopCount, 1));
@@ -1158,67 +1355,81 @@
         });
       }
       return total;
-    });
+    }, options);
   }
 
-  function playBlaster(event) {
-    return scheduleModeCue('blaster', event, function (soundEvent) {
-      var seed = eventSeed(soundEvent, 'blaster');
+  function playBlaster(event, options) {
+    options = options || {};
+    return scheduleModeCue('blaster', event, function (soundEvent, cueOptions) {
+      var seed = eventSeed(soundEvent, 'blaster') + (cueOptions.ordinal || 0);
       var lane = eventLane(soundEvent);
-      var start = audioCtx.currentTime + 0.012;
+      var start = cueOptions.start || audioCtx.currentTime + 0.012;
       var intensity = clamp(soundEvent.intensity, 0.05, 1);
-      var base = 260 + (seed % 360);
+      var offsets = lane === 'priority' ? [0, 1, 2, 3] : lane === 'low' ? [-2, -1, 0, 1] : [-1, 0, 1, 2];
+      var offset = offsets[seed % offsets.length];
+      var base = midiToFreq(64 + offset);
+      var glide = lane === 'priority' ? 3 : lane === 'low' ? -1 : -2;
+      var end = base * semitoneRatio(glide);
+      var blasterPitch = {
+        lane: lane,
+        baseFrequency: base,
+        endFrequency: end,
+        maxFrequency: Math.max(base, end),
+        semitoneGlide: Math.abs(12 * Math.log(end / base) / Math.log(2)),
+      };
+      rememberSequencerValue('lastBlasterFrequency', 'recentBlasterFrequencies', blasterPitch.maxFrequency);
+      rememberSequencerValue('lastBlasterPitch', 'recentBlasterPitches', blasterPitch);
       var total;
       if (lane === 'priority') {
-        total = scheduleTone(base * 3.2, start, 0.24, {
+        total = scheduleTone(base, start, 0.2, {
           type: 'sawtooth',
-          endFrequency: Math.max(90, base * 0.62),
-          gain: 0.075 + intensity * 0.075,
+          endFrequency: end,
+          gain: 0.07 + intensity * 0.06,
           attack: 0.003,
           decay: 0.025,
           sustain: 0.012,
-          release: 0.13,
-          filterFrequency: 6200,
-          endFilterFrequency: 760,
-          q: 5.5,
+          release: 0.12,
+          filterFrequency: 5200,
+          endFilterFrequency: 1800,
+          q: 4.2,
         });
-        total = Math.max(total, scheduleNoiseBurst(start + 0.025, 0.13, 0.05 + intensity * 0.045, 1600 + (seed % 2200), { q: 6, release: 0.12 }));
-        total = Math.max(total, scheduleTone(base * 0.48, start + 0.09, 0.28, {
+        total = Math.max(total, scheduleNoiseBurst(start + 0.024, 0.11, 0.044 + intensity * 0.035, 1800 + (seed % 900), { q: 5, release: 0.1 }));
+        total = Math.max(total, scheduleTone(midiToFreq(52 + (offset % 3)), start + 0.075, 0.2, {
           type: 'triangle',
-          endFrequency: Math.max(55, base * 0.28),
-          gain: 0.04 + intensity * 0.03,
-          attack: 0.015,
-          decay: 0.06,
-          release: 0.22,
+          endFrequency: midiToFreq(52 + (offset % 3) - 2),
+          gain: 0.032 + intensity * 0.024,
+          attack: 0.014,
+          decay: 0.055,
+          release: 0.18,
           filterFrequency: 900,
-          q: 1.8,
+          q: 1.4,
         }));
         return total;
       }
-      total = scheduleTone(base * (lane === 'low' ? 1.4 : 2.1), start, lane === 'low' ? 0.105 : 0.16, {
+      total = scheduleTone(base, start, lane === 'low' ? 0.105 : 0.145, {
         type: lane === 'low' ? 'square' : 'sawtooth',
-        endFrequency: base * (lane === 'low' ? 0.9 : 0.42),
-        gain: (lane === 'low' ? 0.034 : 0.058) + intensity * 0.035,
+        endFrequency: end,
+        gain: (lane === 'low' ? 0.032 : 0.052) + intensity * 0.028,
         attack: 0.002,
         decay: 0.022,
         sustain: 0.008,
-        release: lane === 'low' ? 0.055 : 0.11,
-        filterFrequency: lane === 'low' ? 3100 : 5400,
-        endFilterFrequency: lane === 'low' ? 1500 : 520,
-        q: lane === 'low' ? 3 : 4.8,
+        release: lane === 'low' ? 0.055 : 0.1,
+        filterFrequency: lane === 'low' ? 2900 : 4600,
+        endFilterFrequency: lane === 'low' ? 1800 : 1700,
+        q: lane === 'low' ? 2.6 : 3.6,
       });
       if (lane === 'normal') {
-        total = Math.max(total, scheduleNoiseBurst(start + 0.018, 0.07, 0.025 + intensity * 0.025, 2400 + (seed % 2600), { q: 5, release: 0.07 }));
+        total = Math.max(total, scheduleNoiseBurst(start + 0.018, 0.06, 0.022 + intensity * 0.02, 2300 + (seed % 800), { q: 4, release: 0.065 }));
       }
       return total;
-    });
+    }, options);
   }
 
-  function playCurrentMode(event) {
-    if (state.mode === 'native') return playNative(event);
-    if (state.mode === 'generative') return playGenerative(event);
-    if (state.mode === 'blaster') return playBlaster(event);
-    if (state.mode === 'ensemble') return playEnsemble(event);
+  function playCurrentMode(event, options) {
+    if (state.mode === 'native') return playNative(event, options);
+    if (state.mode === 'generative') return playGenerative(event, options);
+    if (state.mode === 'blaster') return playBlaster(event, options);
+    if (state.mode === 'ensemble') return playEnsemble(event, options);
     return false;
   }
 
@@ -1332,7 +1543,7 @@
   }
 
   function markPlayed(event) {
-    var accepted = playCurrentMode(event);
+    var accepted = enqueueMusicalEvent(event);
     if (!accepted) return false;
     lastEvent = cloneEvent(event);
     return true;
@@ -1371,12 +1582,13 @@
     var traffic = ingestTraffic(event, now);
     updateDensityOutput(traffic);
     var accentAllowed = acceptDedupe(event, now) && acceptBucket(event, now);
-    var accepted = accentAllowed ? markPlayed(event) : false;
+    var accepted = markPlayed(event);
     counters.routed += 1;
     if (event.isPriority) counters.priority += 1;
     if (accepted) {
-      counters.played += 1;
       lastDroppedReason = null;
+    } else if (accentAllowed) {
+      rememberAccentDrop('sequencer');
     }
     notify();
     return true;

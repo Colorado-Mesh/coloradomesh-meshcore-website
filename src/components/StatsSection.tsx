@@ -1,12 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import {
-  API_ROUTES,
   COMMUNITY_NAME,
   DEFAULT_REFRESH_INTERVAL,
 } from '@/lib/constants';
-import type { ApiResponse, MapStats } from '@/lib/types';
+import { useMapStats } from '@/hooks/useMapSnapshot';
 
 interface StatCardProps {
   value: string;
@@ -74,35 +72,10 @@ function formatRelativeTime(iso: string | null): string | null {
 export function StatsSection({
   refreshInterval = DEFAULT_REFRESH_INTERVAL,
 }: StatsSectionProps = {}) {
-  const [stats, setStats] = useState<MapStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchStats = useCallback(async () => {
-    try {
-      const res = await fetch(API_ROUTES.MAP_STATS, { cache: 'no-store' });
-      if (!res.ok) {
-        throw new Error(`Map stats API returned ${res.status}`);
-      }
-      const payload = (await res.json()) as ApiResponse<MapStats>;
-      if (!payload.success || !payload.data) {
-        throw new Error(payload.error || 'Map stats unavailable');
-      }
-      setStats(payload.data);
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch map stats');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchStats();
-    if (refreshInterval <= 0) return;
-    const interval = setInterval(fetchStats, refreshInterval);
-    return () => clearInterval(interval);
-  }, [fetchStats, refreshInterval]);
+  const { stats, loading, error } = useMapStats({
+    enabled: refreshInterval >= 0,
+    refreshInterval,
+  });
 
   const unavailable = !loading && (!!error || !stats);
   const sourceLabel = stats?.source.label ?? 'Live network map';

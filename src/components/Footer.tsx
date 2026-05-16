@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import BrandMark from './brand/BrandMark';
 import {
-  ANALYZER_URL,
   COMMUNITY_NAME,
   DISCORD_INVITE_URL,
   GITHUB_ORG_URL,
@@ -11,26 +10,27 @@ import {
 } from '@/lib/constants';
 import { getFooterRouteGroups } from '@/lib/site';
 
-interface ExternalFooterLink {
+interface FooterLinkItem {
   href: string;
   label: string;
   sublabel?: string;
   icon?: 'discord' | 'github';
+  external?: boolean;
 }
 
-const communityLinks: ExternalFooterLink[] = [
-  { href: DISCORD_INVITE_URL, label: 'Discord', icon: 'discord' },
-  { href: GITHUB_ORG_URL, label: 'Colorado-Mesh on GitHub', icon: 'github' },
+const communityLinks: FooterLinkItem[] = [
+  { href: DISCORD_INVITE_URL, label: 'Discord', icon: 'discord', external: true },
+  { href: GITHUB_ORG_URL, label: 'Colorado-Mesh on GitHub', icon: 'github', external: true },
 ];
 
-const resourceLinks: ExternalFooterLink[] = [
+const resourceLinks: FooterLinkItem[] = [
   {
-    href: ANALYZER_URL,
-    label: 'Network analyzer',
+    href: '/map#/nodes',
+    label: 'CoreScope analyzer',
     sublabel: 'Live operator telemetry',
   },
-  { href: MESHCORE_DOCS_URL, label: 'MeshCore docs' },
-  { href: LETSMESH_URL, label: 'LetsMesh', sublabel: 'Global MeshCore map' },
+  { href: MESHCORE_DOCS_URL, label: 'MeshCore docs', external: true },
+  { href: LETSMESH_URL, label: 'LetsMesh', sublabel: 'Global MeshCore map', external: true },
 ];
 
 function ExternalGlyph() {
@@ -78,7 +78,7 @@ function GithubGlyph({ className = 'h-4 w-4' }: { className?: string }) {
   );
 }
 
-function FooterIcon({ icon }: { icon?: ExternalFooterLink['icon'] }) {
+function FooterIcon({ icon }: { icon?: FooterLinkItem['icon'] }) {
   if (icon === 'discord') return <DiscordGlyph />;
   if (icon === 'github') return <GithubGlyph />;
   return null;
@@ -178,22 +178,36 @@ export default function Footer() {
             <ul className="mt-4 space-y-3">
               {resourceLinks.map((link) => (
                 <li key={link.href}>
-                  <a
-                    href={link.href}
-                    className="group inline-flex flex-col text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <span>{link.label}</span>
-                      <ExternalGlyph />
-                    </span>
-                    {link.sublabel && (
-                      <span className="text-xs text-snow-400 group-hover:text-mesh-light/80">
-                        {link.sublabel}
+                  {link.external ? (
+                    <a
+                      href={link.href}
+                      className="group inline-flex flex-col text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <span className="inline-flex items-center gap-2">
+                        <span>{link.label}</span>
+                        <ExternalGlyph />
                       </span>
-                    )}
-                  </a>
+                      {link.sublabel && (
+                        <span className="text-xs text-snow-400 group-hover:text-mesh-light/80">
+                          {link.sublabel}
+                        </span>
+                      )}
+                    </a>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className="group inline-flex flex-col text-snow-300 hover:text-mesh transition-colors duration-200 focus-ring rounded-sm"
+                    >
+                      <span>{link.label}</span>
+                      {link.sublabel && (
+                        <span className="text-xs text-snow-400 group-hover:text-mesh-light/80">
+                          {link.sublabel}
+                        </span>
+                      )}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

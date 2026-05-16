@@ -5,7 +5,6 @@ import Breadcrumbs from '@/components/Breadcrumbs';
 import { HeroPanel, NetworkPanel, SectionEyebrow, ToolCard } from '@/components/brand';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 import {
-  ANALYZER_URL,
   BASE_URL,
   COMMUNITY_NAME,
   DISCORD_INVITE_URL,
@@ -136,10 +135,10 @@ const externalResources = [
     glyph: '◎',
     tone: 'sky' as const,
     tag: 'LIVE TELEMETRY',
-    title: 'Network analyzer',
+    title: 'CoreScope analyzer',
     description: `Drill into per-node link quality, neighbors, and routing on the ${COMMUNITY_NAME} analyzer.`,
-    href: ANALYZER_URL,
-    external: true,
+    href: '/map#/nodes',
+    external: false,
   },
   {
     glyph: '◊',

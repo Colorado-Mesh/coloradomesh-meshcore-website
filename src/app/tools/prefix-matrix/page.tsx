@@ -7,7 +7,7 @@ import { BASE_URL, COMMUNITY_NAME, SITE_NAME } from '@/lib/constants';
 import { generateBreadcrumbSchema } from '@/lib/schemas/breadcrumb';
 
 const PAGE_TITLE = 'Prefix Matrix';
-const PAGE_DESCRIPTION = `Plan a unique 4-character public-key prefix across ${COMMUNITY_NAME} nodes. Drill in from the 256 first-byte tiles to a 16×16 subgrid of full 4-character prefixes, with reserved IDs, duplicates, and repeater collisions surfaced from the live snapshot.`;
+const PAGE_DESCRIPTION = `Plan a unique 4-character public-key prefix across ${COMMUNITY_NAME} nodes. Drill in from the 256 first-byte tiles to a 16×16 subgrid of full 4-character prefixes, with reserved IDs, duplicates, and repeater collisions surfaced from CoreScope analyzer nodes.`;
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -43,7 +43,7 @@ export default function PrefixMatrixPage() {
           </>
         }
         description={PAGE_DESCRIPTION}
-        apiTag="GET /api/map/snapshot"
+        apiTag="GET /api/nodes?limit=1000"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Tools', href: '/tools' },
@@ -56,8 +56,8 @@ export default function PrefixMatrixPage() {
               The first grid is the 256 possible first-byte prefixes
               (<code className="text-mesh">0x00</code>–
               <code className="text-mesh">0xFF</code>) of a MeshCore public key.
-              Counts come from the live snapshot at{' '}
-              <code className="text-mesh">/api/map/snapshot</code> shared by the
+              Counts come from CoreScope analyzer nodes at{' '}
+              <code className="text-mesh">/api/nodes?limit=1000</code> shared by the
               {' '}{SITE_NAME} map.
             </p>
             <p>

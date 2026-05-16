@@ -5,7 +5,7 @@ import Breadcrumbs from "@/components/Breadcrumbs";
 import { HeroPanel, SectionEyebrow } from "@/components/brand";
 import { generateBreadcrumbSchema } from "@/lib/schemas/breadcrumb";
 import { generateFAQSchema, startPageFAQData } from "@/lib/schemas/faq";
-import { ANALYZER_URL, BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL } from "@/lib/constants";
+import { BASE_URL, COMMUNITY_NAME, DISCORD_INVITE_URL } from "@/lib/constants";
 
 export const metadata: Metadata = {
   title: "Troubleshooting & Resources",
@@ -70,11 +70,17 @@ const troubleshootingItems = [
   },
 ];
 
-const resources = [
+const resources: Array<{
+  name: string;
+  url: string;
+  description: string;
+  internal?: boolean;
+}> = [
   {
-    name: `${COMMUNITY_NAME} analyzer`,
-    url: ANALYZER_URL,
+    name: `${COMMUNITY_NAME} CoreScope analyzer`,
+    url: "/map#/nodes",
     description: "Per-node telemetry, link quality, and routing for the Colorado Mesh.",
+    internal: true,
   },
   {
     name: "MeshCore official website",
@@ -144,14 +150,9 @@ export default function TroubleshootingPage() {
               <Link href="/tools/serial-usb" className="btn-primary">
                 Open serial console
               </Link>
-              <a
-                href={ANALYZER_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary"
-              >
-                Network analyzer
-              </a>
+              <Link href="/map#/nodes" className="btn-secondary">
+                CoreScope analyzer
+              </Link>
               <a
                 href={DISCORD_INVITE_URL}
                 target="_blank"
@@ -265,22 +266,20 @@ export default function TroubleshootingPage() {
                   Confirm your node is broadcasting and being seen by neighbors.
                 </p>
               </Link>
-              <a
-                href={ANALYZER_URL}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href="/map#/nodes"
                 className="panel p-5 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
               >
                 <div className="text-xs mono uppercase tracking-[0.18em] text-foreground-dim mb-2">
                   Telemetry
                 </div>
                 <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
-                  Network analyzer
+                  CoreScope analyzer
                 </h3>
                 <p className="mt-2 text-sm text-foreground-muted">
                   Per-node link quality, neighbors, and routing on the {COMMUNITY_NAME} analyzer.
                 </p>
-              </a>
+              </Link>
               <a
                 href={DISCORD_INVITE_URL}
                 target="_blank"
@@ -315,28 +314,46 @@ export default function TroubleshootingPage() {
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {resources.map((resource) => (
-                <a
-                  key={resource.name}
-                  href={resource.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="panel p-5 flex items-start gap-4 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
-                >
-                  <span aria-hidden className="text-3xl text-mesh leading-none mt-0.5">
-                    ◊
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
-                      {resource.name}
-                      <span aria-hidden className="ml-1 text-xs text-foreground-dim">↗</span>
-                    </h3>
-                    <p className="mt-1 text-sm text-foreground-muted leading-relaxed">
-                      {resource.description}
-                    </p>
-                  </div>
-                </a>
-              ))}
+              {resources.map((resource) => {
+                const content = (
+                  <>
+                    <span aria-hidden className="text-3xl text-mesh leading-none mt-0.5">
+                      ◊
+                    </span>
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-foreground tracking-tight group-hover:text-mesh transition-colors">
+                        {resource.name}
+                        {!resource.internal && (
+                          <span aria-hidden className="ml-1 text-xs text-foreground-dim">↗</span>
+                        )}
+                      </h3>
+                      <p className="mt-1 text-sm text-foreground-muted leading-relaxed">
+                        {resource.description}
+                      </p>
+                    </div>
+                  </>
+                );
+
+                return resource.internal ? (
+                  <Link
+                    key={resource.name}
+                    href={resource.url}
+                    className="panel p-5 flex items-start gap-4 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  <a
+                    key={resource.name}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="panel p-5 flex items-start gap-4 group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg focus-ring"
+                  >
+                    {content}
+                  </a>
+                );
+              })}
             </div>
           </div>
         </section>

@@ -60,14 +60,9 @@ ENV NODE_ENV=production \
     CORESCOPE_BOOTSTRAP_NODES_TIMEOUT_MS=10000 \
     CORESCOPE_ENABLE_INGESTOR=auto \
     CORESCOPE_INGESTOR_STATS=/app/corescope/data/ingestor-stats.json \
-    MESHCORE_MAP_SAMPLE_DATA=false \
-    MESHCORE_MAP_DEMO_MODE=false \
-    MESHCORE_LIVE_MAP_API_URL=http://127.0.0.1:3002/api/nodes \
-    MESHCORE_LIVE_MAP_API_REFRESH_SECONDS=30 \
     CORESCOPE_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
     CORESCOPE_TILE_LIGHT_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
-    CORESCOPE_TILE_DARK_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
-    MESHCORE_MAP_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
+    CORESCOPE_TILE_DARK_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
 
 RUN apk add --no-cache nginx supervisor sqlite ca-certificates tzdata \
   && addgroup --system --gid 1001 nodejs \

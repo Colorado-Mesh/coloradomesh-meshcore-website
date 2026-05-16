@@ -15,71 +15,46 @@ const upstreamUtilityRedirects = [
   { source: '/serial_usb_tool', destination: '/tools/serial-usb' },
 ] as const;
 
-function mockPrefixMatrixSnapshot(page: Page) {
-  return page.route('/api/map/snapshot', async (route) => {
-    const generatedAt = '2026-05-09T12:00:00.000Z';
-    await route.fulfill({
-      contentType: 'application/json',
-      body: JSON.stringify({
-        success: true,
-        data: {
-          generatedAt,
-          nodes: [
-            {
-              id: 'node-a10f-1',
-              publicKey: 'A10F000000000000000000000000000000000000000000000000000000000000000',
-              name: 'DEN-TEST-A',
-              role: 'companion',
-              coordinates: null,
-              lastHeardAt: generatedAt,
-              status: 'online',
-              isOnline: true,
-            },
-            {
-              id: 'node-a10f-2',
-              publicKey: 'A10F111111111111111111111111111111111111111111111111111111111111111',
-              name: 'DEN-TEST-B',
-              role: 'node',
-              coordinates: null,
-              lastHeardAt: generatedAt,
-              status: 'online',
-              isOnline: true,
-            },
-          ],
-          links: [],
-          routes: [],
-          stats: {
-            totalNodes: 2,
-            onlineNodes: 2,
-            visibleNodes: 0,
-            locatedNodes: 0,
-            repeaterNodes: 0,
-            staleNodes: 0,
-            offlineNodes: 0,
-            linkCount: 0,
-            routeCount: 0,
-            averageBatteryPercent: null,
-            lastUpdated: generatedAt,
-            source: { type: 'live_map_api', label: 'Test map data', lastUpdated: generatedAt },
-            connectionState: 'connected',
-          },
-          connection: {
-            state: 'connected',
-            configured: true,
-            sampleData: false,
-            historyEnabled: false,
-            topic: null,
-            lastConnectedAt: generatedAt,
-            lastMessageAt: generatedAt,
-            message: 'Test map data is active.',
-          },
-          source: { type: 'live_map_api', label: 'Test map data', lastUpdated: generatedAt },
-          warnings: [],
-          features: [],
-        },
-      }),
-    });
-  });
+function mockCoreScopeAnalyzer(page: Page) {
+  const generatedAt = '2026-05-09T12:00:00.000Z';
+  const nodes = [
+    {
+      id: 'node-a10f-1',
+      public_key: 'A10F000000000000000000000000000000000000000000000000000000000000000',
+      name: 'DEN-TEST-A',
+      role: 'companion',
+      last_heard: generatedAt,
+    },
+    {
+      id: 'node-a10f-2',
+      public_key: 'A10F111111111111111111111111111111111111111111111111111111111111111',
+      name: 'DEN-TEST-B',
+      role: 'node',
+      last_heard: generatedAt,
+    },
+  ];
+
+  return Promise.all([
+    page.route((url) => url.pathname === '/api/nodes', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({ nodes, total: nodes.length }),
+      });
+    }),
+    page.route((url) => url.pathname === '/api/stats', async (route) => {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalNodes: nodes.length,
+          totalObservers: 0,
+          totalPackets: 12,
+          packetsLastHour: 4,
+          packetsLast24h: 12,
+          counts: { repeaters: 0, rooms: 0, companions: 1, sensors: 0 },
+        }),
+      });
+    }),
+  ]);
 }
 
 type NormalizedSoundEvent = {
@@ -126,6 +101,41 @@ type SoundState = {
     active: boolean;
     schedulerActive: boolean;
     fallbackActive: boolean;
+  };
+  sequencer: {
+    queued: number;
+    scheduled: number;
+    coalesced: number;
+    lastCue: { mode: string; type: string; lane: string; ordinal: number } | null;
+    lastMidi: number | null;
+    lastSampleId: string | null;
+    recentMidi: number[];
+    recentSampleIds: string[];
+    lastBlasterFrequency: number | null;
+    recentBlasterFrequencies: number[];
+    lastBlasterPitch: {
+      lane: string;
+      baseFrequency: number;
+      endFrequency: number;
+      maxFrequency: number;
+      semitoneGlide: number;
+    } | null;
+    recentBlasterPitches: Array<{
+      lane: string;
+      baseFrequency: number;
+      endFrequency: number;
+      maxFrequency: number;
+      semitoneGlide: number;
+    }>;
+    queueLength: number;
+    active: boolean;
+    nextTime: number;
+  };
+  ensemble: {
+    status: string;
+    loaded: boolean;
+    failed: boolean;
+    sampleCount: number;
   };
   activeVoices: number;
   scheduledSources: number;
@@ -252,6 +262,151 @@ async function injectSoundBurst(page: Page, count: number, idPrefix = 'burst') {
   }, { count, idPrefix });
 }
 
+async function mockOrchestralManifest(page: Page) {
+  await page.route('/sound/orchestral/manifest.json', async (route) => {
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        version: 1,
+        samples: [
+          { id: 'harp-c5', role: 'messages', url: '/test-audio/harp.wav', rootNote: 72, minMidi: 67, maxMidi: 77 },
+          { id: 'clarinet-f4', role: 'messages', url: '/test-audio/clarinet.wav', rootNote: 65, minMidi: 60, maxMidi: 70 },
+          { id: 'violin-pizz-c4', role: 'node', url: '/test-audio/pizzicato.wav', rootNote: 60, minMidi: 55, maxMidi: 65 },
+          { id: 'timpani-hit-3', role: 'priority', url: '/test-audio/timpani.wav', rootNote: 50, minMidi: 45, maxMidi: 55 },
+        ],
+        roles: {
+          messages: ['harp-c5', 'clarinet-f4'],
+          node: ['violin-pizz-c4'],
+          priority: ['timpani-hit-3', 'harp-c5'],
+        },
+      }),
+    });
+  });
+  await page.route('/test-audio/*.wav', async (route) => {
+    await route.fulfill({
+      contentType: 'audio/wav',
+      body: Buffer.from([0]),
+    });
+  });
+}
+
+async function installAudioProbe(page: Page) {
+  await page.addInitScript(() => {
+    type AudioParamStub = {
+      value: number;
+      setValueAtTime: (value: number) => void;
+      exponentialRampToValueAtTime: (value: number) => void;
+      setTargetAtTime: (value: number) => void;
+    };
+
+    const makeParam = (initial = 0): AudioParamStub => ({
+      value: initial,
+      setValueAtTime(value: number) {
+        this.value = value;
+      },
+      exponentialRampToValueAtTime(value: number) {
+        this.value = value;
+      },
+      setTargetAtTime(value: number) {
+        this.value = value;
+      },
+    });
+
+    class FakeAudioNode {
+      connect() {
+        return this;
+      }
+      disconnect() {}
+    }
+
+    class FakeOscillatorNode extends FakeAudioNode {
+      type = 'sine';
+      frequency = makeParam(440);
+      detune = makeParam(0);
+      onended: (() => void) | null = null;
+      start() {}
+      stop() {
+        this.onended?.();
+      }
+    }
+
+    class FakeGainNode extends FakeAudioNode {
+      gain = makeParam(1);
+    }
+
+    class FakeBiquadFilterNode extends FakeAudioNode {
+      type = 'lowpass';
+      frequency = makeParam(350);
+      Q = makeParam(1);
+    }
+
+    class FakeBufferSourceNode extends FakeAudioNode {
+      buffer: { duration: number } | null = null;
+      loop = false;
+      playbackRate = makeParam(1);
+      onended: (() => void) | null = null;
+      start() {}
+      stop() {
+        this.onended?.();
+      }
+    }
+
+    class FakeDynamicsCompressorNode extends FakeAudioNode {
+      threshold = makeParam(-24);
+      knee = makeParam(30);
+      ratio = makeParam(12);
+      attack = makeParam(0.003);
+      release = makeParam(0.25);
+    }
+
+    class FakeAudioContext {
+      currentTime = 0;
+      destination = new FakeAudioNode();
+      sampleRate = 48000;
+      state = 'running';
+      audioWorklet = { addModule: () => Promise.reject(new Error('fake worklet unavailable')) };
+      createGain() {
+        return new FakeGainNode();
+      }
+      createDynamicsCompressor() {
+        return new FakeDynamicsCompressorNode();
+      }
+      createOscillator() {
+        return new FakeOscillatorNode();
+      }
+      createBiquadFilter() {
+        return new FakeBiquadFilterNode();
+      }
+      createBufferSource() {
+        return new FakeBufferSourceNode();
+      }
+      createBuffer(_channels: number, length: number, sampleRate: number) {
+        return {
+          duration: length / sampleRate,
+          getChannelData: () => new Float32Array(length),
+        };
+      }
+      decodeAudioData(_buffer: ArrayBuffer, success?: (buffer: { duration: number }) => void) {
+        const decoded = { duration: 0.42 };
+        success?.(decoded);
+        return Promise.resolve(decoded);
+      }
+      resume() {
+        this.state = 'running';
+        return Promise.resolve();
+      }
+      suspend() {
+        this.state = 'suspended';
+        return Promise.resolve();
+      }
+    }
+
+    Object.defineProperty(window, 'AudioContext', { configurable: true, value: FakeAudioContext });
+    Object.defineProperty(window, 'webkitAudioContext', { configurable: true, value: FakeAudioContext });
+    Object.defineProperty(window, 'AudioWorkletNode', { configurable: true, value: undefined });
+  });
+}
+
 test.describe('critical page smoke', () => {
   for (const pagePath of criticalPages) {
     test(`loads ${pagePath}`, async ({ page }) => {
@@ -287,12 +442,20 @@ test.describe('critical page smoke', () => {
     await expect(discordLink).toHaveAttribute('rel', /noopener/);
   });
 
-  test('map page documents Docker-owned CoreScope runtime in local development', async ({ page }) => {
+  test('map page exposes either the Docker CoreScope runtime or local fallback guidance', async ({ page }) => {
     await page.goto('/map');
 
-    await expect(page.getByRole('heading', { name: /Run Docker to use the production map/i })).toBeVisible();
-    await expect(page.getByText(/CoreScope runtime served by nginx inside the site container/i)).toBeVisible();
-    await expect(page.getByText(/docker compose up --build/i)).toBeVisible();
+    const fallbackHeading = page.getByRole('heading', { name: /Run Docker to use the production map/i });
+    const coreScopeTopbar = page.getByRole('banner', { name: /Colorado Mesh live map/i });
+    const hasFallback = await fallbackHeading.isVisible().catch(() => false);
+
+    if (hasFallback) {
+      await expect(page.getByText(/CoreScope runtime served by nginx inside the site container/i)).toBeVisible();
+      await expect(page.getByText(/docker compose up --build/i)).toBeVisible();
+    } else {
+      await expect(coreScopeTopbar).toBeVisible();
+      await expect(page.getByLabel('Colorado Mesh map sound mode')).toBeVisible();
+    }
   });
 
   test('map sound overlay defaults Off, uses the Colorado Mesh logo, and suppresses upstream audio', async ({ page }) => {
@@ -432,6 +595,159 @@ test.describe('critical page smoke', () => {
       expect(state.worklet.schedulerActive || state.worklet.fallbackActive || state.worklet.active || state.worklet.status === 'loading').toBe(true);
     });
   }
+
+  test('map sound schedules every same-id ping-pong event as musical cues even when deduped', async ({ page }) => {
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'generative');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'generative',
+      unlocked: true,
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 10; i += 1) {
+        api.injectTestEvent({
+          id: 'same-ping-pong-path',
+          type: 'GRP_TXT',
+          modeHint: 'normal',
+          channelName: 'Public',
+          channelHash: null,
+          isEmergency: false,
+          isPriority: false,
+          isReplay: false,
+          observationCount: 2,
+          hopCount: 2 + (i % 2),
+          intensity: 0.48,
+          seed: 700 + i,
+          timestamp: 1715801000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        routed: 10,
+        played: 10,
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: 10,
+      }),
+    });
+
+    const state = await getSoundState(page);
+    expect(state.counters.deduped).toBeGreaterThan(0);
+    expect(state.sequencer.lastCue).toMatchObject({
+      mode: 'generative',
+      type: 'GRP_TXT',
+      lane: 'normal',
+      ordinal: 10,
+    });
+    expect(state.lastDroppedReason).toBeNull();
+  });
+
+  test('map sound Orchestral Ensemble rotates message samples and keeps scheduled notes in one key', async ({ page }) => {
+    await mockOrchestralManifest(page);
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'ensemble');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'ensemble',
+      unlocked: true,
+      ensemble: expect.objectContaining({ loaded: true }),
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 6; i += 1) {
+        api.injectTestEvent({
+          id: `ensemble-message-${i}`,
+          type: 'GRP_TXT',
+          modeHint: 'normal',
+          channelName: 'Public',
+          channelHash: null,
+          isEmergency: false,
+          isPriority: false,
+          isReplay: false,
+          observationCount: 1,
+          hopCount: 1 + (i % 3),
+          intensity: 0.44,
+          seed: 1200 + i,
+          timestamp: 1715802000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        routed: 6,
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: 6,
+      }),
+    });
+
+    const state = await getSoundState(page);
+    const allowedPitchClasses = new Set([0, 2, 3, 5, 7, 9, 10]);
+    expect(state.sequencer.recentMidi.length).toBeGreaterThanOrEqual(6);
+    for (const midi of state.sequencer.recentMidi) {
+      expect(allowedPitchClasses.has(((midi % 12) + 12) % 12)).toBe(true);
+    }
+    expect(new Set(state.sequencer.recentSampleIds).size).toBeGreaterThan(1);
+    expect(state.sequencer.recentSampleIds).toEqual(expect.arrayContaining(['harp-c5', 'clarinet-f4']));
+  });
+
+  test('map sound Space Blaster keeps pitch movement in a narrow usable range', async ({ page }) => {
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'blaster');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'blaster',
+      unlocked: true,
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 8; i += 1) {
+        api.injectTestEvent({
+          id: `blaster-ping-${i}`,
+          type: i % 3 === 0 ? 'NODEINFO' : 'GRP_TXT',
+          modeHint: 'normal',
+          channelName: i % 4 === 0 ? '#emergency' : 'Public',
+          channelHash: i % 4 === 0 ? 'emergency' : null,
+          isEmergency: i % 4 === 0,
+          isPriority: i % 4 === 0,
+          isReplay: false,
+          observationCount: 1 + (i % 4),
+          hopCount: 1 + (i % 2),
+          intensity: 0.52,
+          seed: 2100 + i,
+          timestamp: 1715803000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        routed: 8,
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: 8,
+      }),
+    });
+
+    const state = await getSoundState(page);
+    expect(state.sequencer.recentBlasterPitches.length).toBeGreaterThanOrEqual(8);
+    for (const pitch of state.sequencer.recentBlasterPitches) {
+      expect(pitch.maxFrequency).toBeLessThanOrEqual(523.26);
+      expect(pitch.baseFrequency).toBeGreaterThanOrEqual(293.66);
+      expect(pitch.semitoneGlide).toBeLessThanOrEqual(pitch.lane === 'priority' ? 3.01 : 2.01);
+    }
+  });
 
   test('map sound burst cleanup stays bounded after switching Off', async ({ page }) => {
     await mountMapSoundOverlay(page);
@@ -823,7 +1139,7 @@ test.describe('critical page smoke', () => {
   });
 
   test('prefix-matrix page exposes search, suggestion, and 4-char grid', async ({ page }) => {
-    await mockPrefixMatrixSnapshot(page);
+    await mockCoreScopeAnalyzer(page);
     await page.goto('/tools/prefix-matrix');
     await expect(page.getByRole('heading', { name: /prefix matrix/i })).toBeVisible();
 
@@ -893,7 +1209,7 @@ test.describe('interactive tool smoke', () => {
         });
       }
       if (pagePath === '/tools/prefix-matrix') {
-        await mockPrefixMatrixSnapshot(page);
+        await mockCoreScopeAnalyzer(page);
       }
       await page.goto(pagePath);
       await expect(page.locator('#main-content')).toBeVisible();
@@ -902,7 +1218,7 @@ test.describe('interactive tool smoke', () => {
   }
 
   test('repeater-name wizard surfaces map snapshot inputs and outputs', async ({ page }) => {
-    await mockPrefixMatrixSnapshot(page);
+    await mockCoreScopeAnalyzer(page);
     await page.goto('/tools/repeater-name');
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
     const main = page.locator('#main-content');
@@ -919,7 +1235,7 @@ test.describe('interactive tool smoke', () => {
   });
 
   test('prefix-matrix grid cells expose accessible names', async ({ page }) => {
-    await mockPrefixMatrixSnapshot(page);
+    await mockCoreScopeAnalyzer(page);
     await page.goto('/tools/prefix-matrix');
     const grid = page.getByRole('grid', { name: /First-byte prefix matrix/i });
     await expect(grid).toBeVisible({ timeout: 15_000 });
@@ -942,7 +1258,7 @@ test.describe('interactive tool accessibility @a11y', () => {
         });
       }
       if (pagePath === '/tools/prefix-matrix') {
-        await mockPrefixMatrixSnapshot(page);
+        await mockCoreScopeAnalyzer(page);
       }
       await page.goto(pagePath);
       const results = await new AxeBuilder({ page })

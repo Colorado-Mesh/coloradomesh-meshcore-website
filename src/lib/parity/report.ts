@@ -5,8 +5,8 @@ const domainOrder: ParityDomain[] = [
   'repeater-config',
   'serial-usb',
   'prefix-matrix',
-  'live-map-api',
-  'live-map-ui',
+  'corescope-api',
+  'corescope-ui',
   'docker',
   'ci',
 ];

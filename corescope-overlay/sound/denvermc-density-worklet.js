@@ -33,16 +33,18 @@ class ColoradoMeshDensityProcessor extends AudioWorkletProcessor {
     const levelTarget = parameters.level[0] || 0;
 
     const modeTilt = Math.max(0, Math.min(1, mode));
-    const root = 110 + modeTilt * 38;
+    const ensembleMix = Math.max(0, 1 - Math.abs(modeTilt - 0.66) / 0.18);
+    const blasterMix = Math.max(0, 1 - Math.abs(modeTilt - 0.92) / 0.14);
+    const root = ensembleMix > 0.2 ? 130.8127826502993 : blasterMix > 0.2 ? 164.81377845643496 : 110 + modeTilt * 30;
     const fifth = root * 1.5;
     const octave = root * 2;
-    const pulseBase = 0.85 + pulseTarget * 4.8 + densityTarget * 2.4;
+    const pulseBase = 0.95 + pulseTarget * 5.2 + densityTarget * 2.8;
 
     for (let i = 0; i < output[0].length; i += 1) {
-      this.smoothDensity += (densityTarget - this.smoothDensity) * 0.0018;
-      this.smoothPriority += (priorityTarget - this.smoothPriority) * 0.0024;
-      this.smoothPulse += (pulseTarget - this.smoothPulse) * 0.0022;
-      this.smoothLevel += (levelTarget - this.smoothLevel) * 0.002;
+      this.smoothDensity += (densityTarget - this.smoothDensity) * 0.0026;
+      this.smoothPriority += (priorityTarget - this.smoothPriority) * 0.0032;
+      this.smoothPulse += (pulseTarget - this.smoothPulse) * 0.003;
+      this.smoothLevel += (levelTarget - this.smoothLevel) * 0.0024;
 
       this.phaseA += root / sampleRate;
       this.phaseB += fifth / sampleRate;
@@ -58,10 +60,10 @@ class ColoradoMeshDensityProcessor extends AudioWorkletProcessor {
       const b = Math.sin(this.phaseB * Math.PI * 2) * 0.55;
       const c = Math.sin(this.phaseC * Math.PI * 2) * 0.28;
       const pulseShape = Math.max(0, Math.sin(this.pulsePhase * Math.PI * 2));
-      const pulse = Math.pow(pulseShape, 6) * (0.14 + this.smoothPulse * 0.28);
-      const shimmer = this.noise * (0.012 + this.smoothDensity * 0.026 + this.smoothPriority * 0.02);
-      const bed = (a + b + c) * (0.035 + this.smoothDensity * 0.13);
-      const priorityLift = Math.sin((this.phaseC + this.phaseB) * Math.PI * 2) * this.smoothPriority * 0.055;
+      const pulse = Math.pow(pulseShape, 6) * (0.13 + this.smoothPulse * 0.32);
+      const shimmer = this.noise * (0.01 + this.smoothDensity * 0.024 + this.smoothPriority * 0.018);
+      const bed = (a + b + c) * (0.032 + this.smoothDensity * (0.12 + ensembleMix * 0.035));
+      const priorityLift = Math.sin((this.phaseC + this.phaseB) * Math.PI * 2) * this.smoothPriority * 0.052;
       const sample = (bed + pulse + shimmer + priorityLift) * this.smoothLevel;
 
       for (let ch = 0; ch < output.length; ch += 1) output[ch][i] = sample;

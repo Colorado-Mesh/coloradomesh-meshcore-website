@@ -1,14 +1,17 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { API_ROUTES, DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
+import { CORESCOPE_API_ROUTES, DEFAULT_REFRESH_INTERVAL } from '@/lib/constants';
+import {
+  buildMapStats,
+  normalizeLiveMapNode,
+  uniqueMapNodes,
+} from '@/lib/map';
 import type {
-  ApiResponse,
   MapAdvancedFeature,
   MapConnectionStatus,
   MapNode,
   MapRuntimePublicConfig,
-  MapSnapshot,
   MapSnapshotSource,
   MapSnapshotWarning,
   MapStats,
@@ -33,25 +36,76 @@ interface UseMapSnapshotReturn {
   refetch: () => Promise<void>;
 }
 
-async function fetchApiResponse<T>(url: string): Promise<T> {
-  const response = await fetch(url);
+interface CoreScopeNodesResponse {
+  nodes?: unknown[];
+  total?: number;
+  counts?: Record<string, number>;
+}
+
+interface CoreScopeStatsResponse {
+  totalNodes?: number;
+  totalObservers?: number;
+  totalPackets?: number;
+  packetsLastHour?: number;
+  packetsLast24h?: number;
+  counts?: Record<string, number>;
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, { cache: 'no-store' });
 
   if (!response.ok) {
     throw new Error(`${url} returned ${response.status}`);
   }
 
-  let payload: ApiResponse<T>;
   try {
-    payload = await response.json();
+    return await response.json() as T;
   } catch {
     throw new Error(`Failed to parse ${url} response`);
   }
+}
 
-  if (!payload.success || payload.data === undefined) {
-    throw new Error(payload.error || `Failed to fetch ${url}`);
-  }
+function toCoreScopeSnapshot(
+  nodesPayload: CoreScopeNodesResponse,
+  statsPayload: CoreScopeStatsResponse
+) {
+  const generatedAt = new Date().toISOString();
+  const source: MapSnapshotSource = {
+    type: 'live_map_api',
+    label: 'CoreScope analyzer',
+    lastUpdated: generatedAt,
+  };
+  const nodes = uniqueMapNodes(
+    (Array.isArray(nodesPayload.nodes) ? nodesPayload.nodes : [])
+      .map((node) => normalizeLiveMapNode(node))
+      .filter((node): node is MapNode => node !== null)
+  );
+  const stats = buildMapStats(nodes, [], [], source, 'connected');
+  const connection: MapConnectionStatus = {
+    state: 'connected',
+    configured: true,
+    sampleData: false,
+    historyEnabled: true,
+    topic: null,
+    lastConnectedAt: generatedAt,
+    lastMessageAt: stats.lastUpdated,
+    message: 'CoreScope analyzer endpoints are available.',
+  };
 
-  return payload.data;
+  return {
+    generatedAt,
+    nodes,
+    stats: {
+      ...stats,
+      totalNodes: typeof statsPayload.totalNodes === 'number' ? statsPayload.totalNodes : stats.totalNodes,
+      repeaterNodes: typeof statsPayload.counts?.repeaters === 'number' ? statsPayload.counts.repeaters : stats.repeaterNodes,
+    },
+    connection,
+    source,
+    warnings: [] as MapSnapshotWarning[],
+    features: [] as MapAdvancedFeature[],
+    runtimeConfig: null as MapRuntimePublicConfig | null,
+  };
 }
 
 export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnapshotReturn {
@@ -75,10 +129,11 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
     }
 
     try {
-      const [snapshot, nextRuntimeConfig] = await Promise.all([
-        fetchApiResponse<MapSnapshot>(API_ROUTES.MAP_SNAPSHOT),
-        fetchApiResponse<MapRuntimePublicConfig>(API_ROUTES.MAP_RUNTIME),
+      const [nodesPayload, statsPayload] = await Promise.all([
+        fetchJson<CoreScopeNodesResponse>(CORESCOPE_API_ROUTES.NODES),
+        fetchJson<CoreScopeStatsResponse>(CORESCOPE_API_ROUTES.STATS),
       ]);
+      const snapshot = toCoreScopeSnapshot(nodesPayload, statsPayload);
 
       setNodes(snapshot.nodes);
       setStats(snapshot.stats);
@@ -86,7 +141,7 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
       setSource(snapshot.source);
       setWarnings(snapshot.warnings);
       setFeatures(snapshot.features);
-      setRuntimeConfig(nextRuntimeConfig);
+      setRuntimeConfig(snapshot.runtimeConfig);
       setError(null);
       setLastUpdated(new Date(snapshot.generatedAt));
     } catch (err) {
@@ -100,6 +155,8 @@ export function useMapSnapshot(options: UseMapSnapshotOptions = {}): UseMapSnaps
     fetchData();
 
     if (!enabled) return;
+
+    if (refreshInterval <= 0) return;
 
     const interval = setInterval(fetchData, refreshInterval);
     return () => clearInterval(interval);

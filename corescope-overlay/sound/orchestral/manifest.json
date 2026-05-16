@@ -6,6 +6,10 @@
       "role": "messages",
       "url": "/sound/orchestral/samples/harp/harp-c5-forte.wav",
       "rootNote": 72,
+      "minMidi": 67,
+      "maxMidi": 77,
+      "instrument": "harp",
+      "family": "plucked strings",
       "license": "CC0-1.0",
       "sourceUrl": "https://freepats.zenvoid.org/OrchestralStrings/ConcertHarp/ConcertHarp-SFZ-20200702.tar.xz",
       "attribution": "FreePats Concert Harp, public domain/CC0"
@@ -15,6 +19,10 @@
       "role": "messages",
       "url": "/sound/orchestral/samples/clarinet/clarinet-f4.wav",
       "rootNote": 65,
+      "minMidi": 60,
+      "maxMidi": 70,
+      "instrument": "clarinet",
+      "family": "woodwinds",
       "license": "CC0-1.0",
       "sourceUrl": "https://freepats.zenvoid.org/Reed/Clarinet1/Clarinet-SFZ-20190818.tar.xz",
       "attribution": "FreePats Clarinet, public domain/CC0"
@@ -24,6 +32,10 @@
       "role": "node",
       "url": "/sound/orchestral/samples/pizzicato/violin-pizz-c4.wav",
       "rootNote": 60,
+      "minMidi": 55,
+      "maxMidi": 65,
+      "instrument": "violin pizzicato",
+      "family": "strings",
       "license": "CC0-1.0",
       "sourceUrl": "https://github.com/sgossner/VSCO-2-CE/blob/master/Strings/Solo%20Violin/Pizz/LLVln_Pizz_C4_p_RR1.wav",
       "attribution": "VSCO 2 Community Edition Solo Violin Pizzicato, CC0"
@@ -33,6 +45,10 @@
       "role": "priority",
       "url": "/sound/orchestral/samples/timpani/timpani-hit-3.wav",
       "rootNote": 50,
+      "minMidi": 45,
+      "maxMidi": 55,
+      "instrument": "timpani",
+      "family": "percussion",
       "license": "CC0-1.0",
       "sourceUrl": "https://github.com/sgossner/VSCO-2-CE/blob/master/Percussion/Timpani/Timpani3_Hit_v3_rr1_Sum.wav",
       "attribution": "VSCO 2 Community Edition Timpani, CC0"

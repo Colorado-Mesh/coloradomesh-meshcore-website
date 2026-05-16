@@ -3,7 +3,6 @@ import Ajv from 'ajv';
 
 import { PARITY_MANIFEST } from '../manifest';
 import { buildParityReport } from '../report';
-import liveMapNodes from '../fixtures/live-map/nodes-full.json';
 import provenance from '../fixtures/provenance.json';
 import {
   UPSTREAM_UTILITIES_PROVENANCE,
@@ -24,8 +23,8 @@ describe('PARITY_MANIFEST', () => {
         'repeater-config',
         'serial-usb',
         'prefix-matrix',
-        'live-map-api',
-        'live-map-ui',
+        'corescope-api',
+        'corescope-ui',
         'docker',
         'ci',
       ])
@@ -44,17 +43,16 @@ describe('PARITY_MANIFEST', () => {
   it('builds a maintainer report from the manifest', () => {
     const report = buildParityReport();
     expect(report).toContain('Colorado MeshCore Upstream Parity Report');
-    expect(report).toContain('live-map-service-api-consumer');
+    expect(report).toContain('corescope-analyzer-api-consumer');
   });
 });
 
 describe('upstream parity fixtures', () => {
-  it('loads generated utility artifacts and live-map fixtures', () => {
+  it('loads generated utility artifacts and provenance fixtures', () => {
     expect(UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings.frequency).toBe(910525);
     expect(UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.actions.length).toBeGreaterThan(0);
     expect(UPSTREAM_UTILITIES_REGIONS.airports.length).toBeGreaterThan(0);
-    expect(liveMapNodes).toHaveProperty('nodes');
-    expect(provenance.sources).toHaveLength(2);
+    expect(provenance.sources.length).toBeGreaterThan(0);
   });
 
   it('records submodule provenance for generated utility artifacts', () => {

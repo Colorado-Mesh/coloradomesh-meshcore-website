@@ -1,5 +1,3 @@
-import { RUNTIME_ENV } from '@/lib/constants';
-
 /**
  * Simple in-memory rate limiter for API routes
  * Uses a sliding window approach with automatic cleanup
@@ -44,7 +42,7 @@ export interface RateLimitResult {
 }
 
 export function trustProxyHeaders(): boolean {
-  return process.env[RUNTIME_ENV.TRUST_PROXY_HEADERS]?.trim().toLowerCase() === 'true';
+  return process.env.MESHCORE_TRUST_PROXY_HEADERS?.trim().toLowerCase() === 'true';
 }
 
 /**

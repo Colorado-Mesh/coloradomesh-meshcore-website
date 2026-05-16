@@ -136,6 +136,10 @@ type SoundState = {
     lastSampleId: string | null;
     recentMidi: number[];
     recentSampleIds: string[];
+    lastEnsembleRole: string | null;
+    recentEnsembleRoles: string[];
+    lastEnsembleTemplate: string | null;
+    recentEnsembleTemplates: string[];
     lastBlasterFrequency: number | null;
     recentBlasterFrequencies: number[];
     lastBlasterPitch: {
@@ -768,8 +772,139 @@ test.describe('critical page smoke', () => {
     for (const midi of state.sequencer.recentMidi) {
       expect(allowedPitchClasses.has(((midi % 12) + 12) % 12)).toBe(true);
     }
-    expect(new Set(state.sequencer.recentSampleIds).size).toBeGreaterThan(1);
+    expect(new Set(state.sequencer.recentSampleIds).size).toBeGreaterThan(2);
+    expect(new Set(state.sequencer.recentEnsembleRoles).size).toBeGreaterThan(1);
     expect(state.sequencer.recentSampleIds).toEqual(expect.arrayContaining(['harp-c5-forte', 'clarinet-f4-short']));
+    expect(state.sequencer.recentEnsembleRoles).toEqual(expect.arrayContaining(['messages', 'woodwinds', 'mallets']));
+    expect(state.sequencer.recentEnsembleTemplates).toEqual(expect.arrayContaining(['message-phrase']));
+  });
+
+  test('map sound Orchestral Ensemble keeps normalized public text on message templates', async ({ page }) => {
+    await mockOrchestralManifest(page);
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'ensemble');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'ensemble',
+      unlocked: true,
+      ensemble: expect.objectContaining({ loaded: true }),
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 4; i += 1) {
+        api.injectTestEvent({
+          hash: `normalized-public-text-${i}`,
+          observation_count: 1,
+          decoded: {
+            header: { payloadTypeName: 'GRP_TXT' },
+            payload: { channelName: 'Public', hopCount: 1 + (i % 2) },
+          },
+          _ts: 1715803000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        normalized: 4,
+        routed: 4,
+        admitted: 4,
+      }),
+      lastNormalizedEvent: expect.objectContaining({
+        type: 'GRP_TXT',
+        isEmergency: false,
+        isPriority: true,
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: 4,
+      }),
+    });
+
+    const state = await getSoundState(page);
+    expect(state.sequencer.recentEnsembleTemplates).toEqual(expect.arrayContaining(['message-phrase']));
+    expect(state.sequencer.recentEnsembleTemplates).not.toContain('priority-fanfare');
+    expect(state.sequencer.recentEnsembleTemplates).not.toContain('priority-burst');
+    expect(state.sequencer.recentEnsembleRoles).toEqual(expect.arrayContaining(['messages', 'woodwinds', 'mallets']));
+    expect(state.sequencer.recentEnsembleRoles).not.toContain('priority');
+    expect(state.sequencer.recentEnsembleRoles).not.toContain('brass');
+  });
+
+  test('map sound Orchestral Ensemble uses cinematic burst and priority templates within resource bounds', async ({ page }) => {
+    await mockOrchestralManifest(page);
+    await installAudioProbe(page);
+    await mountMapSoundOverlay(page);
+    await chooseSoundMode(page, 'ensemble');
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      mode: 'ensemble',
+      unlocked: true,
+      ensemble: expect.objectContaining({ loaded: true }),
+    });
+
+    await page.evaluate(() => {
+      const api = (window as unknown as SoundHarnessWindow).__coloradoMeshSound;
+      for (let i = 0; i < 10; i += 1) {
+        api.injectTestEvent({
+          id: 'ensemble-normal-duplicate-burst',
+          type: 'GRP_TXT',
+          modeHint: 'normal',
+          channelName: 'Public',
+          channelHash: null,
+          isEmergency: false,
+          isPriority: false,
+          isReplay: false,
+          observationCount: 2,
+          hopCount: 2,
+          intensity: 0.54,
+          seed: 3100 + i,
+          timestamp: 1715804000000 + i,
+        });
+      }
+      for (let i = 0; i < 10; i += 1) {
+        api.injectTestEvent({
+          id: 'ensemble-priority-duplicate-burst',
+          type: 'GRP_TXT',
+          modeHint: 'priority',
+          channelName: '#emergency',
+          channelHash: 'emergency',
+          isEmergency: true,
+          isPriority: true,
+          isReplay: false,
+          observationCount: 5,
+          hopCount: 1,
+          intensity: 0.78,
+          seed: 4100 + i,
+          timestamp: 1715805000000 + i,
+        });
+      }
+    });
+
+    await expect.poll(() => getSoundState(page)).toMatchObject({
+      counters: expect.objectContaining({
+        routed: 20,
+        coalesced: expect.any(Number),
+        burstAccents: expect.any(Number),
+      }),
+      sequencer: expect.objectContaining({
+        scheduled: expect.any(Number),
+        coalesced: expect.any(Number),
+      }),
+    });
+
+    const state = await getSoundState(page);
+    const allowedPitchClasses = new Set([0, 2, 3, 5, 7, 9, 10]);
+    expect(state.counters.coalesced).toBeGreaterThan(0);
+    expect(state.counters.burstAccents).toBeGreaterThan(0);
+    expect(state.sequencer.recentEnsembleTemplates).toEqual(expect.arrayContaining(['priority-burst', 'traffic-burst']));
+    expect(state.sequencer.recentEnsembleRoles).toEqual(expect.arrayContaining(['priority', 'brass', 'messages']));
+    for (const midi of state.sequencer.recentMidi) {
+      expect(allowedPitchClasses.has(((midi % 12) + 12) % 12)).toBe(true);
+    }
+    expect(state.activeVoices).toBeLessThanOrEqual(14);
+    expect(state.scheduledSources).toBeLessThanOrEqual(48);
+    expect(state.cleanupTimers).toBeLessThanOrEqual(96);
   });
 
   test('map sound Space Blaster keeps pitch movement in a narrow usable range', async ({ page }) => {

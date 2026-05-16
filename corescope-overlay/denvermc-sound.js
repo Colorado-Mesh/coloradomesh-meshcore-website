@@ -66,6 +66,10 @@
     lastSampleId: null,
     recentMidi: [],
     recentSampleIds: [],
+    lastEnsembleRole: null,
+    recentEnsembleRoles: [],
+    lastEnsembleTemplate: null,
+    recentEnsembleTemplates: [],
     lastBlasterFrequency: null,
     recentBlasterFrequencies: [],
     lastBlasterPitch: null,
@@ -476,6 +480,10 @@
     sequencerState.lastSampleId = null;
     sequencerState.recentMidi = [];
     sequencerState.recentSampleIds = [];
+    sequencerState.lastEnsembleRole = null;
+    sequencerState.recentEnsembleRoles = [];
+    sequencerState.lastEnsembleTemplate = null;
+    sequencerState.recentEnsembleTemplates = [];
     sequencerState.lastBlasterFrequency = null;
     sequencerState.recentBlasterFrequencies = [];
     sequencerState.lastBlasterPitch = null;
@@ -1032,12 +1040,19 @@
     }).catch(function () {});
   }
 
-  function chooseEnsembleRole(event) {
+  function chooseEnsembleRole(event, options) {
+    var lane = eventLane(event);
     if (event.isEmergency) return 'priority';
+    if (options && options.coalesced) return 'messages';
     if (event.type === 'ADVERT' || event.type === 'NODEINFO') return 'node';
     if (event.type === 'GRP_TXT' || event.type === 'CHAN' || event.type === 'TEXT') return 'messages';
-    if (event.isPriority || eventLane(event) === 'priority') return 'priority';
+    if (event.isPriority || lane === 'priority') return 'priority';
     return 'messages';
+  }
+
+  function ensembleRoleList(roles) {
+    if (Array.isArray(roles)) return roles;
+    return roles ? [roles] : ['messages'];
   }
 
   function loadedSamplesForRole(role) {
@@ -1059,18 +1074,39 @@
     return candidates[(offset + cursor + (ordinal || 0)) % candidates.length];
   }
 
+  function loadedSampleForAnyRole(roles, seed, ordinal) {
+    var roleNames = ensembleRoleList(roles);
+    for (var i = 0; i < roleNames.length; i++) {
+      var role = roleNames[i];
+      var sample = loadedSampleForRole(role, seed + i * 11, (ordinal || 0) + i);
+      if (sample) return { role: role, sample: sample };
+    }
+    return null;
+  }
+
   function noteForEnsembleEvent(event, role, seed, ordinal) {
     ordinal = ordinal || 0;
-    if (role === 'priority') {
+    if (role === 'priority' || role === 'percussion' || role === 'brass') {
       var priorityDegrees = [0, 3, 7, 10, 7, 3];
       return ENSEMBLE_ROOT_MIDI - 12 + priorityDegrees[(seed + ordinal) % priorityDegrees.length];
     }
-    if (role === 'node') {
+    if (role === 'node' || role === 'strings') {
       var chordDegree = ENSEMBLE_CHORD[(seed + ordinal) % ENSEMBLE_CHORD.length];
       return ENSEMBLE_ROOT_MIDI + chordDegree;
     }
     var step = ordinal + (seed % 5) + Math.max(0, intFrom(event.hopCount, 1) - 1);
     return inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, step, 0);
+  }
+
+  function noteForEnsembleLayer(event, role, seed, ordinal, layer) {
+    var step = intFrom(layer.step, 0);
+    var nextOrdinal = (ordinal || 0) + step;
+    if (layer.pitch === 'bass') return ENSEMBLE_ROOT_MIDI - 12 + ENSEMBLE_CHORD[(seed + nextOrdinal) % ENSEMBLE_CHORD.length];
+    if (layer.pitch === 'root') return ENSEMBLE_ROOT_MIDI + ENSEMBLE_CHORD[(seed + nextOrdinal) % ENSEMBLE_CHORD.length];
+    if (layer.pitch === 'fifth') return ENSEMBLE_ROOT_MIDI + 7;
+    if (layer.pitch === 'support') return inScaleMidi(ENSEMBLE_ROOT_MIDI, ENSEMBLE_SCALE, nextOrdinal + (seed % 3), 0);
+    if (layer.pitch === 'harmony') return inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, nextOrdinal + 4 + (seed % 4), 0);
+    return noteForEnsembleEvent(event, role, seed, nextOrdinal);
   }
 
   function clampSampleMidi(sample, midi) {
@@ -1085,6 +1121,14 @@
     sequencerState[key] = value;
     sequencerState[listKey].push(value);
     if (sequencerState[listKey].length > (limit || 24)) sequencerState[listKey].shift();
+  }
+
+  function rememberEnsembleTemplate(name) {
+    rememberSequencerValue('lastEnsembleTemplate', 'recentEnsembleTemplates', name, 32);
+  }
+
+  function rememberEnsembleRole(role) {
+    rememberSequencerValue('lastEnsembleRole', 'recentEnsembleRoles', role, 48);
   }
 
   function scheduleSample(sample, midi, start, duration, gainValue, options) {
@@ -1117,6 +1161,119 @@
     return end - audioCtx.currentTime + (options.release || 0.18);
   }
 
+  function ensembleIntent(event, options) {
+    options = options || {};
+    var lane = eventLane(event);
+    var role = chooseEnsembleRole(event, options);
+    var burstCount = Math.max(1, intFrom(options.burstCount, 1));
+    var observationCount = Math.max(1, intFrom(event.observationCount, 1));
+    var burst = !!options.coalesced || burstCount >= COALESCE_THRESHOLD || observationCount >= 5;
+    var templateName = 'message-phrase';
+    if (burst && role === 'priority') templateName = 'priority-burst';
+    else if (burst) templateName = 'traffic-burst';
+    else if (event.isReplay) templateName = 'replay-echo';
+    else if (role === 'priority') templateName = 'priority-fanfare';
+    else if (role === 'node') templateName = 'node-pizzicato';
+    return {
+      lane: lane,
+      role: role,
+      templateName: templateName,
+      burstCount: burstCount,
+      replay: !!event.isReplay,
+      intensity: clamp(event.intensity, 0.05, 1),
+    };
+  }
+
+  function ensembleTemplate(intent) {
+    if (intent.templateName === 'priority-burst') {
+      return { name: 'priority-burst', tone: { pitch: 'fifth', offset: 0.04, duration: 0.44, gain: 0.016, type: 'triangle', filterFrequency: 1900 }, layers: [
+        { roles: ['priority', 'percussion'], pitch: 'bass', offset: 0, duration: 0.38, gain: 0.12, attack: 0.004, decay: 0.055, sustain: 0.026, release: 0.26 },
+        { roles: ['brass', 'priority'], pitch: 'fifth', offset: 0.065, duration: 0.52, gain: 0.068, attack: 0.028, decay: 0.12, sustain: 0.038, release: 0.34 },
+        { roles: ['percussion', 'priority'], pitch: 'bass', offset: 0.13, duration: 0.24, gain: 0.05, attack: 0.004, decay: 0.04, sustain: 0.014, release: 0.18 },
+        { roles: ['messages', 'woodwinds', 'mallets'], pitch: 'harmony', offset: 0.19, duration: 0.28, gain: 0.036, attack: 0.01, decay: 0.07, sustain: 0.018, release: 0.2 },
+      ] };
+    }
+    if (intent.templateName === 'traffic-burst') {
+      return { name: 'traffic-burst', tone: { pitch: 'support', offset: 0.05, duration: 0.34, gain: 0.014, type: 'sine', filterFrequency: 2200 }, layers: [
+        { roles: ['priority', 'percussion'], pitch: 'bass', offset: 0, duration: 0.3, gain: 0.076, attack: 0.005, decay: 0.06, sustain: 0.018, release: 0.22 },
+        { roles: ['strings', 'node'], pitch: 'support', offset: 0.045, duration: 0.28, gain: 0.044, attack: 0.01, decay: 0.055, sustain: 0.018, release: 0.18 },
+        { roles: ['messages', 'woodwinds'], pitch: 'melody', offset: 0.13, duration: 0.3, gain: 0.052, attack: 0.012, decay: 0.07, sustain: 0.022, release: 0.2 },
+        { roles: ['mallets', 'messages'], pitch: 'harmony', offset: 0.23, duration: 0.22, gain: 0.034, attack: 0.006, decay: 0.045, sustain: 0.014, release: 0.16 },
+      ] };
+    }
+    if (intent.templateName === 'priority-fanfare') {
+      return { name: 'priority-fanfare', tone: { pitch: 'fifth', offset: 0.045, duration: 0.32, gain: 0.014, type: 'triangle', filterFrequency: 1800 }, layers: [
+        { roles: ['priority', 'percussion'], pitch: 'bass', offset: 0, duration: 0.34, gain: 0.11, attack: 0.004, decay: 0.06, sustain: 0.024, release: 0.24 },
+        { roles: ['brass', 'priority'], pitch: 'fifth', offset: 0.075, duration: 0.44, gain: 0.056, attack: 0.026, decay: 0.1, sustain: 0.03, release: 0.3 },
+        { roles: ['messages', 'woodwinds'], pitch: 'harmony', offset: 0.16, duration: 0.24, gain: 0.028, attack: 0.012, decay: 0.06, sustain: 0.014, release: 0.18 },
+      ] };
+    }
+    if (intent.templateName === 'node-pizzicato') {
+      return { name: 'node-pizzicato', tone: { pitch: 'support', offset: 0.018, duration: 0.18, gain: 0.01, type: 'sine', filterFrequency: 2600 }, layers: [
+        { roles: ['node', 'strings'], pitch: 'root', offset: 0, duration: 0.2, gain: 0.065, attack: 0.006, decay: 0.04, sustain: 0.014, release: 0.14 },
+        { roles: ['mallets', 'messages'], pitch: 'harmony', offset: 0.075, duration: 0.22, gain: 0.032, attack: 0.006, decay: 0.045, sustain: 0.014, release: 0.16 },
+      ] };
+    }
+    if (intent.templateName === 'replay-echo') {
+      return { name: 'replay-echo', tone: null, layers: [
+        { roles: ['woodwinds', 'messages'], pitch: 'melody', offset: 0, duration: 0.24, gain: 0.046, attack: 0.018, decay: 0.07, sustain: 0.016, release: 0.22 },
+        { roles: ['mallets', 'messages'], pitch: 'harmony', offset: 0.14, duration: 0.2, gain: 0.026, attack: 0.012, decay: 0.05, sustain: 0.01, release: 0.18 },
+      ] };
+    }
+    return { name: 'message-phrase', tone: { pitch: 'support', offset: 0.045, duration: 0.24, gain: 0.012, type: 'sine', filterFrequency: 2800 }, layers: [
+      { roles: ['messages', 'woodwinds'], pitch: 'melody', offset: 0, duration: 0.3, gain: 0.078, attack: 0.01, decay: 0.07, sustain: 0.028, release: 0.2 },
+      { roles: ['woodwinds', 'messages'], pitch: 'harmony', offset: 0.11, duration: 0.26, gain: 0.038, attack: 0.012, decay: 0.06, sustain: 0.016, release: 0.18 },
+      { roles: ['mallets', 'messages'], pitch: 'harmony', offset: 0.19, duration: 0.2, gain: 0.029, attack: 0.006, decay: 0.045, sustain: 0.012, release: 0.15 },
+    ] };
+  }
+
+  function hasLoadedEnsembleTemplate(template) {
+    for (var i = 0; i < template.layers.length; i++) {
+      var roles = ensembleRoleList(template.layers[i].roles);
+      for (var j = 0; j < roles.length; j++) {
+        if (loadedSamplesForRole(roles[j]).length) return true;
+      }
+    }
+    return false;
+  }
+
+  function ensembleLayerGain(layer, intent) {
+    var burstLift = Math.min(1.26, 1 + Math.max(0, intent.burstCount - 1) * 0.045);
+    var replayTrim = intent.replay ? 0.62 : 1;
+    return layer.gain * (0.7 + intent.intensity * 0.48) * burstLift * replayTrim;
+  }
+
+  function scheduleEnsembleLayer(event, intent, layer, start, seed, ordinal) {
+    var selected = loadedSampleForAnyRole(layer.roles, seed + intFrom(layer.seedOffset, 0), ordinal + intFrom(layer.ordinalOffset, 0));
+    if (!selected) return 0;
+    var midi = noteForEnsembleLayer(event, selected.role, seed, ordinal, layer);
+    var total = scheduleSample(selected.sample, midi, start + numberFrom(layer.offset, 0), numberFrom(layer.duration, 0.24), ensembleLayerGain(layer, intent), {
+      attack: layer.attack,
+      decay: layer.decay,
+      sustain: layer.sustain,
+      release: layer.release,
+    });
+    if (total) rememberEnsembleRole(selected.role);
+    return total;
+  }
+
+  function scheduleEnsembleTone(event, intent, template, start, seed, ordinal) {
+    if (!template.tone) return 0;
+    var tone = template.tone;
+    var midi = noteForEnsembleLayer(event, intent.role, seed, ordinal, tone);
+    var gain = tone.gain * (0.7 + intent.intensity * 0.35) * (intent.replay ? 0.55 : 1);
+    return scheduleTone(midiToFreq(midi), start + numberFrom(tone.offset, 0), numberFrom(tone.duration, 0.22), {
+      type: tone.type || 'sine',
+      gain: gain,
+      attack: tone.attack || 0.024,
+      decay: tone.decay || 0.08,
+      sustain: gain * 0.3,
+      release: tone.release || 0.2,
+      filterFrequency: tone.filterFrequency || 2400,
+      q: 0.4,
+    });
+  }
+
   function fallbackEnsemble(event, options) {
     var lane = eventLane(event);
     if (lane === 'priority') return playGenerative(event, options);
@@ -1129,58 +1286,24 @@
       primeEnsembleSamples();
       return fallbackEnsemble(event, options);
     }
-    var role = chooseEnsembleRole(event);
+    var intent = ensembleIntent(event, options);
+    var template = ensembleTemplate(intent);
     var seed = eventSeed(event, 'ensemble');
-    var ordinal = options.ordinal || 0;
-    var sample = loadedSampleForRole(role, seed, ordinal);
-    if (!sample) {
+    if (!hasLoadedEnsembleTemplate(template)) {
       primeEnsembleSamples();
       return fallbackEnsemble(event, options);
     }
     return scheduleModeCue('ensemble', event, function (soundEvent, cueOptions) {
-      var lane = eventLane(soundEvent);
-      var intensity = clamp(soundEvent.intensity, 0.05, 1);
       var start = cueOptions.start || audioCtx.currentTime + 0.018;
-      var midi = noteForEnsembleEvent(soundEvent, role, seed, cueOptions.ordinal || 0);
-      var gain = role === 'priority' ? 0.14 : role === 'node' ? 0.074 : 0.095;
-      var duration = role === 'priority' ? 0.36 : role === 'node' ? 0.2 : 0.3;
-      var total = scheduleSample(sample, midi, start, duration, gain * (0.68 + intensity * 0.5), {
-        attack: role === 'priority' ? 0.003 : 0.008,
-        decay: role === 'node' ? 0.04 : 0.07,
-        sustain: role === 'priority' ? 0.26 : 0.34,
-        release: role === 'priority' ? 0.26 : 0.18,
-      });
-      var layerMidi = role === 'priority' ? ENSEMBLE_ROOT_MIDI + 7 : role === 'node' ? midi + 12 : inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, (cueOptions.ordinal || 0) + 2, 0);
-      total = Math.max(total, scheduleTone(midiToFreq(layerMidi), start + (role === 'node' ? 0.012 : 0.045), role === 'priority' ? 0.28 : 0.22, {
-        type: role === 'priority' ? 'triangle' : 'sine',
-        gain: gain * (role === 'priority' ? 0.34 : 0.22),
-        attack: role === 'node' ? 0.018 : 0.024,
-        decay: 0.08,
-        sustain: gain * 0.08,
-        release: role === 'priority' ? 0.22 : 0.18,
-        filterFrequency: role === 'priority' ? 1600 : 2600,
-        q: 0.45,
-      }));
-      if (role === 'messages' && lane !== 'low') {
-        var second = loadedSampleForRole('messages', seed + 1, ordinal + 1) || sample;
-        var harmony = inScaleMidi(ENSEMBLE_ROOT_MIDI + 12, ENSEMBLE_SCALE, (ordinal || 0) + 4, 0);
-        total = Math.max(total, scheduleSample(second, harmony, start + 0.13, 0.24, gain * 0.45, {
-          attack: 0.012,
-          decay: 0.055,
-          sustain: 0.026,
-          release: 0.16,
-        }));
+      var soundIntent = ensembleIntent(soundEvent, cueOptions);
+      var soundTemplate = ensembleTemplate(soundIntent);
+      var total = 0;
+      rememberEnsembleTemplate(soundTemplate.name);
+      for (var i = 0; i < soundTemplate.layers.length; i++) {
+        total = Math.max(total, scheduleEnsembleLayer(soundEvent, soundIntent, soundTemplate.layers[i], start, seed + i * 17, (cueOptions.ordinal || 0) + i));
       }
-      if (role === 'priority' && soundEvent.observationCount >= 3) {
-        var accent = loadedSampleForRole('priority', seed + 3, ordinal + 2) || sample;
-        total = Math.max(total, scheduleSample(accent, ENSEMBLE_ROOT_MIDI, start + 0.09, 0.24, gain * 0.44, {
-          attack: 0.004,
-          decay: 0.045,
-          sustain: 0.018,
-          release: 0.2,
-        }));
-      }
-      return total;
+      total = Math.max(total, scheduleEnsembleTone(soundEvent, soundIntent, soundTemplate, start, seed + 101, cueOptions.ordinal || 0));
+      return total || 0.08;
     }, options);
   }
 

@@ -1,37 +1,37 @@
 # Forge Project
 
 ## Description
-Fix the Colorado Mesh CoreScope map sound and mobile/portrait overlay issues. The current sound modes sound bad, do not align musically with map activity, and busy map traffic makes the sound thin out or stop, which is the opposite of the desired behavior. Rework the sound engine so high traffic feels fuller and denser while staying browser-local, opt-in, metadata-only, and safe under load. Also fix the map overlay, top bar, sound controls, fullscreen/minimal UI so it looks polished on mobile/portrait screens.
+Fix the live map audio so all map sounds are high quality and musical. Orchestral mode currently feels like it only uses about two samples; it should feel richer and more like a symphony. Space Blaster currently sounds bad and needs a redesign. Preserve existing behavior where appropriate, but improve the sound engine/assets/presets so map audio is richer, less repetitive, pleasant, and event-accent focused.
 
 ## Constraints
-- Do not edit files under `vendor/CoreScope` directly.
-- Use the existing CoreScope overlay/patch layer where possible.
-- Preserve the Docker/single-container setup.
-- Sound must remain browser-local, opt-in, and unlocked only by explicit user gesture.
-- Sound must use metadata only and never message text contents.
-- High traffic should feel fuller/denser, not quieter or stopped.
-- Keep audio safe under load: bounded scheduling, no runaway AudioNodes, no unbounded sample playback.
-- Use Colorado Mesh branding in user-facing labels.
-- Update site-wide logo usage to the new Colorado Mesh icon source provided by the user: https://github.com/Colorado-Mesh/icons/blob/main/color/mesh-color.png.
-- Do not print, commit, or document secrets.
-- This session must not directly perform visual/UI implementation in Codex; mobile/portrait visual implementation should be delegated to Opus UI if file edits are required for visual polish.
+- Brownfield change to the existing Colorado Mesh site/CoreScope overlay.
+- User-facing labels and branding must say Colorado Mesh, not DenverMC.
+- Focus on sound quality, musicality, variation, and event accents rather than UI redesign.
+- Preserve existing behavior where appropriate.
+- Keep map audio browser-local and user-triggered; do not use message contents for sound generation.
+- Avoid unbounded audio node/sample creation under busy map traffic.
 
 ## Context
-- Greenfield/Brownfield: Brownfield fix to existing Colorado MeshCore site and CoreScope overlay.
-- Platform: Browser-based map UI served from Docker image with CoreScope static assets patched by overlay during build.
-- Deliverable type: hybrid
-- Date: 2026-05-15
+- Greenfield/Brownfield: Brownfield
+- Platform: Browser-based live map/CoreScope overlay in the existing repository and Docker-served static assets
+- Deliverable type: code
+- Primary sound target: Event accents
+- Date: 2026-05-16
 
 ## Q&A Decisions
-1. Main sound feel: ambient orchestral. The polished sound-on experience should be a fuller musical bed that grows with traffic, with soft motifs and restrained accents.
-2. Mode scope: keep all existing user-selectable modes: Sound Off, Native+, Generative Key, Orchestral Ensemble, and Space Blaster, but retune them around the new density engine.
-3. Mobile sound controls: use a bottom sheet on portrait/mobile screens. The top bar should show compact sound/status access, with mode and volume in the sheet.
-4. Logo asset: vendor the new Colorado Mesh logo locally from the provided GitHub source and reference it same-origin across the site.
-5. Replay/historical traffic: replay packets may make sound too, but should be treated so users can tell the behavior is playback/replay rather than only current live activity.
-6. Priority/emergency accents: use metadata only, including existing packet type/channel/priority metadata; never message text or raw payload.
-7. Mobile acceptance targets: 320px through 430px portrait widths must pass, including common 320, 360, 390/393, and 430 CSS px screens.
-8. Final acceptance: include a 5-10 minute live or synthetic busy-traffic listening/browser check plus mobile visual verification in addition to automated tests.
-9. Sound texture: use a procedural Web Audio density bed as the always-on foundation; orchestral samples may remain as bounded accents.
-10. Accessibility announcements: keep sound announcements quiet/minimal; do not add noisy counter or volume announcements beyond necessary state labels.
-11. Audio architecture: introduce AudioWorklet in this pass for continuous density generation.
-12. Overlay file structure: let tests decide; keep one file unless splitting is necessary for Worklet delivery/injection order.
+1. Audible event scope: most traffic should be audible, not only rare events; routine traffic may produce accents as long as the engine stays bounded.
+2. Orchestral feel: Orchestral Ensemble should go big cinematic rather than subtle chamber-only.
+3. Existing motifs: no existing sound motif has to remain recognizable; mode names/control behavior should remain stable, but timbre and mappings may be replaced.
+4. High-priority/big accents: busy bursts may trigger larger accents, not just explicit priority/emergency metadata.
+5. Asset budget: flexible; quality matters more than a tiny bundle, as long as loading and runtime behavior remain bounded.
+6. Audio licensing: any legally redistributable bundled assets are acceptable, with license/source/attribution metadata maintained.
+7. Space Blaster: redesign as procedural musical sci-fi; do not rely on sample packs for this pass.
+8. Browser/device acceptance: validate Chromium and Safari/WebKit paths where feasible.
+9. Panning: do not add stereo panning; keep accents centered.
+10. Controls: keep current user controls and mode names; do not expand UI controls for this pass.
+11. Refactor scope: a deeper sound-engine rewrite is acceptable if public contracts remain stable.
+12. Privacy/trust: metadata only; never use message contents or raw payload for sound generation.
+13. Audio quality acceptance: use automated checks plus manual 5–10 minute quiet/busy listening in Orchestral Ensemble and Space Blaster.
+14. Busy traffic annoyance mitigation: users can lower volume; still enforce hard safety bounds to prevent clipping/runaway nodes.
+15. Sample sourcing: downloading and vendoring legal redistributable orchestral samples is acceptable if needed.
+16. Naming: keep current visible mode names: Sound Off, Native+, Generative Key, Orchestral Ensemble, and Space Blaster.

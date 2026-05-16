@@ -106,7 +106,32 @@ type SoundState = {
     queued: number;
     scheduled: number;
     coalesced: number;
-    lastCue: { mode: string; type: string; lane: string; ordinal: number } | null;
+    lastCue: {
+      mode: string;
+      type: string;
+      lane: string;
+      ordinal: number;
+      coalesced?: boolean;
+      burstCount?: number;
+      admissionReason?: string;
+    } | null;
+    lastAdmission: {
+      type: string;
+      lane: string;
+      accepted: boolean;
+      reason: string;
+      coalesced?: boolean;
+      burstCount?: number;
+    } | null;
+    lastBurst: {
+      mode: string;
+      type: string;
+      lane: string;
+      ordinal: number;
+      coalesced?: boolean;
+      burstCount?: number;
+      admissionReason?: string;
+    } | null;
     lastMidi: number | null;
     lastSampleId: string | null;
     recentMidi: number[];
@@ -166,6 +191,12 @@ async function mountMapSoundOverlay(
   page: Page,
   options: { mode?: string; volume?: string; mobileSheet?: boolean; shellPreference?: 'analyzer' | 'minimal' } = {},
 ) {
+  await page.route((url) => url.pathname === '/map', async (route) => {
+    await route.fulfill({
+      contentType: 'text/html',
+      body: '<!doctype html><html><head><title>Map sound harness</title></head><body><main id="main-content"></main></body></html>',
+    });
+  });
   await page.goto('/map');
   await page.evaluate(({ mode, volume, shellPreference }) => {
     window.localStorage.removeItem('coloradoMesh.map.soundMode');
@@ -528,7 +559,15 @@ test.describe('critical page smoke', () => {
     expect(state.traffic.activeWindowEvents).toBeGreaterThan(0);
     expect(state.counters.accentDropped).toBeGreaterThan(0);
     expect(state.counters.deduped).toBeGreaterThan(0);
+    expect(state.counters.coalesced).toBeGreaterThan(0);
+    expect(state.counters.burstAccents).toBeGreaterThan(0);
+    expect(state.counters.played).toBeLessThan(48);
     expect(state.counters.routed).toBe(48);
+    expect(state.sequencer.lastBurst).toMatchObject({ coalesced: true });
+    expect(state.sequencer.queueLength).toBeLessThanOrEqual(96);
+    expect(state.activeVoices).toBeLessThanOrEqual(14);
+    expect(state.scheduledSources).toBeLessThanOrEqual(48);
+    expect(state.cleanupTimers).toBeLessThanOrEqual(96);
   });
 
   test('map sound normalization ignores raw payload and decoded message body contents', async ({ page }) => {
@@ -596,7 +635,7 @@ test.describe('critical page smoke', () => {
     });
   }
 
-  test('map sound schedules every same-id ping-pong event as musical cues even when deduped', async ({ page }) => {
+  test('map sound coalesces same-id ping-pong bursts instead of scheduling every duplicate', async ({ page }) => {
     await installAudioProbe(page);
     await mountMapSoundOverlay(page);
     await chooseSoundMode(page, 'generative');
@@ -630,20 +669,43 @@ test.describe('critical page smoke', () => {
     await expect.poll(() => getSoundState(page)).toMatchObject({
       counters: expect.objectContaining({
         routed: 10,
-        played: 10,
+        admitted: 4,
+        deduped: 9,
+        coalesced: 3,
+        burstAccents: 3,
+        played: 4,
       }),
       sequencer: expect.objectContaining({
-        scheduled: 10,
+        scheduled: 4,
+        coalesced: 3,
       }),
     });
 
     const state = await getSoundState(page);
-    expect(state.counters.deduped).toBeGreaterThan(0);
+    expect(state.counters.played).toBeLessThan(10);
     expect(state.sequencer.lastCue).toMatchObject({
       mode: 'generative',
       type: 'GRP_TXT',
       lane: 'normal',
-      ordinal: 10,
+      ordinal: 4,
+      coalesced: true,
+      burstCount: 3,
+      admissionReason: 'coalesced:dedupe',
+    });
+    expect(state.sequencer.lastAdmission).toMatchObject({
+      type: 'GRP_TXT',
+      lane: 'normal',
+      accepted: true,
+      reason: 'coalesced:dedupe',
+      coalesced: true,
+      burstCount: 3,
+    });
+    expect(state.sequencer.lastBurst).toMatchObject({
+      mode: 'generative',
+      type: 'GRP_TXT',
+      lane: 'normal',
+      coalesced: true,
+      burstCount: 3,
     });
     expect(state.lastDroppedReason).toBeNull();
   });
@@ -684,15 +746,16 @@ test.describe('critical page smoke', () => {
     await expect.poll(() => getSoundState(page)).toMatchObject({
       counters: expect.objectContaining({
         routed: 6,
+        admitted: 4,
       }),
       sequencer: expect.objectContaining({
-        scheduled: 6,
+        scheduled: 4,
       }),
     });
 
     const state = await getSoundState(page);
     const allowedPitchClasses = new Set([0, 2, 3, 5, 7, 9, 10]);
-    expect(state.sequencer.recentMidi.length).toBeGreaterThanOrEqual(6);
+    expect(state.sequencer.recentMidi.length).toBeGreaterThanOrEqual(4);
     for (const midi of state.sequencer.recentMidi) {
       expect(allowedPitchClasses.has(((midi % 12) + 12) % 12)).toBe(true);
     }

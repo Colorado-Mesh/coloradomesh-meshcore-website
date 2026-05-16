@@ -16,6 +16,9 @@
   var MUSIC_QUEUE_MAX = 96;
   var MUSIC_SCHEDULE_AHEAD_SECONDS = 0.9;
   var MUSIC_TICK_MS = 28;
+  var COALESCE_THRESHOLD = 3;
+  var COALESCE_MAX_KEYS = 16;
+  var COALESCE_STALE_MS = 9000;
   var ENSEMBLE_ROOT_MIDI = 60;
   var ENSEMBLE_SCALE = [0, 2, 3, 5, 7, 9, 10];
   var ENSEMBLE_CHORD = [0, 3, 7, 10];
@@ -67,7 +70,10 @@
     recentBlasterFrequencies: [],
     lastBlasterPitch: null,
     recentBlasterPitches: [],
+    lastAdmission: null,
+    lastBurst: null,
   };
+  var coalesceState = new Map();
   var ensembleManifest = null;
   var ensembleManifestPromise = null;
   var ensembleBuffers = {};
@@ -124,6 +130,10 @@
     dropped: 0,
     deduped: 0,
     throttled: 0,
+    admitted: 0,
+    coalesced: 0,
+    burstAccents: 0,
+    queueTrimmed: 0,
     locked: 0,
     off: 0,
     malformed: 0,
@@ -470,6 +480,8 @@
     sequencerState.recentBlasterFrequencies = [];
     sequencerState.lastBlasterPitch = null;
     sequencerState.recentBlasterPitches = [];
+    sequencerState.lastAdmission = null;
+    sequencerState.lastBurst = null;
   }
 
   function stopAccentCues() {
@@ -488,6 +500,7 @@
     cleanupTimers.clear();
     cueGeneration += 1;
     modeCooldowns = {};
+    coalesceState.clear();
     activeVoices = 0;
   }
 
@@ -1236,6 +1249,8 @@
         ordinal: item.ordinal,
         sequenced: true,
         coalesced: item.coalesced,
+        burstCount: item.burstCount,
+        admissionReason: item.admissionReason,
       });
       if (accepted) {
         sequencerState.scheduled += 1;
@@ -1251,22 +1266,46 @@
     }
   }
 
-  function enqueueMusicalEvent(event) {
+  function cueEventSnapshot(event, ordinal, meta) {
+    meta = meta || {};
+    return {
+      mode: state.mode,
+      type: event.type,
+      lane: eventLane(event),
+      ordinal: ordinal,
+      coalesced: !!meta.coalesced,
+      burstCount: meta.burstCount || 1,
+      admissionReason: meta.admissionReason || 'admitted',
+    };
+  }
+
+  function enqueueMusicalEvent(event, meta) {
+    meta = meta || {};
     if (!audioCtx || state.mode === 'off' || !audioContextIsRunning()) return false;
     var ordinal = musicOrdinal += 1;
     if (musicQueue.length >= MUSIC_QUEUE_MAX) {
       var keep = Math.max(0, MUSIC_QUEUE_MAX - 12);
       musicQueue.splice(0, musicQueue.length - keep);
       sequencerState.coalesced += 1;
+      counters.coalesced += 1;
+      counters.queueTrimmed += 1;
     }
-    musicQueue.push({ event: cloneEvent(event), ordinal: ordinal, coalesced: false });
-    sequencerState.queued = musicQueue.length;
-    sequencerState.lastCue = {
-      mode: state.mode,
-      type: event.type,
-      lane: eventLane(event),
+    var item = {
+      event: cloneEvent(event),
       ordinal: ordinal,
+      coalesced: !!meta.coalesced,
+      burstCount: meta.burstCount || 1,
+      admissionReason: meta.admissionReason || 'admitted',
     };
+    musicQueue.push(item);
+    sequencerState.queued = musicQueue.length;
+    sequencerState.lastCue = cueEventSnapshot(event, ordinal, item);
+    if (item.coalesced) {
+      sequencerState.coalesced += 1;
+      counters.coalesced += 1;
+      counters.burstAccents += 1;
+      sequencerState.lastBurst = sequencerState.lastCue;
+    }
     if (!musicTimer) musicTimer = window.setInterval(drainMusicQueue, MUSIC_TICK_MS);
     drainMusicQueue();
     return true;
@@ -1515,16 +1554,16 @@
   }
 
   function acceptDedupe(event, now) {
-    if (!event.id) return true;
+    if (!event.id) return { accepted: true, reason: 'dedupe-ok' };
     pruneDedupe(now);
     var seenAt = dedupeSeen.get(event.id);
     if (seenAt && now - seenAt < dedupeWindowMs) {
       counters.deduped += 1;
       rememberAccentDrop('dedupe');
-      return false;
+      return { accepted: false, reason: 'dedupe' };
     }
     dedupeSeen.set(event.id, now);
-    return true;
+    return { accepted: true, reason: 'dedupe-ok' };
   }
 
   function acceptBucket(event, now) {
@@ -1536,14 +1575,61 @@
     if (bucket.tokens < 1) {
       counters.throttled += 1;
       rememberAccentDrop('throttle:' + lane);
-      return false;
+      return { accepted: false, reason: 'throttle:' + lane };
     }
     bucket.tokens -= 1;
-    return true;
+    return { accepted: true, reason: 'bucket-ok' };
   }
 
-  function markPlayed(event) {
-    var accepted = enqueueMusicalEvent(event);
+  function recordAdmission(event, accepted, reason, meta) {
+    sequencerState.lastAdmission = Object.assign({
+      type: event.type,
+      lane: eventLane(event),
+      accepted: !!accepted,
+      reason: reason,
+    }, meta || {});
+  }
+
+  function coalesceKeyFor(event) {
+    return [state.mode, eventLane(event), event.type || 'UNKNOWN'].join(':');
+  }
+
+  function pruneCoalesceState(now) {
+    coalesceState.forEach(function (entry, key) {
+      if (now - entry.lastAt > COALESCE_STALE_MS) coalesceState.delete(key);
+    });
+    while (coalesceState.size > COALESCE_MAX_KEYS) {
+      coalesceState.delete(coalesceState.keys().next().value);
+    }
+  }
+
+  function maybeCoalesceDeniedAccent(event, reason, now) {
+    var lane = eventLane(event);
+    if (lane === 'low' || activeVoices >= maxActiveVoices) return null;
+    pruneCoalesceState(now);
+    var key = coalesceKeyFor(event);
+    var entry = coalesceState.get(key);
+    if (!entry) entry = { denied: 0, lastAt: now, event: null };
+    entry.denied += 1;
+    entry.lastAt = now;
+    entry.reason = reason;
+    entry.event = cloneEvent(event);
+    coalesceState.set(key, entry);
+    if (entry.denied < COALESCE_THRESHOLD) return null;
+    var burstCount = entry.denied;
+    coalesceState.delete(key);
+    var burstEvent = Object.assign({}, event, {
+      id: [event.id || key, 'burst', now].join(':'),
+      observationCount: Math.max(intFrom(event.observationCount, 1), burstCount),
+      intensity: clamp(numberFrom(event.intensity, 0.4) + Math.min(0.28, burstCount * 0.035), 0.05, 1),
+      seed: eventSeed(event, 'coalesced-' + burstCount + '-' + now),
+      timestamp: event.timestamp || now,
+    });
+    return { event: burstEvent, burstCount: burstCount, reason: reason };
+  }
+
+  function markPlayed(event, meta) {
+    var accepted = enqueueMusicalEvent(event, meta);
     if (!accepted) return false;
     lastEvent = cloneEvent(event);
     return true;
@@ -1581,13 +1667,35 @@
     var now = Date.now();
     var traffic = ingestTraffic(event, now);
     updateDensityOutput(traffic);
-    var accentAllowed = acceptDedupe(event, now) && acceptBucket(event, now);
-    var accepted = markPlayed(event);
+    var dedupeAdmission = acceptDedupe(event, now);
+    var bucketAdmission = dedupeAdmission.accepted ? acceptBucket(event, now) : { accepted: false, reason: dedupeAdmission.reason };
+    var accepted = false;
+
+    if (dedupeAdmission.accepted && bucketAdmission.accepted) {
+      counters.admitted += 1;
+      recordAdmission(event, true, 'admitted', { coalesced: false, burstCount: 1 });
+      accepted = markPlayed(event, { admissionReason: 'admitted' });
+    } else {
+      var deniedReason = dedupeAdmission.accepted ? bucketAdmission.reason : dedupeAdmission.reason;
+      var burst = maybeCoalesceDeniedAccent(event, deniedReason, now);
+      if (burst) {
+        counters.admitted += 1;
+        recordAdmission(burst.event, true, 'coalesced:' + deniedReason, { coalesced: true, burstCount: burst.burstCount });
+        accepted = markPlayed(burst.event, {
+          coalesced: true,
+          burstCount: burst.burstCount,
+          admissionReason: 'coalesced:' + deniedReason,
+        });
+      } else {
+        recordAdmission(event, false, deniedReason, { coalesced: false, burstCount: 1 });
+      }
+    }
+
     counters.routed += 1;
     if (event.isPriority) counters.priority += 1;
     if (accepted) {
       lastDroppedReason = null;
-    } else if (accentAllowed) {
+    } else if (dedupeAdmission.accepted && bucketAdmission.accepted) {
       rememberAccentDrop('sequencer');
     }
     notify();

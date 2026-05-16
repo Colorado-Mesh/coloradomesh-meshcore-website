@@ -1,126 +1,138 @@
-# Architecture Research: CoreScope Map Sound + Responsive Overlay
+# Architecture Research: Live Map Audio Quality
 
-Project context: brownfield Colorado Mesh CoreScope overlay. Do not edit `vendor/CoreScope` directly; keep browser-local, opt-in, metadata-only audio; make high traffic fuller/denser under bounded load; polish mobile/portrait overlays via the patch layer.
+Project: Brownfield Colorado Mesh/CoreScope overlay sound improvements for richer orchestral mode, redesigned Space Blaster, high-quality musical event accents, browser-local/user-triggered audio, and bounded runtime resources.
 
-### ITEM-architecture-1: Replace per-packet note triggering with a density-metered sonification pipeline
+### ITEM-architecture-1: Keep audio as a CoreScope overlay subsystem with a stable browser API
 
-- **Recommendation:** Build the sound engine as `packet adapter -> metadata normalizer -> rolling traffic meter -> musical scheduler -> bounded voice renderer`. Feed every accepted packet into rolling 250-500ms buckets by lane (`priority`, `message`, `node`, `other`) and schedule one musical slice per bucket; map higher packet counts to thicker layers, wider chords, shorter rhythmic subdivisions, or richer timbre rather than more one-shot nodes.
-- **Rationale:** The current overlay already normalizes and throttles packets, but its token buckets and cooldowns reject busy traffic before it reaches sound, so dense map activity can sound thinner. Sonification references and Erie-style grammar work favor aggregation/binning and deliberate channel mappings over one sound per raw row/event. This architecture lets traffic density increase perceived fullness while CPU and node counts stay bounded.
+- **Recommendation:** Keep the sound engine inside the CoreScope overlay boundary, exposed through `window.__coloradoMeshSound`, and continue copying `/corescope-overlay` assets into CoreScope public output via the existing overlay apply script. Treat Next.js as the site shell and CoreScope as the runtime map/audio host; do not move live-map audio into Next API routes or edit vendored CoreScope files.
+- **Rationale:** The current architecture already injects `denvermc-sound.js` after the CoreScope shell and copies `sound/` recursively, while nginx proxies `/sound/` and overlay JS/CSS to CoreScope. This isolates brownfield changes, survives upstream CoreScope updates, keeps audio browser-local, and matches the existing smoke-test deployment path. The public global API also lets `denvermc-shell.js` render controls without coupling UI code to implementation internals.
 - **Confidence:** HIGH
-- **Source:** Codebase + WebFetch — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` lines 1038-1107; https://arxiv.org/abs/2402.00156
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs`, `/Users/cjvana/Documents/GitHub/denvermc-org/docker/nginx.conf`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not simply raise `maxActiveVoices` or token-bucket refill rates; that either keeps high traffic dropouts or risks runaway nodes. Do not play every packet as a separate cue; it produces mush under bursts and fails the bounded-load constraint.
+- **Alternatives rejected:** Editing `vendor/CoreScope` directly is brittle across submodule updates. Moving packet sonification to server/API routes would violate the browser-local constraint and increase privacy risk. Introducing a bundler for only this overlay is unnecessary unless the file becomes impossible to maintain after this pass.
 
-### ITEM-architecture-2: Use AudioContext clock lookahead scheduling, not event-time immediate playback
+### ITEM-architecture-2: Refactor the monolithic sound file into explicit internal layers before adding richness
 
-- **Recommendation:** Add a single scheduler loop per enabled audio context: a coarse JS timer wakes every ~25ms and schedules musical slices up to ~100ms ahead using `audioCtx.currentTime`. Store scheduled slice IDs/generation numbers so mode changes, off, hidden-tab transitions, and route teardown cancel future slices cleanly.
-- **Rationale:** MDN and web.dev both recommend using `AudioContext.currentTime` and `source.start(absoluteTime)` for accurate Web Audio timing because `setTimeout`/event callbacks are main-thread jittery. The current overlay schedules individual cues immediately from packet routing; moving to a short-horizon scheduler gives musical alignment and makes bursts sound intentional without scheduling far into the future.
+- **Recommendation:** Preserve the single shipped classic script if that is the lowest-risk deployment path, but organize implementation around explicit layers: public facade/state, packet normalizer, event gate/router, traffic density model, lookahead sequencer, instrument engines, sample asset loader, audio graph, and diagnostics. Keep layer boundaries enforceable with pure helper functions and small data tables/presets.
+- **Rationale:** `denvermc-sound.js` currently contains UI-facing API state, CoreScope audio suppression, packet normalization, throttling, sample loading, scheduling, synthesis, and diagnostics in one IIFE. The requested changes will add more instruments/samples and variation; without boundaries, orchestral/blaster fixes will compound the existing complexity. A layered internal architecture allows richer presets while preserving the current global API and deployment behavior.
 - **Confidence:** HIGH
-- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques; https://web.dev/articles/audio-scheduling; https://developer.mozilla.org/en-US/docs/Web/API/BaseAudioContext/currentTime
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not run rhythm from `Date.now()` or direct WebSocket callback timestamps. Do not schedule seconds of material ahead; it makes mode/volume/off changes sluggish and hard to cancel safely.
+- **Alternatives rejected:** A full TypeScript/module migration is too large for this brownfield audio-quality change. Leaving all new behavior as ad hoc functions in the existing IIFE risks regressions in unlock, suppression, throttling, and diagnostics.
 
-### ITEM-architecture-3: Keep audio strictly opt-in with a stateful unlock boundary
+### ITEM-architecture-3: Use one user-unlocked Web Audio graph with separate bed and accent buses
 
-- **Recommendation:** Keep `off` as the default persisted mode, create/resume the `AudioContext` only inside explicit user gesture handlers on the Colorado Mesh sound control, and expose a clear state machine: `off | locked | suspended | ready | unavailable | degraded`. Never use packet arrival to unlock audio.
-- **Rationale:** MDN autoplay guidance says Web Audio playback started outside user input is subject to autoplay blocking; best practice is to create or resume the context from a user gesture and present explicit controls. The existing overlay has the right control surface and should remain the only unlock boundary.
+- **Recommendation:** Keep a single `AudioContext` created/resumed by user gesture, with `masterGain -> outputLimiter -> destination`, separate `bedGain` for continuous density and `accentGain` for event cues, and mode-specific instrument nodes feeding the accent bus. Add only bounded shared effects if needed, such as a subtle convolution-free ambience/delay or per-cue low-cost panner, behind the accent bus.
+- **Rationale:** The current graph already has a good foundation: one context, master/bed/accent gains, a dynamics compressor limiter, and gesture-based unlock. MDN’s current guidance is still to create/resume audio from a user gesture and provide explicit controls. Separate buses let density remain smooth and low-volume while event accents become richer without masking the map or causing output spikes.
 - **Confidence:** HIGH
-- **Source:** Official docs + Codebase — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js` lines 208-233
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not auto-enable from saved preference, first WebSocket packet, or page load. Do not rely on browser autoplay allowlisting; behavior varies and would violate the opt-in requirement.
+- **Alternatives rejected:** Multiple `AudioContext`s complicate autoplay handling and resource cleanup. Sending every sound directly to destination prevents central volume, limiting, mute, and diagnostics. HTML audio elements are not appropriate for frequent overlapping event accents.
 
-### ITEM-architecture-4: Enforce metadata-only privacy at the adapter boundary
+### ITEM-architecture-4: Fix the event gate so throttling/dedupe controls accent scheduling, not just counters
 
-- **Recommendation:** Introduce a dedicated `SoundEvent` adapter that accepts only metadata fields: packet hash/id, payload type, channel name/hash, observation count, hop count/path length, timestamp/arrival time, replay/live flag, emergency/priority classification, and optional observer/region metadata. The sound layer must not receive `payload.text`, decoded message bodies, or `raw_hex`; derive randomness from hash/type/timestamp instead.
-- **Rationale:** The current sound normalizer inspects `raw_hex` for seeds and intensity. Even if it does not read `payload.text`, raw packet bytes can encode message contents and should not enter the sound subsystem under the project's metadata-only constraint. A narrow adapter creates an auditable privacy boundary independent of CoreScope's richer feed/detail UI.
+- **Recommendation:** Keep density ingestion independent, but only enqueue/play accents when `acceptDedupe(event, now) && acceptBucket(event, now)` succeeds. If an event is deduped/throttled, update traffic density and diagnostics but do not call the accent sequencer.
+- **Rationale:** The current `routeEvent` computes `accentAllowed`, then calls `markPlayed(event)` regardless. This means dedupe/token-bucket logic may increment counters while still allowing repetitive accents into the queue. For “event-accent focused” audio under busy traffic, architecture must separate continuous density from discrete accent admission. This is also required to avoid unbounded perceived repetition even if `maxActiveVoices` caps node count later.
 - **Confidence:** HIGH
-- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` lines 359-381 and 952-1011; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js` lines 2362-2367
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` (`routeEvent`, `acceptDedupe`, `acceptBucket`, `enqueueMusicalEvent`)
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not pass whole CoreScope packet objects to audio and trust voice code not to read sensitive fields. Do not use raw hex bytes as musical entropy; use packet hash and metadata fields instead.
+- **Alternatives rejected:** Relying only on `maxActiveVoices` prevents audio-node overload but does not stop the sequencer queue from sounding repetitive. Dropping events before density ingestion would make the ambient bed less representative of real traffic.
 
-### ITEM-architecture-5: Split musical control state from audio resource state
+### ITEM-architecture-5: Keep the lookahead sequencer and schedule against `AudioContext.currentTime`
 
-- **Recommendation:** Maintain two separate internal modules: `TrafficModel` for rolling counts/intensity/lane history and `AudioGraph` for persistent Web Audio nodes, buffers, buses, limiter, and cleanup. `TrafficModel` is pure and testable; `AudioGraph` owns the single `AudioContext`, master gain, limiter/compressor, reusable noise/sample buffers, active source registry, and a hard per-slice node budget.
-- **Rationale:** The current file mixes normalization, throttling, voice creation, sample loading, DOM suppression, and state reporting in one IIFE. Separating model from graph makes it possible to test burst behavior without Web Audio, and to prove node caps/cleanup independently. Chrome/web.dev guidance emphasizes render capacity and avoiding glitch-causing allocation/GC pressure.
+- **Recommendation:** Continue routing accents through a bounded music queue and short lookahead scheduler. Schedule all oscillators, buffer sources, envelopes, and parameter automation using absolute `audioCtx.currentTime` values; use `setInterval` only to fill the lookahead window, not as the precision clock.
+- **Rationale:** Current code has the right shape: `MUSIC_QUEUE_MAX`, `MUSIC_SCHEDULE_AHEAD_SECONDS`, `musicNextTime`, and `drainMusicQueue()`. Web Audio timing guidance is consistent: JavaScript timers jitter on the main thread, while Web Audio scheduled starts/ramps are the reliable timing source. A lookahead queue is especially important for musical orchestral phrases and Space Blaster accents that need intentional spacing rather than immediate overlapping chaos.
 - **Confidence:** HIGH
-- **Source:** WebFetch + Codebase — https://web.dev/articles/profiling-web-audio-apps-in-chrome; https://developer.chrome.com/docs/devtools/webaudio; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques; Web article — https://web.dev/articles/audio-scheduling; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not add more modes into the current monolithic script without boundaries; that makes load safety and privacy review harder. Do not introduce AudioWorklet unless custom DSP becomes necessary; built-in Oscillator/BufferSource/Gain/Filter nodes are enough for this fix.
+- **Alternatives rejected:** Playing immediately in each packet callback will jitter and pile up under busy map traffic. Scheduling far into the future would make mode/volume/off changes feel laggy and harder to cancel.
 
-### ITEM-architecture-6: Use layered buses so high traffic adds sustained texture instead of consuming unlimited voices
+### ITEM-architecture-6: Make orchestral mode data-driven with richer role manifests, not hardcoded “two-sample” behavior
 
-- **Recommendation:** Render density with a small, fixed bus layout: `bed` for low/node traffic, `pulse` for normal message rhythm, `accent` for priority/emergency events, and `ui/test` for test tones. Each scheduler tick updates bus gains/filters and schedules at most a fixed number of short sources per layer; priority accents can bypass density aggregation but still obey a separate cap.
-- **Rationale:** A bus layout gives the desired perceptual behavior: high traffic increases bed level, harmonic density, and rhythmic subdivision while voice count remains stable. It also makes volume limiting predictable. The current implementation creates per-cue oscillator/sample nodes and drops once `activeVoices >= maxActiveVoices`, which is exactly the path that makes traffic thin out.
+- **Recommendation:** Expand `/sound/orchestral/manifest.json` into a soundpack manifest with roles, instruments, articulations, round-robin variants, velocity/intensity bands, pitch ranges, gain envelopes, optional stereo pan ranges, and fallback order. Keep `denvermc-sound.js` responsible for interpreting role metadata, choosing bounded layers, and caching decoded buffers.
+- **Rationale:** The current orchestral manifest has only four samples and the `messages` role has two candidates, matching the user’s complaint that orchestral mode feels like only two samples. Browser sample-accent architecture should cache reusable decoded `AudioBuffer`s and create one-shot `AudioBufferSourceNode`s per event. A richer manifest lets the project add strings/woodwinds/brass/percussion variety without hardcoding every cue and without generating sound from message contents.
+- **Confidence:** HIGH
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/manifest.json`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/ATTRIBUTION.md`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
+- **Checked:** 2026-05-15
+- **Alternatives rejected:** Adding random sample choices directly in code will be hard to audit for license/attribution and hard to tune. Loading large complete orchestral libraries is inappropriate for a map overlay; use a curated compact set of short accents.
+
+### ITEM-architecture-7: Keep decoded-buffer caching; create disposable one-shot sources per cue
+
+- **Recommendation:** Decode every sample once per `AudioContext` into `ensembleBuffers`, reuse those buffers, and create a fresh `AudioBufferSourceNode` for each scheduled accent. Track only active sources/nodes needed for stop/cleanup diagnostics and let completed one-shot nodes disconnect/garbage-collect.
+- **Rationale:** MDN documents that `AudioBufferSourceNode` instances are one-shot, cheap to create, and suited to short precisely timed samples, while the underlying `AudioBuffer`s are reusable. The current implementation already follows this pattern; architectural improvements should preserve it while adding richer sample selection and stricter lifecycle cleanup.
+- **Confidence:** HIGH
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
+- **Checked:** 2026-05-15
+- **Alternatives rejected:** Pooling and restarting `AudioBufferSourceNode`s is invalid because source nodes can only be started once. Fetching/decoding on every packet would cause latency spikes and network churn.
+
+### ITEM-architecture-8: Use AudioWorklet only for continuous density, not for event accent orchestration
+
+- **Recommendation:** Keep the density bed in `AudioWorkletProcessor` with smoothed parameters for density/priority/pulse/mode/level, and keep event accents on the main Web Audio graph via scheduled sources. Treat AudioWorklet failure as graceful degradation to the existing procedural fallback.
+- **Rationale:** AudioWorklet is appropriate for low-latency continuous custom processing off the main thread. The current `colorado-mesh-density` processor is compact, parameterized, and already has fallback handling. Event accents, sample selection, manifest loading, and queueing need DOM/fetch/state access and are better handled outside the worklet, with only scheduled Web Audio nodes entering the graph.
+- **Confidence:** HIGH
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletNode; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/denvermc-density-worklet.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
+- **Checked:** 2026-05-15
+- **Alternatives rejected:** Moving all synthesis into AudioWorklet would complicate sample loading and debugging. Removing the worklet would put continuous DSP/timing back on the main thread and make busy map rendering more likely to affect the bed.
+
+### ITEM-architecture-9: Redesign Space Blaster as a constrained instrument preset, not an effects dump
+
+- **Recommendation:** Model Space Blaster as a separate preset/instrument with a small musical pitch set, lane-specific envelopes, softened oscillator choices, limited filter resonance, optional noise layer, optional low bass accent for priority events, and deterministic seeded variation. Keep it event-accent focused and route through the same queue/gates as other modes.
+- **Rationale:** Current Space Blaster uses sawtooth/square waves, short glides, noise bursts, and high-Q filters. That creates a recognizable sci-fi cue but can become harsh and repetitive under traffic. The architecture should make Space Blaster a tunable data preset with the same event roles as orchestral mode, so redesign is about musical vocabulary and bounded layers rather than scattered oscillator constants.
 - **Confidence:** MEDIUM
-- **Source:** Official docs + Codebase — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` lines 774-805
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` (`playBlaster`, `scheduleTone`, `scheduleNoiseBurst`); Official docs — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not make density by linearly increasing gain only; it clips or fatigues. Do not make density by unbounded polyphony; it glitches under busy map traffic.
+- **Alternatives rejected:** Simply lowering volume will make it less annoying but not more musical. Adding more random oscillators/noise will increase fatigue and resource use without solving repetition.
 
-### ITEM-architecture-7: Preserve the CoreScope patch layer as the only integration surface
+### ITEM-architecture-10: Add low-cost stereo variation for event accents
 
-- **Recommendation:** Keep all Colorado Mesh changes under `corescope-overlay/` plus `scripts/apply-corescope-overlay.mjs`. Integrate by replacing the upstream `MeshAudio` methods at runtime, hiding upstream audio controls, adding owned DOM, and toggling body classes. If CoreScope needs new hooks later, wrap them in overlay-owned adapters rather than editing `vendor/CoreScope`.
-- **Rationale:** The Docker build already copies CoreScope public assets and applies an idempotent overlay injection with managed head/body regions. This satisfies the brownfield constraint and keeps upstream submodule updates survivable. The overlay can intercept `MeshAudio.sonifyPacket(consolidated)` where CoreScope emits one consolidated packet per rendered hash group.
+- **Recommendation:** Add optional per-cue `StereoPannerNode` in the accent path, with pan derived from non-content event metadata such as event seed, lane, hop count, or node/observer coordinates if already available in normalized packet data. Keep pan subtle for orchestral mode and more animated for Space Blaster.
+- **Rationale:** Stereo variation can make a small sample set feel wider and less repetitive without adding many assets. `StereoPannerNode` is low-cost, widely available, and uses equal-power panning. Because the project must not use message contents for sound generation, deterministic metadata-derived pan is safer than content-derived sonification.
+- **Confidence:** MEDIUM
+- **Source:** Official docs — https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics
+- **Checked:** 2026-05-15
+- **Alternatives rejected:** Full `PannerNode`/HRTF spatial audio is overkill unless the map event model reliably provides positions and listener semantics. Hard-left/right panning is fatiguing; keep ranges subtle.
+
+### ITEM-architecture-11: Enforce explicit resource budgets at every boundary
+
+- **Recommendation:** Keep and tighten hard caps for active voices, queue length, layers per cue, sample count/bytes, cooldowns per lane, token buckets, and cleanup timers. Make coalescing policy musical: keep priority accents, summarize dense normal/low traffic into density bed, and drop or merge stale queued events.
+- **Rationale:** The current code already has `maxActiveVoices`, `MUSIC_QUEUE_MAX`, scheduled source/node sets, cleanup timers, cooldowns, token buckets, and traffic window pruning. Richer orchestral and blaster layers can easily multiply nodes per event, so caps must be architecture-level invariants rather than afterthoughts. This directly addresses the constraint to avoid unbounded audio node/sample creation under busy map traffic.
 - **Confidence:** HIGH
-- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs` lines 1-26 and 39-47; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` lines 82-96; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js` lines 2362-2367
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`; Official docs — https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not edit `vendor/CoreScope/public/audio.js` or `live.js` directly. Do not fork the whole CoreScope UI; the patch layer already provides a controlled extension seam.
+- **Alternatives rejected:** Relying on browser garbage collection alone is insufficient for operator confidence and diagnostics. Raising caps to hide dropped events will make bad traffic bursts sound worse.
 
-### ITEM-architecture-8: Make overlay UI a responsive shell state machine with progressive disclosure
+### ITEM-architecture-12: Keep audio off by default, user-triggered, locally controlled, and privacy-preserving
 
-- **Recommendation:** Keep one overlay shell controller with explicit modes: `minimal`, `analyzer`, `focus`, and `off`; derive body classes from route + preference; render owned controls once; then progressively disclose controls based on viewport. On phones/portrait, collapse sound controls to an icon/button that opens a compact popover or bottom sheet; keep topbar brand + map state + one primary action visible and move secondary controls out of the horizontal bar.
-- **Rationale:** The current shell already implements route-aware body classes and mode resolution, but mobile CSS still tries to fit brand, sound select, volume, focus, analyzer, and site controls into one fixed topbar. Progressive disclosure is the correct architecture for portrait polish because it prevents horizontal overflow while preserving all controls and accessible labels.
+- **Recommendation:** Preserve sound mode `off` by default, localStorage-only mode/volume preferences, explicit start controls, clear off control, and no server calls for sound generation. Continue suppressing upstream CoreScope audio so only the Colorado Mesh sound engine owns playback.
+- **Rationale:** WCAG guidance recommends sounds play only on user request and provide a stop/off control, especially to avoid interfering with screen readers. Browser autoplay policies also require gesture-based context resume. The current shell and sound API already implement mode/volume controls, user gesture unlock, and upstream CoreScope audio suppression; richer audio should not weaken those protections.
 - **Confidence:** HIGH
-- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js` lines 489-587; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.css` lines 752-790
+- **Source:** Accessibility guidance — https://www.w3.org/WAI/WCAG22/Techniques/general/G171; Official docs — https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js`, `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not keep shrinking labels and sliders indefinitely at narrow widths. Do not hide critical actions without an alternate path; use a disclosed panel/sheet with accessible trigger instead.
+- **Alternatives rejected:** Autoplaying the map would violate user expectations and browser policy. Sending packet/message contents to a service for sound generation violates the project constraints and privacy posture.
 
-### ITEM-architecture-9: Base mobile layout on dynamic viewport and safe-area primitives
+### ITEM-architecture-13: Add deterministic diagnostics and tests around sound architecture, not waveform perfection
 
-- **Recommendation:** For overlay chrome, standardize CSS custom properties for `--cm-safe-top`, `--cm-safe-bottom`, `--cm-viewport-h`, and topbar/control offsets. Use `height: 100dvh` where possible, `env(safe-area-inset-*)` with fallbacks for fixed bars/FABs/bottom sheets, and a small `visualViewport` sync only where CoreScope's JS inline `window.innerHeight` sizing conflicts with CSS.
-- **Rationale:** MDN documents that mobile has a layout viewport and visual viewport; browser chrome and keyboards can shrink the visual viewport while fixed elements remain tied to the layout viewport. The upstream live page already has JS resize handling that writes `window.innerHeight` to `.live-page`/`#app`; the overlay must coordinate with that rather than fight it with many hard-coded offsets.
+- **Recommendation:** Add tests that validate packet normalization, lane classification, dedupe/throttle gating, queue coalescing, bounded active voices, manifest schema/asset reachability, orchestral sample variety, blaster pitch range, branding labels, and Docker-served sound assets. Use `__coloradoMeshSound.getState()` diagnostics as the black-box contract.
+- **Rationale:** The repository currently has Docker smoke checks for `/denvermc-sound.js`, the worklet, orchestral manifest, and samples, but no local sound-specific unit/spec tests were found. Audio quality is partly subjective, so regression protection should target deterministic architecture invariants: no unbounded nodes, no missing sample metadata, no “two sample only” role collapse, no broken unlock/suppression, and no harsh/out-of-range Space Blaster pitch explosions.
 - **Confidence:** HIGH
-- **Source:** Official docs + Codebase — https://developer.mozilla.org/en-US/docs/Web/CSS/env; https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/CSSOM_view/Viewport_concepts; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js` lines 212-238; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.css` lines 486-503
+- **Source:** Codebase — `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/docker-smoke.mjs`, `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`, repository search for sound/audio tests
 - **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not rely on `100vh` alone for mobile portrait fullscreen UI. Do not scatter independent `top: 56px`/`bottom: 80px` constants across overlay rules; centralize offsets as custom properties.
-
-### ITEM-architecture-10: Add instrumentation and tests for burst audio and portrait overlay regressions
-
-- **Recommendation:** Extend the existing Playwright smoke suite with: mobile portrait screenshots/assertions for topbar no-overflow, focus exit reachability, sound control disclosure, and CoreScope panel collision; and a pure unit harness for `TrafficModel` that simulates 0, low, high, and bursty packet rates to assert density rises while scheduled sources per second stay capped. Expose debug counters for accepted packets, aggregated buckets, scheduled slices, active sources, dropped due to hard cap, and limiter state.
-- **Rationale:** The repo already tests sound overlay defaults and upstream suppression, but not high-traffic musical density or portrait composition. Architecture changes must be validated under synthetic load because the main failure mode is behavioral: busy traffic sounds thinner/stops. Chrome DevTools WebAudio render capacity can validate manual performance once the bounded graph exists.
-- **Confidence:** HIGH
-- **Source:** Codebase + Official docs — `/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts` lines 197-240 and 574-582; https://developer.chrome.com/docs/devtools/webaudio; https://web.dev/articles/profiling-web-audio-apps-in-chrome
-- **Checked:** 2026-05-15
-- **Alternatives rejected:** Do not rely only on subjective listening checks. Do not ship UI polish without portrait viewport tests because upstream CoreScope has many fixed/absolute panels competing for the same screen edges.
-
-## Suggested Data Flow
-
-1. CoreScope receives WebSocket packet and renders map/feed via upstream `renderPacketTree`.
-2. Overlay-patched `MeshAudio.sonifyPacket(consolidated)` receives the consolidated packet group.
-3. `SoundEventAdapter` strips to metadata-only fields and computes lane/priority/intensity from metadata.
-4. `TrafficModel.push(event)` updates rolling buckets and exposes current density per lane.
-5. `Scheduler.tick()` uses `audioCtx.currentTime` to schedule upcoming musical slices within a short lookahead window.
-6. `AudioGraph.renderSlice(slice)` updates persistent buses and schedules capped short sources/samples.
-7. `DebugState` publishes counters to UI/tests via `window.__coloradoMeshSound.getState()`.
-
-## Suggested File Boundaries
-
-- `corescope-overlay/denvermc-sound.js`: bootstrap, public API, CoreScope audio suppression, backwards-compatible singleton.
-- New internal sections or split overlay files if the injector is updated: `sound-event-adapter`, `traffic-model`, `music-scheduler`, `audio-graph`, `sound-debug`.
-- `corescope-overlay/denvermc-shell.js`: shell mode state machine and accessible controls only.
-- `corescope-overlay/denvermc-shell.css`: responsive layout, safe-area/dvh custom properties, no vendor selector sprawl beyond required CoreScope collision fixes.
-- `tests/e2e/smoke.spec.ts`: viewport and integration checks; separate unit tests for pure traffic model if test setup permits.
+- **Alternatives rejected:** Snapshotting generated waveforms in browser tests would be brittle across browsers/audio backends. Relying only on manual listening will miss regressions in busy-traffic caps and deployment asset paths.
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-architecture-1 | HIGH | Codebase + WebFetch | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`; https://arxiv.org/abs/2402.00156 |
-| ITEM-architecture-2 | HIGH | Official docs | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques; https://web.dev/articles/audio-scheduling |
-| ITEM-architecture-3 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay |
-| ITEM-architecture-4 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/live.js` |
-| ITEM-architecture-5 | HIGH | WebFetch + Codebase | https://web.dev/articles/profiling-web-audio-apps-in-chrome; https://developer.chrome.com/docs/devtools/webaudio |
-| ITEM-architecture-6 | MEDIUM | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
-| ITEM-architecture-7 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs`; `/Users/cjvana/Documents/GitHub/denvermc-org/Dockerfile` |
-| ITEM-architecture-8 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.css` |
-| ITEM-architecture-9 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/CSS/env; https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/CSSOM_view/Viewport_concepts |
-| ITEM-architecture-10 | HIGH | Codebase + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/tests/e2e/smoke.spec.ts`; https://developer.chrome.com/docs/devtools/webaudio |
+| ITEM-architecture-1 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs`; `/Users/cjvana/Documents/GitHub/denvermc-org/docker/nginx.conf`; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js`; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-2 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-3 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-4 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-5 | HIGH | Official docs + Web article + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Advanced_techniques; https://web.dev/articles/audio-scheduling; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-6 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/manifest.json` |
+| ITEM-architecture-7 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js` |
+| ITEM-architecture-8 | HIGH | Official docs + Codebase | https://developer.mozilla.org/en-US/docs/Web/API/AudioWorkletNode; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/denvermc-density-worklet.js` |
+| ITEM-architecture-9 | MEDIUM | Codebase + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices |
+| ITEM-architecture-10 | MEDIUM | Official docs | https://developer.mozilla.org/en-US/docs/Web/API/StereoPannerNode; https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Web_audio_spatialization_basics |
+| ITEM-architecture-11 | HIGH | Codebase + Official docs | `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js`; https://developer.mozilla.org/en-US/docs/Web/API/AudioBufferSourceNode |
+| ITEM-architecture-12 | HIGH | Accessibility guidance + Official docs + Codebase | https://www.w3.org/WAI/WCAG22/Techniques/general/G171; https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay; `/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js` |
+| ITEM-architecture-13 | HIGH | Codebase | `/Users/cjvana/Documents/GitHub/denvermc-org/scripts/docker-smoke.mjs`; `/Users/cjvana/Documents/GitHub/denvermc-org/package.json`; repository search |

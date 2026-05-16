@@ -1,176 +1,152 @@
-# Prior Art Research — Colorado Mesh CoreScope Map Sound + Mobile Overlay
+# Prior Art Research: Musical/Event-Accent Map Audio
 
-Checked: 2026-05-15
+Project context: brownfield improvement of Colorado Mesh browser-local CoreScope overlay audio. Goal is richer, less repetitive, pleasant map event accents, especially Orchestral Ensemble and Space Blaster, without using message contents or creating unbounded audio nodes/samples.
 
-### ITEM-prior-art-1: SoNSTAR network-traffic sonification
+### ITEM-prior-art-1: Current Colorado Mesh CoreScope sound overlay
 
-- **URL:** https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0195948
-- **What it does well:** SoNSTAR sonifies real-time TCP/IP traffic for situational awareness by aggregating traffic into behavioral features over time windows rather than triggering one sound per raw packet. It maps normal baseline activity to calmer background sounds and unusual/risky activity to more salient cues, with user-tunable thresholds, window sizes, and sound levels.
-- **What it lacks:** Its windowed analysis introduces delay, its mappings are TCP/security-domain-specific, and its recorded natural-sound palette is not a direct fit for musical map activity. It is research prior art, not a drop-in browser overlay for CoreScope/MeshCore.
-- **What we can learn:** Use aggregate traffic density as a first-class musical layer. High traffic should increase texture/density/fullness through a bounded rolling window, not get quieter because per-event voices are throttled. Preserve per-event accents only for priority/emergency/notable packets, and let ordinary busy traffic feed a continuous bed/pulse.
+- **URL:** /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js
+- **What it does well:** Already has the right architectural primitives for this project: Web Audio API only, user-unlocked browser-local audio, event normalization without message-content sonification, queue scheduling, token-bucket throttling, dedupe, max active voices, cleanup timers, density bed via AudioWorklet, and a sample-manifest path for orchestral mode.
+- **What it lacks:** Orchestral manifest currently contains only four samples and roles map most message events to two instruments, so repeated traffic can feel like the same cues. Space Blaster is purely procedural saw/square/noise with narrow pitch sets and high-Q filtered transients, which can become harsh and fatiguing. The implementation has no sample-variant velocity layers, no broader orchestral role palette, and limited timbral round-robin beyond choosing among already-loaded role samples.
+- **What we can learn:** Preserve the existing event pipeline, queue, cooldowns, voice caps, density worklet, local-only privacy model, and manifest loader. Improve perceived quality by expanding the manifest and role mappings, adding controlled randomization/round-robin, making Space Blaster shorter/cleaner/less abrasive, and using existing diagnostics to prove variety rather than replacing the whole engine.
 - **License:** N/A
 - **Confidence:** HIGH
-- **Source:** WebFetch — https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0195948
+- **Source:** Codebase Read — /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/manifest.json
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-2: CoreScope upstream MeshAudio and Constellation voice
-
-- **URL:** local:/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js; local:/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js; local:/Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/AUDIO-PLAN.md
-- **What it does well:** CoreScope already has browser-local Web Audio, explicit voice modules, capped polyphony, packet metadata/raw-byte mapping, type-based scales, observation-count voicing, hop-based filters, panning, and a documented audio lab/workbench concept. The Constellation voice creates a musical sequence from sampled payload bytes and cleans up nodes after playback.
-- **What it lacks:** It is one-sound-per-packet oriented, drops events when `MAX_VOICES` is reached, and upstream `restore()` can eagerly initialize audio if stored enabled. It maps from raw payload bytes/message-bearing packets, which conflicts with the Colorado Mesh requirement to use metadata only and never message contents.
-- **What we can learn:** Keep the successful modular/audio-context pattern but override it in the overlay. Reuse concepts, not vendor files: voice modules, scales, envelopes, observation/hop metadata, limiter/compressor, and debug counters. Replace payload-byte melody with metadata-derived stable seeds and rolling density lanes.
-- **License:** GPL-3.0
-- **Confidence:** HIGH
-- **Source:** Local codebase — /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js; /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js; /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/AUDIO-PLAN.md; /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/LICENSE
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-3: Colorado Mesh existing overlay sound bridge
-
-- **URL:** local:/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js; local:/Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js; local:/Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs
-- **What it does well:** The overlay already follows the right brownfield integration shape: it leaves `vendor/CoreScope` untouched, injects overlay assets during build, suppresses upstream audio, requires user gesture for unlock, stores Colorado Mesh-specific sound settings, exposes counters/debug state, and bounds active voices/nodes/timers.
-- **What it lacks:** The current event router drops/throttles individual cues under load, so busy traffic can audibly thin out. It has no aggregate density engine, no persistent rhythmic/tonal bed, and no separate queue for “density changed” versus “packet accent.” Mobile top-bar controls are present but narrow portrait layouts still risk crowding and need a stronger collapse pattern.
-- **What we can learn:** Build the fix inside this overlay, not CoreScope. Convert the sound engine from pure per-event cueing to a small state machine: rolling lane counters -> density targets -> continuous bounded layers, plus capped accent queues for notable events. Keep `__coloradoMeshSound` as the control API so the shell UI does not need a framework rewrite.
-- **License:** Project-local overlay; CoreScope integration subject to GPL-3.0 context
-- **Confidence:** HIGH
-- **Source:** Local codebase — /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js; /Users/cjvana/Documents/GitHub/denvermc-org/scripts/apply-corescope-overlay.mjs
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-4: Tone.js browser music framework
+### ITEM-prior-art-2: Tone.js browser music scheduling and instruments
 
 - **URL:** https://tonejs.github.io/
-- **What it does well:** Tone.js provides a mature browser music abstraction over Web Audio: synths, samplers, effects, musical timing, Transport, tempo-relative scheduling, and loading helpers. Its performance guidance emphasizes scheduling slightly ahead, using lookahead/latency hints deliberately, avoiding expensive nodes at scale, and keeping visual updates out of audio callbacks.
-- **What it lacks:** It is an additional dependency and abstraction layer for a patch overlay that already has plain Web Audio code. It will not automatically solve density design; overload can still cause pops/crackles/silence if node counts and buffers are unbounded.
-- **What we can learn:** Do not add Tone.js for this brownfield fix unless a larger audio rewrite is approved. Copy the proven timing patterns instead: schedule accents with a short lookahead, use musical time grids for pulses, avoid DOM work in playback callbacks, and cap node creation.
+- **What it does well:** Tone.js is mature prior art for interactive browser music: accurate AudioContext-time scheduling, a global transport, loops/parts, musical time values, synths, polyphony, sample players, samplers, effects, and routing. Its Sampler model directly addresses the current orchestral gap: map note names/ranges to samples and pitch-shift nearby notes instead of manually picking one or two buffers.
+- **What it lacks:** Pulling Tone.js into this static CoreScope overlay would add a substantial dependency and a new abstraction layer around code that already implements the necessary unlock, scheduling, sample loading, and cleanup behavior. The GitHub release visible from fetch was old (14.7.39 in 2020), even though the project remains prominent.
+- **What we can learn:** Do not add Tone.js for this brownfield fix. Borrow its concepts: schedule against AudioContext time, separate transport/queue from synthesis, use sample maps by note/role, use polyphony caps, and keep repeatable musical timing. Implement those ideas in the existing lightweight overlay.
 - **License:** MIT
 - **Confidence:** HIGH
-- **Source:** WebFetch — https://tonejs.github.io/; https://github.com/Tonejs/Tone.js/wiki/Performance
+- **Source:** Official docs/repo — https://tonejs.github.io/; https://github.com/tonejs/tone.js/
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-5: howler.js audio sprites for bounded sample playback
+### ITEM-prior-art-3: MDN Web Audio API and webaudio-examples
 
-- **URL:** https://github.com/goldfire/howler.js/
-- **What it does well:** howler.js is a mature short-audio playback library with Web Audio first, HTML5 Audio fallback, audio sprites, mobile unlock handling, instance pooling, fades/rate/seek/volume controls, and MIT licensing. Audio sprites reduce request count and simplify clip management on mobile.
-- **What it lacks:** It is optimized for playing samples, not generating musical state from event streams. It does not provide musical scheduling semantics, rolling-density sonification, or Web Audio graph control comparable to a custom engine.
-- **What we can learn:** If sample-based orchestral accents remain, pack them into one or a few sprite files and keep decoded/loaded assets bounded. For the immediate fix, prefer the current manifest approach only if sample count is small; otherwise adopt sprite-style asset discipline without introducing howler.js.
-- **License:** MIT
+- **URL:** https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+- **What it does well:** MDN documents Web Audio as the browser-standard foundation for local synthesis, sample playback, filtering, compression, routing, spatialization, analysis, and precise low-latency timing. It also identifies AudioWorklet as the modern off-main-thread custom processing path and ScriptProcessorNode as obsolete/deprecated. The MDN examples repository includes sequencing, AudioParam automation, AudioWorklet, compression, panning, spatialization, and buffer-source examples.
+- **What it lacks:** MDN is API prior art, not a complete musical design system. It does not decide how packet events should map to melody, timbre, hierarchy, or user fatigue constraints.
+- **What we can learn:** Stay with Web Audio API and AudioWorklet. Use the platform directly for small procedural and sample cues, avoid deprecated ScriptProcessorNode, keep AudioParam ramps/envelopes for click-free changes, and keep output compression/limiting for safe rapid accents.
+- **License:** MDN content/examples vary; mdn/webaudio-examples visible license is CC0-1.0
 - **Confidence:** HIGH
-- **Source:** WebFetch — https://github.com/goldfire/howler.js/
+- **Source:** Official docs/repo — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API; https://github.com/mdn/webaudio-examples
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-6: TwoTone data sonification web app
+### ITEM-prior-art-4: VSCO 2 Community Edition orchestral sample library
+
+- **URL:** https://versilian-studios.com/vsco-community/
+- **What it does well:** VSCO 2 Community Edition is CC0/public-domain orchestral sample prior art with raw WAV and SFZ material across strings, woodwinds, brass, percussion, keys, and miscellany. It is a strong fit for adding orchestral color without license friction. The existing repo already uses VSCO violin pizzicato and timpani, so the asset provenance path is established.
+- **What it lacks:** The full library is large for a website overlay; SFZ mappings are not directly usable without an SFZ sampler; individual samples may need trimming, normalization, conversion, and curation. Blindly bundling many samples would hurt static asset size and decode time.
+- **What we can learn:** Expand orchestral mode with a small curated VSCO subset, not the whole library: 2–4 samples per event role, multiple families (pizz strings, harp/celesta-like plucks, woodwinds, light brass, percussion), and round-robin/velocity variants where available. Keep files short, compressed or carefully selected, and manifest-driven.
+- **License:** CC0-1.0 / public domain
+- **Confidence:** HIGH
+- **Source:** Official site/repo — https://versilian-studios.com/vsco-community/; https://github.com/sgossner/VSCO-2-CE
+- **Checked:** 2026-05-15
+
+### ITEM-prior-art-5: FreePats orchestral/percussion sample banks
+
+- **URL:** https://freepats.zenvoid.org/Percussion/orchestral-percussion.html
+- **What it does well:** FreePats provides CC0-compatible SFZ/FLAC/WAV/SF2 sample banks, including orchestral percussion assembled from Versilian material, with round-robin layers. The current repo already uses FreePats harp and clarinet samples, and the attribution file records source archives and licenses.
+- **What it lacks:** FreePats pages are sample banks, not ready-made browser UI instruments. Asset quality, loudness, tail length, and mappings still need curation; some banks may be larger or have more articulations than the overlay needs.
+- **What we can learn:** Use FreePats for lightweight color expansion where it has already-cleaned public-domain banks. Especially useful additions: short harp/pluck variants for normal traffic, clarinet/flute/woodwind alternates for message accents, and soft percussion/triangle/timpani variants for priority accents. Prefer round-robin samples over pitch-randomizing the same file endlessly.
+- **License:** CC0 / public domain where specified by bank
+- **Confidence:** HIGH
+- **Source:** Official sample bank and local attribution — https://freepats.zenvoid.org/Percussion/orchestral-percussion.html; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/ATTRIBUTION.md
+- **Checked:** 2026-05-15
+
+### ITEM-prior-art-6: Highcharts Maps sonification API
+
+- **URL:** https://api.highcharts.com/highmaps/sonification
+- **What it does well:** Highcharts Maps exposes declarative map/chart sonification options such as enablement, duration, master volume, ordering, default instrument/speech options, tracks, context tracks, tooltip/crosshair synchronization, point grouping, and update intervals. It is strong prior art for treating map audio as a structured layer with global defaults and synchronized visual context.
+- **What it lacks:** It is part of a commercial charting product; the fetched API page shows top-level options more than implementation guidance. It targets chart/data accessibility and playback rather than this project's live packet stream, custom CoreScope overlay, and event-accent musicality.
+- **What we can learn:** Borrow the mental model, not the product: define per-role instrument defaults, separate global context/density bed from event tracks, group/coalesce dense events, and keep audio synchronized with visible map state. Do not replace the existing Leaflet/CoreScope map just to gain Highcharts sonification.
+- **License:** Commercial/source-available product; not suitable as a dependency without license review
+- **Confidence:** MEDIUM
+- **Source:** Official API/product pages — https://api.highcharts.com/highmaps/sonification; https://www.highcharts.com/products/maps/
+- **Checked:** 2026-05-15
+
+### ITEM-prior-art-7: TwoTone data-to-music web app
 
 - **URL:** https://twotone.io/
-- **What it does well:** TwoTone is a free, open-source browser app for turning tabular data into music. It demonstrates accessible no-code mapping of data fields to pitch, volume, tempo/duration, scale, octave, arpeggio, instruments, multi-track output, and export workflows.
-- **What it lacks:** It is dataset/composition oriented, not real-time browser event-stream audio. It has no map overlay, no bounded live scheduler for bursty traffic, and development appears paused.
-- **What we can learn:** Provide a small “auditory legend” mental model even if no full editor ships: packet/category lanes should have stable timbre/register meanings, and density/priority mappings should be learnable. Avoid arbitrary pitch changes that users cannot connect to map behavior.
-- **License:** MPL-2.0
-- **Confidence:** HIGH
-- **Source:** WebFetch — https://twotone.io/; https://github.com/sonifydata/twotone
+- **What it does well:** TwoTone is a free open-source web app for turning datasets into music without code. It demonstrates that sonification can be made musical and understandable through intentional data-to-sound mapping rather than raw beeps.
+- **What it lacks:** It is dataset/composition-oriented, not a real-time map event accent engine. The public page does not show live stream handling, packet-event hierarchy, voice caps, browser unlock/cleanup behavior, or geospatial interaction.
+- **What we can learn:** Use a musical mapping mindset: pitch, rhythm, timbre, and density should communicate event class and urgency while staying pleasant. But keep implementation event-driven and local to the existing overlay rather than adopting a dataset-composition workflow.
+- **License:** Open source stated on site; exact license not verified from fetched page
+- **Confidence:** MEDIUM
+- **Source:** Project site — https://twotone.io/
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-7: Erie declarative sonification grammar
+### ITEM-prior-art-8: SIREN aesthetic web sonification workstation
 
-- **URL:** https://github.com/see-mike-out/erie-web
-- **What it does well:** Erie separates data, mappings, tone design, legends, and composition. It maps attributes to auditory channels such as pitch, loudness, timbre, duration, sequencing, and overlaying, targeting Web Audio/Web Speech APIs.
-- **What it lacks:** It is a young library with limited repository traction, no releases visible, and it is more of a grammar/toolkit than a battle-tested live map event engine. Pulling it into the overlay would add conceptual and bundle weight.
-- **What we can learn:** Implement a tiny internal declarative mapping table in plain JS rather than importing Erie: event lane -> layer, packet type -> timbre/register, observations/hops -> intensity/filter, rolling rate -> density target. This keeps the sound design reviewable and prevents hard-coded scattered magic numbers.
+- **URL:** https://arxiv.org/abs/2403.19763
+- **What it does well:** SIREN is a web-based general-purpose interface for auditory data display using JavaScript and Web Audio API synthesizers. Its DAW-like framing is valuable: treat data sonification as sound design with modules, controls, and aesthetic quality, not merely accessibility beeps.
+- **What it lacks:** The visible paper summary does not establish map-specific behavior, live low-latency stream handling, or high-rate event throttling. It is a workstation/research system, not a small production overlay.
+- **What we can learn:** Prioritize aesthetic parameter mapping and reusable synth/sample modules. For Colorado Mesh, that means making each event role a small instrument patch with bounded controls (pitch range, envelope, filter, sample family), and auditioning in-context against realistic map traffic.
+- **License:** N/A for paper; implementation license not verified
+- **Confidence:** MEDIUM
+- **Source:** Research paper — https://arxiv.org/abs/2403.19763
+- **Checked:** 2026-05-15
+
+### ITEM-prior-art-9: Erie declarative grammar for web sonification
+
+- **URL:** https://npm.io/package/erie-web
+- **What it does well:** Erie/erie-web is a declarative grammar for data sonification in web environments using Web Audio API and Web Speech API. It supports browser/Node usage and sample instruments through configurable base URLs. The grammar approach is useful prior art for separating data mapping from sound rendering.
+- **What it lacks:** The package page showed last release as two years ago, unfinished CDN notes, and dependencies such as D3/Arquero/Moment/Vega. It is heavier and broader than needed for this overlay, and speech output is outside this project's musical event-accent scope.
+- **What we can learn:** Use a declarative-ish manifest/config layer for roles, sample families, allowed pitch ranges, and event-to-cue mappings. Do not add Erie as a dependency; the current code can gain most of the maintainability by expanding the existing manifest and role tables.
 - **License:** MIT
 - **Confidence:** MEDIUM
-- **Source:** WebFetch/WebSearch — https://github.com/see-mike-out/erie-web; https://arxiv.org/abs/2402.00156
+- **Source:** Package page — https://npm.io/package/erie-web
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-8: SIREN web-audio sonification workstation
+### ITEM-prior-art-10: WebAudioXML Sonification Toolkit
 
-- **URL:** https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c
-- **What it does well:** SIREN shows a Web Audio-based workstation can make sonification approachable through customizable auditory display mappings and DAW-like track/channel workflows.
-- **What it lacks:** It is workstation prior art, not a compact production overlay. The visible page does not provide enough implementation detail for direct reuse, and its license context is CC BY-NC 4.0 for the publication rather than a simple software dependency signal.
-- **What we can learn:** Treat the Colorado Mesh sound engine as a few named “tracks” or “lanes” internally: baseline bed, normal traffic pulse, low/node activity shimmer, and priority accents. This gives implementers a clear structure without shipping a full workstation UI.
-- **License:** CC BY-NC 4.0 visible for publication; software license not confirmed from fetched page
+- **URL:** https://hanslindetorp.github.io/SonificationToolkit/
+- **What it does well:** This toolkit demonstrates browser-based mapping from tabular data sources to audio parameters, with a workflow of choosing data, audio target, parameter, playback/scrubbing, and range tuning. It supports multiple mappings and external configuration files for data and audio setup.
+- **What it lacks:** It is aimed at dataset playback/scrubbing, not live packet accent triggering. The page describes Firefox/Chrome support and configurable audio XML, but not production constraints like burst coalescing, voice cleanup, user gesture unlock, or event priority.
+- **What we can learn:** Keep mappings inspectable and tunable. For this project, expose musical choices in simple data structures (role sample IDs, MIDI ranges, envelope defaults, pitch offsets, cooldowns) rather than burying every design decision in procedural branches.
+- **License:** Not verified from fetched page
 - **Confidence:** MEDIUM
-- **Source:** WebFetch — https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c
+- **Source:** Project site — https://hanslindetorp.github.io/SonificationToolkit/
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-9: Audio Maps location-triggered map audio scaffold
+### ITEM-prior-art-11: iSonic interactive map sonification
 
-- **URL:** https://lclarkmaps.github.io/
-- **What it does well:** Audio Maps demonstrates a simple map-first audio interaction pattern: attach audio to geographic points, trigger playback by marker click or mobile proximity, and keep authoring straightforward through marker metadata.
-- **What it lacks:** It uses static pre-recorded clips and hotspots, not real-time network events, musical scheduling, rolling density, or map-traffic sonification. Its license is not visible from the fetched page.
-- **What we can learn:** Keep the map interaction explicit and user-controlled. Sound should remain opt-in, state should be visible in the top bar, and map audio should not surprise the user just because the map loaded.
-- **License:** Open-source stated; specific license not visible
+- **URL:** https://www.cs.umd.edu/projects/hcil/audiomap/
+- **What it does well:** iSonic is directly map-sonification prior art. It combines nonspeech audio with speech/detail, supports overview-to-detail map exploration, and uses pitch, timbre, MIDI, and optional 3-D audio to make geographic data navigable. It shows that map audio should distinguish overview density/patterns from focused event details.
+- **What it lacks:** It is older, Java/Java Web Start based, tied to Windows speech components for some demos, and not a modern browser Web Audio implementation. It solves accessibility exploration of choropleth data rather than live packet accents.
+- **What we can learn:** Separate ambient overview from event detail. The existing density bed should remain low and contextual; accents should be sparse, meaningful, and optionally differentiated by spatial/pan or register so users can perceive map activity without an undifferentiated stream of notes.
+- **License:** Not specified on fetched page
 - **Confidence:** MEDIUM
-- **Source:** WebFetch — https://lclarkmaps.github.io/
+- **Source:** Research/project page — https://www.cs.umd.edu/projects/hcil/audiomap/
 - **Checked:** 2026-05-15
 
-### ITEM-prior-art-10: Mesh map/analyzer ecosystem: meshmap-map, Malla, MeshExplorer, Meshtastic Web
+### ITEM-prior-art-12: Modern game UI and sci-fi interface sound design guidance
 
-- **URL:** https://github.com/bbbenji/meshmap-map; https://github.com/zenitraM/malla; https://github.com/ajvpot/meshexplorer; https://github.com/meshtastic/web
-- **What it does well:** Existing mesh-map/analyzer tools validate the product shape: live node plotting, telemetry history, packet/node views, traceroute/link analytics, dashboards, Docker deployment, and mobile-first map layouts. Malla shows the ingest -> persist -> analyze -> visualize pattern; meshmap-map emphasizes mobile mapping and node search; MeshExplorer combines real-time map/chat/packet analysis across MeshCore and Meshtastic; Meshtastic Web validates browser-based mesh clients.
-- **What it lacks:** These projects do not appear to solve musical event-stream sonification or Colorado Mesh’s browser-local metadata-only audio requirement. Some are server/database-heavy or MQTT-specific, and MeshExplorer’s license was not visible from the fetched page.
-- **What we can learn:** Do not chase a wholesale replacement. CoreScope plus overlay remains the right path. Borrow UX expectations: mobile-first controls, searchable/inspectable map state, and clear separation between minimal map and full analyzer.
-- **License:** meshmap-map MIT; Malla MIT; Meshtastic Web GPL-3.0; MeshExplorer license not visible
-- **Confidence:** MEDIUM
-- **Source:** WebFetch/WebSearch — https://github.com/bbbenji/meshmap-map; https://github.com/zenitraM/malla; https://github.com/ajvpot/meshexplorer; https://github.com/meshtastic/web
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-11: MDN/Web Audio platform guidance
-
-- **URL:** https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices
-- **What it does well:** MDN’s platform guidance is directly aligned with the project constraints: create or resume `AudioContext` inside a user gesture, handle suspended/running/closed states, use `AudioParam` automation for scheduled changes, choose generated oscillators or decoded buffers for short interactive sounds, and provide user volume/play controls.
-- **What it lacks:** It is platform guidance, not a domain-specific sound design. It does not prescribe how to make dense traffic musically fuller.
-- **What we can learn:** Keep sound off by default; only unlock through explicit top-bar interaction; automate gain/filter changes instead of abrupt value changes; and expose a volume control. This supports browser-local, opt-in, safe-under-load audio without hidden autoplay behavior.
+- **URL:** https://sfxengine.com/blog/best-practices-for-game-ui-sounds
+- **What it does well:** Recent game/UI sound guidance consistently emphasizes hierarchy, short microinteraction cues, frequency separation, restrained adaptive variation, intentional silence, controlled tails, and clarity over loudness. Sci-fi UI design guidance specifically recommends crisp transients, light digital texture, clean synthetic tones, functional mapping, subtle pitch/timbre/volume variation, and avoiding noisy/distracting or overbuilt sounds.
+- **What it lacks:** These are design guides, not drop-in code or open-source assets. Some guidance is broad game/UI advice and must be adapted to packet accents that can arrive rapidly.
+- **What we can learn:** Redesign Space Blaster as a tasteful sci-fi UI accent system, not a loud weapon effect: 80–250 ms primary cues, soft attacks where needed to avoid clicks, controlled filter sweeps, subtle FM/ring/noise layers at low gain, short tails, limited high-Q harshness, role-specific vocabulary, and variation that preserves meaning. Priority events can be brighter/stronger, but normal traffic should be quiet and pleasant.
 - **License:** N/A
 - **Confidence:** HIGH
-- **Source:** WebFetch — https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-12: AudioWorklet and Web Audio one-shot source patterns
-
-- **URL:** https://developer.mozilla.org/docs/Web/API/Web_Audio_API/Using_AudioWorklet
-- **What it does well:** AudioWorklet is the modern pattern for custom high-performance audio processing off the main thread, avoiding deprecated main-thread `ScriptProcessorNode`. The Web Audio model also expects source nodes to be created per note/play while buffers can be kept memory-resident and reused.
-- **What it lacks:** AudioWorklet adds extra files, async module loading, browser support considerations, and more implementation complexity than needed for a small oscillator/sample overlay if node counts are bounded.
-- **What we can learn:** Do not add AudioWorklet for this fix unless profiling shows main-thread audio synthesis is causing glitches. Instead, keep DSP simple, reuse decoded buffers/noise buffers, cap active sources, and maintain bounded cleanup. If a future “continuous density synthesizer” becomes DSP-heavy, AudioWorklet is the correct next step.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** WebFetch — https://developer.mozilla.org/docs/Web/API/Web_Audio_API/Using_AudioWorklet; https://www.w3.org/TR/2021/REC-webaudio-20210617/#AudioBufferSourceNode
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-13: Responsive mobile map overlay patterns
-
-- **URL:** https://www.maplibrary.org/10067/7-best-practices-for-responsive-map-design/
-- **What it does well:** Current mobile map UX guidance is consistent: start at 320px width, keep top UI minimal, show only essential information, hide secondary controls in collapsible menus, use 44px touch targets with spacing, place frequent controls in thumb-friendly lower zones, and test on real phones.
-- **What it lacks:** The Map Library article is practical secondary guidance, not a formal standard; it does not cover the specific CoreScope DOM or Colorado Mesh top-bar constraints.
-- **What we can learn:** On portrait phones, the top bar should collapse aggressively: brand + one sound button/state + analyzer/menu action, with volume and mode details behind a compact popover/sheet. Do not try to fit desktop select+slider+status+focus+analyzer+site controls in one row at 320–420px.
-- **License:** N/A
-- **Confidence:** MEDIUM
-- **Source:** WebFetch — https://www.maplibrary.org/10067/7-best-practices-for-responsive-map-design/
-- **Checked:** 2026-05-15
-
-### ITEM-prior-art-14: Mobile viewport and safe-area platform patterns
-
-- **URL:** https://web.dev/blog/viewport-units
-- **What it does well:** Modern viewport guidance explains why `100vh` breaks on mobile browser chrome and recommends `svh`, `lvh`, and `dvh` depending on whether the UI should fit the small viewport, large viewport, or dynamic viewport. MDN documents `env(safe-area-inset-*)` for notches, rounded corners, toolbars, and home indicators.
-- **What it lacks:** It is CSS platform guidance, not a polished visual design. It must be applied carefully around CoreScope’s resize handlers and Leaflet map invalidation behavior.
-- **What we can learn:** Use `100dvh`/`100svh` and `env(safe-area-inset-*)` for full-screen/minimal/focus modes, and compute top-bar height as visual height plus safe-area padding. Move map controls/panels away from the top bar and bottom home indicator; call/trigger Leaflet resize handling when actual map dimensions change.
-- **License:** N/A
-- **Confidence:** HIGH
-- **Source:** WebFetch — https://web.dev/blog/viewport-units; https://developer.mozilla.org/en-US/docs/Web/CSS/env; https://leafletjs.com/reference
+- **Source:** Design guides — https://sfxengine.com/blog/best-practices-for-game-ui-sounds; https://ocularsounds.com/en-dk/blogs/sound-design-tips-tricks/what-makes-interface-audio-feel-modern; https://www.asoundeffect.com/sci-fi-ui-sound-effects/
 - **Checked:** 2026-05-15
 
 ## Confidence Summary
 
 | Item ID | Level | Source Type | URL/Reference |
 |---------|-------|-------------|---------------|
-| ITEM-prior-art-1 | HIGH | WebFetch | https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0195948 |
-| ITEM-prior-art-2 | HIGH | Local codebase | /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio.js; /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/public/audio-v1-constellation.js; /Users/cjvana/Documents/GitHub/denvermc-org/vendor/CoreScope/AUDIO-PLAN.md |
-| ITEM-prior-art-3 | HIGH | Local codebase | /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-shell.js |
-| ITEM-prior-art-4 | HIGH | WebFetch | https://tonejs.github.io/; https://github.com/Tonejs/Tone.js/wiki/Performance |
-| ITEM-prior-art-5 | HIGH | WebFetch | https://github.com/goldfire/howler.js/ |
-| ITEM-prior-art-6 | HIGH | WebFetch | https://twotone.io/; https://github.com/sonifydata/twotone |
-| ITEM-prior-art-7 | MEDIUM | WebFetch/WebSearch | https://github.com/see-mike-out/erie-web; https://arxiv.org/abs/2402.00156 |
-| ITEM-prior-art-8 | MEDIUM | WebFetch | https://repository.gatech.edu/entities/publication/7d3d302f-2818-455c-8df5-d28762e2af1c |
-| ITEM-prior-art-9 | MEDIUM | WebFetch | https://lclarkmaps.github.io/ |
-| ITEM-prior-art-10 | MEDIUM | WebFetch/WebSearch | https://github.com/bbbenji/meshmap-map; https://github.com/zenitraM/malla; https://github.com/ajvpot/meshexplorer; https://github.com/meshtastic/web |
-| ITEM-prior-art-11 | HIGH | WebFetch | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API/Best_practices; https://developer.mozilla.org/en-US/docs/Web/Media/Guides/Autoplay |
-| ITEM-prior-art-12 | HIGH | WebFetch | https://developer.mozilla.org/docs/Web/API/Web_Audio_API/Using_AudioWorklet; https://www.w3.org/TR/2021/REC-webaudio-20210617/#AudioBufferSourceNode |
-| ITEM-prior-art-13 | MEDIUM | WebFetch | https://www.maplibrary.org/10067/7-best-practices-for-responsive-map-design/ |
-| ITEM-prior-art-14 | HIGH | WebFetch | https://web.dev/blog/viewport-units; https://developer.mozilla.org/en-US/docs/Web/CSS/env; https://leafletjs.com/reference |
+| ITEM-prior-art-1 | HIGH | Codebase Read | /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/denvermc-sound.js; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/manifest.json |
+| ITEM-prior-art-2 | HIGH | Official docs/repo | https://tonejs.github.io/; https://github.com/tonejs/tone.js/ |
+| ITEM-prior-art-3 | HIGH | Official docs/repo | https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API; https://github.com/mdn/webaudio-examples |
+| ITEM-prior-art-4 | HIGH | Official site/repo | https://versilian-studios.com/vsco-community/; https://github.com/sgossner/VSCO-2-CE |
+| ITEM-prior-art-5 | HIGH | Official sample bank/codebase | https://freepats.zenvoid.org/Percussion/orchestral-percussion.html; /Users/cjvana/Documents/GitHub/denvermc-org/corescope-overlay/sound/orchestral/ATTRIBUTION.md |
+| ITEM-prior-art-6 | MEDIUM | Official API/product pages | https://api.highcharts.com/highmaps/sonification; https://www.highcharts.com/products/maps/ |
+| ITEM-prior-art-7 | MEDIUM | Project site | https://twotone.io/ |
+| ITEM-prior-art-8 | MEDIUM | Research paper | https://arxiv.org/abs/2403.19763 |
+| ITEM-prior-art-9 | MEDIUM | Package page | https://npm.io/package/erie-web |
+| ITEM-prior-art-10 | MEDIUM | Project site | https://hanslindetorp.github.io/SonificationToolkit/ |
+| ITEM-prior-art-11 | MEDIUM | Research/project page | https://www.cs.umd.edu/projects/hcil/audiomap/ |
+| ITEM-prior-art-12 | HIGH | Design guides | https://sfxengine.com/blog/best-practices-for-game-ui-sounds; https://ocularsounds.com/en-dk/blogs/sound-design-tips-tricks/what-makes-interface-audio-feel-modern; https://www.asoundeffect.com/sci-fi-ui-sound-effects/ |

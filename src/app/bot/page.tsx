@@ -60,7 +60,7 @@ const upstreamPatches = [
     glyph: '◊',
     title: 'Multi-bot response coordinator',
     description:
-      'Hop-aware delay (~1.5 s per hop, capped at 8 s) with bounded TTL and request-token suppression — closest bot wins the race, others see the in-flight token and stay quiet.',
+      'Hop-aware delay (~3 s per hop, capped at 15 s) on top of a ~1.5 s base + 2.2 s jitter, bounded by a 75 s TTL. Each reply carries a 4-hex request token so peer bots can correlate and suppress duplicates — even when reply text differs (hop count, SNR, recv time).',
   },
   {
     glyph: '◈',
@@ -72,7 +72,7 @@ const upstreamPatches = [
     glyph: '◎',
     title: 'Plug-and-play discovery',
     description:
-      'Auto-adverts at 5 s after boot, auto-learns other bots from their adverts, and auto-overwrites the oldest contact when the table fills. No manual peer config needed when you drop a second bot in the area.',
+      'Sends its first flood advert ~5 s after boot so the rest of the mesh learns the bot is up almost immediately, and auto-overwrites the oldest contact when the table fills. Channel-side coordination is token-based, so dropping a second bot in the area needs no peer config.',
   },
   {
     glyph: '◬',
@@ -293,10 +293,12 @@ export default function BotFirmwarePage() {
             >
               <p className="text-sm text-foreground-muted leading-relaxed">
                 When several Colorado bots hear the same command, the response coordinator adds a
-                hop-aware delay (~1.5 s per hop, capped at 8 s) and prefixes each reply with the
-                request token. Peer bots see the token go by, mark that request handled, and drop
-                their pending reply. The closest bot wins the race; everyone else stays quiet —
-                so <code className="mono">#bot</code> stays readable even with dense bot coverage.
+                hop-aware delay (~3 s per hop, capped at 15 s) on top of a ~1.5 s base + ~2.2 s
+                jitter, bounded by a 75 s pending TTL. Each queued reply is prefixed with a 4-hex
+                request token derived from the request fingerprint. Peer bots see the token go by,
+                mark that request handled, and drop their pending reply. The closest bot wins the
+                race; everyone else stays quiet — so <code className="mono">#bot</code> stays
+                readable even with dense bot coverage.
               </p>
             </NetworkPanel>
           </div>

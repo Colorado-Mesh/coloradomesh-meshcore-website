@@ -60,7 +60,7 @@ const upstreamPatches = [
     glyph: '◊',
     title: 'Multi-bot response coordinator',
     description:
-      'Hop-aware delay (~1.5 s per hop, capped at 8 s) with bounded TTL and fingerprint suppression — closest bot wins the race, others stay quiet.',
+      'Hop-aware delay (~1.5 s per hop, capped at 8 s) with bounded TTL and request-token suppression — closest bot wins the race, others see the in-flight token and stay quiet.',
   },
   {
     glyph: '◈',
@@ -70,9 +70,42 @@ const upstreamPatches = [
   },
   {
     glyph: '◎',
+    title: 'Plug-and-play discovery',
+    description:
+      'Auto-adverts at 5 s after boot, auto-learns other bots from their adverts, and auto-overwrites the oldest contact when the table fills. No manual peer config needed when you drop a second bot in the area.',
+  },
+  {
+    glyph: '◬',
     title: 'Tunable host-side prefs',
     description:
       'CLI-tunable channels, response delay, advert intervals, and known-bot list. Private-key import/export is disabled in release builds.',
+  },
+] as const;
+
+const firstSetupSteps = [
+  {
+    step: '1',
+    title: 'Pair the radio with the MeshCore app',
+    description:
+      'This is a companion-radio firmware — the bot lives on the radio, but the radio still needs a one-time setup from a phone. After flashing, open the MeshCore companion app, pair over BLE (or USB if your board is USB-only), and complete the welcome flow.',
+  },
+  {
+    step: '2',
+    title: 'Sync the clock',
+    description:
+      'The app pushes the phone\'s time to the radio on connect. Without this, timestamps in `time`, received-at fields, and the coordinator\'s TTL window all drift. Re-pair after any long power-off so the clock catches up.',
+  },
+  {
+    step: '3',
+    title: 'Add #bot, #testing, and #emergency',
+    description:
+      'In the app\'s Channels screen, add the three community channels by name (the bot defaults to listening on these plus Public). Without the channels present in the radio\'s table, the bot has nothing to answer on — even though the firmware is configured to use them.',
+  },
+  {
+    step: '4',
+    title: 'Wait for the advert',
+    description:
+      'The bot self-adverts ~5 s after boot and again on its scheduled interval. Once your other contacts see the advert, the bot will appear in their contact list and any nearby bot will auto-add it. From there, send `ping` on `#bot` to confirm it\'s alive.',
   },
 ] as const;
 
@@ -131,7 +164,7 @@ export default function BotFirmwarePage() {
               <span className="block text-mesh">for the Colorado mesh.</span>
             </>
           }
-          description={`Companion-radio firmware built on top of MeshCore. It adds a chat bot that answers ping, path, trace, status, neighbors, magic8 and more — entirely on-device. No internet bridge, no companion-app dependency, no cloud.`}
+          description={`Companion-radio firmware built on top of MeshCore — pair the radio with the MeshCore app once, then the on-device bot answers ping, path, trace, status, neighbors, magic8, and more without the phone in the loop. No app bridge, no internet, no cloud.`}
           actions={
             <>
               <a
@@ -260,10 +293,10 @@ export default function BotFirmwarePage() {
             >
               <p className="text-sm text-foreground-muted leading-relaxed">
                 When several Colorado bots hear the same command, the response coordinator adds a
-                hop-aware delay (~1.5 s per hop, capped at 8 s) and bounds replies with a TTL +
-                fingerprint suppression. The closest bot wins the race; others see the in-flight
-                reply and stay quiet. This keeps <code className="mono">#bot</code> readable even
-                with dense bot coverage.
+                hop-aware delay (~1.5 s per hop, capped at 8 s) and prefixes each reply with the
+                request token. Peer bots see the token go by, mark that request handled, and drop
+                their pending reply. The closest bot wins the race; everyone else stays quiet —
+                so <code className="mono">#bot</code> stays readable even with dense bot coverage.
               </p>
             </NetworkPanel>
           </div>
@@ -315,6 +348,58 @@ export default function BotFirmwarePage() {
                 </NetworkPanel>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* First-time setup */}
+        <section className="py-16 sm:py-20">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mb-10 max-w-3xl">
+              <SectionEyebrow tone="sunset">After you flash</SectionEyebrow>
+              <h2 className="mt-3 text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
+                First-time setup — four things, in order.
+              </h2>
+              <p className="mt-4 text-foreground-muted leading-relaxed">
+                Because this is a <strong>companion-radio firmware</strong>, the radio still needs a
+                one-time hand-off from a phone before the bot can do its job. Skipping this is the
+                most common reason a freshly-flashed bot looks dead — the firmware is fine; it just
+                has no clock and no channels yet.
+              </p>
+            </div>
+
+            <ol className="grid gap-4 sm:gap-5 md:grid-cols-2">
+              {firstSetupSteps.map((item) => (
+                <li key={item.step}>
+                  <NetworkPanel
+                    eyebrow={`STEP ${item.step}`}
+                    eyebrowTone="mesh"
+                    title={item.title}
+                    headingLevel="h3"
+                    padding="md"
+                    className="h-full"
+                  >
+                    <p className="text-sm text-foreground-muted leading-relaxed">{item.description}</p>
+                  </NetworkPanel>
+                </li>
+              ))}
+            </ol>
+
+            <NetworkPanel
+              eyebrow="Heads up"
+              eyebrowTone="sunset"
+              title="The bot listens on #bot, #testing, #emergency, and Public"
+              padding="md"
+              headingLevel="h3"
+              className="mt-6"
+            >
+              <p className="text-sm text-foreground-muted leading-relaxed">
+                Those four are the bot&apos;s entire universe. <code className="mono">#bot</code> and{' '}
+                <code className="mono">#testing</code> are where normal commands work.{' '}
+                <code className="mono">#emergency</code> messages get re-broadcast on{' '}
+                <code className="mono">Public</code>. Every other channel is silent — even DMs work,
+                but the channel set is what the bot uses to scope replies.
+              </p>
+            </NetworkPanel>
           </div>
         </section>
 

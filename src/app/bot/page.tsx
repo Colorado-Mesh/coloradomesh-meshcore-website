@@ -64,9 +64,9 @@ const upstreamPatches = [
   },
   {
     glyph: '◈',
-    title: 'DM prefixless commands',
+    title: 'Prefixless commands everywhere',
     description:
-      'Direct-message the bot and skip the prefix. Two-byte path hash by default for compact trace results.',
+      'No `!` or `bot ` prefix needed — send the command name on its own, whether you\'re on #bot, #testing, or DMing the bot directly. Two-byte path hash by default for compact trace results.',
   },
   {
     glyph: '◎',
@@ -258,9 +258,9 @@ export default function BotFirmwarePage() {
                 Send these on <code className="mono text-mesh">#bot</code>, or DM the bot directly.
               </h2>
               <p className="mt-4 text-foreground-muted leading-relaxed">
+                Prefixless on both channels and DMs — just send the command name, no <code className="mono">!</code> or <code className="mono">bot </code> prefix.
                 In any channel besides <code className="mono">#bot</code>, <code className="mono">#testing</code>, and{' '}
-                <code className="mono">#emergency</code>, the bot stays silent. DMs work prefixless —
-                just send the command name.
+                <code className="mono">#emergency</code>, the bot stays silent.
               </p>
             </div>
 

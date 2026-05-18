@@ -70,7 +70,7 @@ export default function NamingStandardPage() {
         />
 
         {/* Naming Wizard */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="max-w-4xl mx-auto">
             <NamingWizard />
           </div>

@@ -111,7 +111,7 @@ export default function ToolsPage() {
           }
         />
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-14 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-14 -mt-10">
           <div className="mx-auto max-w-7xl">
             <SectionHeader
               tone="mesh"

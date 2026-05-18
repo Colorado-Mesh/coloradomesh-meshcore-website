@@ -186,7 +186,7 @@ export default function GettingStartedPage() {
         />
 
         {/* Hardware Requirements */}
-        <section id="hardware" className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section id="hardware" className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-6xl">
             <SectionEyebrow tone="mesh" className="mb-3">
               Hardware requirements

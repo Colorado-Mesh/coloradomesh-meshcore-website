@@ -191,7 +191,7 @@ export default function StartPage() {
           }
         />
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-7xl">
             <SectionEyebrow tone="mesh" className="mb-3">
               Pick your path

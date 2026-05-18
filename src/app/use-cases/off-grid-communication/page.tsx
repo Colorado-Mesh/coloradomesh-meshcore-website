@@ -263,7 +263,7 @@ export default function OffGridCommunicationPage() {
         />
 
         {/* Scenarios */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-7xl">
             <SectionEyebrow tone="sky" className="mb-3">
               Where off-grid comms matter

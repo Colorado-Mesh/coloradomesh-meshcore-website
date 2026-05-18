@@ -110,7 +110,7 @@ export default function LearnPage() {
 
         <section
           aria-labelledby="learn-vs-start-heading"
-          className="px-4 sm:px-6 lg:px-8 pb-12 -mt-10"
+          className="relative z-10 px-4 sm:px-6 lg:px-8 pb-12 -mt-10"
         >
           <div className="mx-auto max-w-7xl">
             <div className="panel p-6 sm:p-8">

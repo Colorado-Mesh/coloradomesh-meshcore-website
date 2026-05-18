@@ -119,7 +119,7 @@ export default async function TagPage({ params }: PageProps) {
           }
         />
 
-        <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
           <div className="mx-auto max-w-4xl">
             <div className="space-y-4">
               {posts.map((post) => (

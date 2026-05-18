@@ -105,7 +105,7 @@ export default function BlogPage() {
         }
       />
 
-      <section className="px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
+      <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-24 -mt-10">
         <div className="mx-auto max-w-4xl">
           {posts.length === 0 ? (
             <div className="panel p-10 sm:p-14 text-center">

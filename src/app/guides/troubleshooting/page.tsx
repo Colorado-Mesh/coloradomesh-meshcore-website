@@ -171,7 +171,7 @@ export default function TroubleshootingPage() {
         />
 
         {/* Common Issues */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-4xl">
             <SectionEyebrow tone="sunset" className="mb-3">
               Common issues

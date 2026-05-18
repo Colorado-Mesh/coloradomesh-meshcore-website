@@ -345,7 +345,7 @@ export default function RepeaterSetupPage() {
         />
 
         {/* Getting Your Repeater Running */}
-        <section id="getting-running" className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section id="getting-running" className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight mb-3">
               Getting your repeater running.

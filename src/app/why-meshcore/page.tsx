@@ -253,7 +253,7 @@ export default function WhyMeshCorePage() {
         />
 
         {/* Key advantages */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10" aria-labelledby="key-advantages-heading">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10" aria-labelledby="key-advantages-heading">
           <div className="mx-auto max-w-7xl">
             <SectionEyebrow tone="mesh" className="mb-3">
               Key advantages

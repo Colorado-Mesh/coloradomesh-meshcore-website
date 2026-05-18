@@ -285,7 +285,7 @@ export default function EmergencyCommunicationPage() {
         />
 
         {/* Why mesh for emergency */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-7xl">
             <SectionEyebrow tone="sunset" className="mb-3">
               Why mesh for disaster comms?

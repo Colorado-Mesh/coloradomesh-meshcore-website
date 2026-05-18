@@ -212,7 +212,7 @@ export default function AboutPage() {
         />
 
         {/* What is MeshCore */}
-        <section className="px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
+        <section className="relative z-10 px-4 sm:px-6 lg:px-8 pb-16 -mt-10">
           <div className="mx-auto max-w-7xl grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] items-start">
             <NetworkPanel
               eyebrow="What is MeshCore?"

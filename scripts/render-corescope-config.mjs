@@ -221,7 +221,7 @@ const config = {
   retention: {
     nodeDays: int('CORESCOPE_RETENTION_NODE_DAYS', 7),
     observerDays: int('CORESCOPE_RETENTION_OBSERVER_DAYS', 14),
-    packetDays: int('CORESCOPE_RETENTION_PACKET_DAYS', 30),
+    packetDays: int('CORESCOPE_RETENTION_PACKET_DAYS', 1),
     metricsDays: int('CORESCOPE_RETENTION_METRICS_DAYS', 30),
   },
   db: {
@@ -230,7 +230,7 @@ const config = {
   },
   packetStore: {
     maxMemoryMB: int('CORESCOPE_PACKET_STORE_MAX_MEMORY_MB', 256),
-    retentionHours: int('CORESCOPE_PACKET_STORE_RETENTION_HOURS', 168),
+    retentionHours: int('CORESCOPE_PACKET_STORE_RETENTION_HOURS', 24),
   },
   liveMap: {
     propagationBufferMs: int('CORESCOPE_LIVE_MAP_PROPAGATION_BUFFER_MS', 5000),

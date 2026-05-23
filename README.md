@@ -66,7 +66,7 @@ Production uses one container. nginx listens on public port `3000`, sends the no
 
 Map sound is browser-local and opt-in. It defaults to **Sound Off**, requires a user gesture before the browser unlocks audio, and stores only the selected mode and volume in localStorage. Native+, Generative Key, Orchestral Ensemble, and Space Blaster run from the overlay; Orchestral Ensemble ships curated CC0 sample assets under `/sound/orchestral/` and needs no additional server, credentials, or environment variables.
 
-CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Retention defaults mark nodes inactive after 7 days, remove observers after 14 days, and prune packet history after 30 days. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
+CoreScope `config.json` is generated at container startup from environment variables and written only inside the container. Leave MQTT password empty for a no-secret local startup; with the default `CORESCOPE_ENABLE_INGESTOR=auto`, the ingestor starts only when a usable broker plus credentials are present. Retention defaults mark nodes inactive after 7 days, remove observers after 14 days, keep only a rolling 24 hours in the in-memory packet store, and prune packet history after 1 day when a database is present. Do not commit real MQTT credentials, API keys, channel keys, or generated CoreScope configs.
 
 Run the container smoke test after building an image:
 
@@ -108,8 +108,8 @@ The smoke test starts a temporary container, verifies the Next site, CoreScope `
 | `CORESCOPE_OBSERVER_IATA_WHITELIST` | No | Optional observer whitelist. |
 | `CORESCOPE_NODE_BLACKLIST` | No | Optional node blacklist. |
 | `CORESCOPE_OBSERVER_BLACKLIST` | No | Optional observer blacklist. |
-| `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows; defaults are nodes inactive after `7` days, observers removed after `14` days, packet history pruned after `30` days, and metrics pruned after `30` days. |
-| `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits; defaults to `256` MB and `168` hours to stay safe on small VPS instances. |
+| `CORESCOPE_RETENTION_NODE_DAYS` / `CORESCOPE_RETENTION_OBSERVER_DAYS` / `CORESCOPE_RETENTION_PACKET_DAYS` / `CORESCOPE_RETENTION_METRICS_DAYS` | No | CoreScope retention windows; defaults are nodes inactive after `7` days, observers removed after `14` days, packet history pruned after `1` day, and metrics pruned after `30` days. |
+| `CORESCOPE_PACKET_STORE_MAX_MEMORY_MB` / `CORESCOPE_PACKET_STORE_RETENTION_HOURS` | No | CoreScope packet-store limits; defaults to `256` MB and a rolling `24` hours to keep the embedded website analyzer short-lived. |
 
 ## API Overview
 

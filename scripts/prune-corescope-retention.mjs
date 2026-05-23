@@ -26,7 +26,7 @@ function cutoff(daysAgo) {
 
 const nodeDays = days('CORESCOPE_RETENTION_NODE_DAYS', 7);
 const observerDays = days('CORESCOPE_RETENTION_OBSERVER_DAYS', 14);
-const packetDays = days('CORESCOPE_RETENTION_PACKET_DAYS', 30);
+const packetDays = days('CORESCOPE_RETENTION_PACKET_DAYS', 1);
 const metricsDays = days('CORESCOPE_RETENTION_METRICS_DAYS', 30);
 
 const statements = [];

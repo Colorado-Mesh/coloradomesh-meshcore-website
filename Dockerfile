@@ -16,53 +16,13 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS corescope-builder
-ARG TARGETOS
-ARG TARGETARCH
-ARG CORESCOPE_VERSION=unknown
-ARG CORESCOPE_COMMIT=unknown
-ARG BUILD_TIME=unknown
-WORKDIR /build/corescope
-COPY vendor/CoreScope/ ./
-
-WORKDIR /build/corescope/cmd/server
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-  go build -ldflags "-X main.Version=${CORESCOPE_VERSION} -X main.Commit=${CORESCOPE_COMMIT} -X main.BuildTime=${BUILD_TIME}" -o /corescope-server .
-
-WORKDIR /build/corescope/cmd/ingestor
-RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} \
-  go build -o /corescope-ingestor .
-
 FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     HOSTNAME=127.0.0.1 \
-    PORT=3001 \
-    CORESCOPE_HOST=127.0.0.1 \
-    CORESCOPE_PORT=3002 \
-    CORESCOPE_CONFIG_DIR=/app/corescope \
-    CORESCOPE_DB_PATH=/app/corescope/data/meshcore.db \
-    CORESCOPE_PUBLIC_DIR=/app/corescope/public \
-    CORESCOPE_MQTT_SERVER=mqtt.meshcore.coloradomesh.org \
-    CORESCOPE_MQTT_PORT=1883 \
-    CORESCOPE_MQTT_TRANSPORT=websockets \
-    CORESCOPE_MQTT_TLS_ENABLED=true \
-    CORESCOPE_MQTT_SOURCE_NAME=coloradomesh \
-    CORESCOPE_MQTT_USERNAME=website \
-    CORESCOPE_MQTT_PASSWORD_FILE=/run/secrets/corescope_mqtt_password \
-    CORESCOPE_CHANNEL_KEYS_JSON_FILE=/run/secrets/corescope_channel_keys_json \
-    CORESCOPE_HASH_CHANNELS=#bot,#testing,#emergency,#wardriving \
-    CORESCOPE_BOOTSTRAP_NODES=true \
-    CORESCOPE_BOOTSTRAP_NODES_URL=https://analyzer.meshcore.coloradomesh.org/api/nodes?limit=1000 \
-    CORESCOPE_BOOTSTRAP_NODES_MAX=1000 \
-    CORESCOPE_BOOTSTRAP_NODES_TIMEOUT_MS=10000 \
-    CORESCOPE_ENABLE_INGESTOR=auto \
-    CORESCOPE_INGESTOR_STATS=/app/corescope/data/ingestor-stats.json \
-    CORESCOPE_TILE_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
-    CORESCOPE_TILE_LIGHT_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png \
-    CORESCOPE_TILE_DARK_URL=https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png
+    PORT=3001
 
 RUN apk add --no-cache nginx supervisor sqlite ca-certificates tzdata \
   && addgroup --system --gid 1001 nodejs \
@@ -73,25 +33,12 @@ COPY --from=next-builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=next-builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=next-builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-COPY --from=corescope-builder /corescope-server /usr/local/bin/corescope-server
-COPY --from=corescope-builder /corescope-ingestor /usr/local/bin/corescope-ingestor
-COPY --from=next-builder /app/vendor/CoreScope/public /app/corescope/public
-COPY --from=next-builder /app/vendor/CoreScope/config.example.json /app/corescope/config.example.json
-COPY --from=next-builder /app/vendor/CoreScope/channel-rainbow.json /app/corescope/channel-rainbow.json
-
-COPY corescope-overlay /app/corescope-overlay
 COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
 COPY docker/start.sh /usr/local/bin/start.sh
-COPY scripts/render-corescope-config.mjs /usr/local/bin/render-corescope-config.mjs
-COPY scripts/bootstrap-corescope-nodes.mjs /usr/local/bin/bootstrap-corescope-nodes.mjs
-COPY scripts/prune-corescope-retention.mjs /usr/local/bin/prune-corescope-retention.mjs
-COPY scripts/apply-corescope-overlay.mjs /usr/local/bin/apply-corescope-overlay.mjs
-RUN chmod +x /usr/local/bin/start.sh /usr/local/bin/render-corescope-config.mjs /usr/local/bin/bootstrap-corescope-nodes.mjs /usr/local/bin/prune-corescope-retention.mjs /usr/local/bin/apply-corescope-overlay.mjs \
-  && /usr/local/bin/apply-corescope-overlay.mjs /app/corescope/public /app/corescope-overlay \
-  && chown -R nextjs:nodejs /app/corescope /app/corescope-overlay /app/public /app/.next
+RUN chmod +x /usr/local/bin/start.sh \
+  && chown -R nextjs:nodejs /app/public /app/.next
 
-VOLUME ["/app/corescope/data"]
 EXPOSE 3000
 
 CMD ["/usr/local/bin/start.sh"]

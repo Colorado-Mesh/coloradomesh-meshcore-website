@@ -194,26 +194,6 @@ try {
   await waitFor(`${baseUrl}/api/healthz`);
   await waitFor(`${baseUrl}/`);
   await expectTextIncludes('/', 'Colorado MeshCore');
-  const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
-  for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc', 'denvermc-sound.js?v=denvermc']) {
-    if (!mapHtml.includes(expected)) {
-      throw new Error(`/map did not include expected CoreScope overlay asset: ${expected}`);
-    }
-  }
-  await expectTextIncludes('/denvermc-sound.js?v=denvermc', 'window.__coloradoMeshSound');
-  await expectTextIncludes('/sound/denvermc-density-worklet.js', "registerProcessor('colorado-mesh-density'");
-  await expectContentType('/brand/color/mesh-color-256.png', 'image/png');
-  await expectContentType('/favicon-16x16.png', 'image/png');
-  await expectContentType('/favicon-32x32.png', 'image/png');
-  await expectContentType('/apple-touch-icon.png', 'image/png');
-  await expectContentType('/favicon.ico', 'image/');
-
-  const orchestralManifest = await expectJson('/sound/orchestral/manifest.json');
-  const attributionText = await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
-  validateOrchestralManifest(orchestralManifest, attributionText);
-  for (const sample of orchestralManifest.samples) {
-    await expectNonEmpty(sample.url);
-  }
 
   await expectStatus('/api/map/nodes', 404);
   await expectStatus('/api/map/stats', 404);

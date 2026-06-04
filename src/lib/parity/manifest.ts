@@ -55,6 +55,7 @@ export const PARITY_MANIFEST: ParityItem[] = [
     local: [
       'src/components/NamingWizard.tsx',
       'src/lib/upstream-utilities/generated/recommended-settings.json',
+      'src/lib/upstream-utilities/generated/channels.json',
       'src/lib/upstream-utilities/generated/airports.json',
       'src/lib/upstream-utilities/generated/counties.json',
       'src/lib/upstream-utilities/generated/mountains.json',

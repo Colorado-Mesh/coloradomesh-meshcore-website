@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, cpSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,6 +19,12 @@ const sourceDefinitions = [
     upstreamPath: 'static/data/recommended_settings.json',
     generatedPath: 'src/lib/upstream-utilities/generated/recommended-settings.json',
     validate: validateRecommendedSettings,
+  },
+  {
+    kind: 'channels',
+    upstreamPath: 'static/data/channels.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/channels.json',
+    validate: validateChannels,
   },
   {
     kind: 'airports',
@@ -126,6 +132,23 @@ function validateCodeRecord(value, label) {
   for (const key of ['three_letter', 'five_letter', 'seven_letter', 'fourteen_letter']) {
     if (typeof record[key] !== 'string') fail(`${label}.${key} must be a string.`);
   }
+}
+
+function validateChannels(value) {
+  const root = assertArray(value, 'channels');
+
+  if (root.length === 0 ) fail('channels must contain at least one channel.');
+
+  for (const [index, channelValue] of root.entries()) {
+    const channel = assertRecord(channelValue, `channels[${index}]`);
+    assertNumber(channel.order, `channels[${index}].order`);
+    assertString(channel.name, `channels[${index}].name`);
+    assertString(channel.description, `channels[${index}].description`);
+    assertString(channel.key, `channels[${index}].key`);
+    assertString(channel.url, `channels[${index}].url`);
+  }
+
+  return root;
 }
 
 function validateAirports(value) {
@@ -307,6 +330,15 @@ for (const [relativePath, content] of generatedFiles.entries()) {
     writeFileSync(absolutePath, content);
   }
 }
+
+// Copy channels QR code images
+cpSync(
+    path.join(submodulePath, 'static/data/channels'),
+    path.join(repoRoot, 'public/channels'),
+    {
+      recursive: true,
+      force: true
+    });
 
 if (stale) {
   console.error('Run: npm run utilities:generate');

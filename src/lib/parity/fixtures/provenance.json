@@ -8,6 +8,7 @@
       "files": [
         "static/data/recommended_settings.json",
         "static/data/default_serial_commands.json",
+        "static/data/channels.json",
         "static/data/airports.json",
         "static/data/counties.json",
         "static/data/mountains.json",

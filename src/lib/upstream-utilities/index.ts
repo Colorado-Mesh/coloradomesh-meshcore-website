@@ -1,5 +1,6 @@
 import provenance from './generated/provenance.json';
 import recommendedSettings from './generated/recommended-settings.json';
+import channels from './generated/channels.json';
 import airports from './generated/airports.json';
 import municipalities from './generated/municipalities.json';
 import unincorporatedAreas from './generated/unincorporated_areas.json';
@@ -16,6 +17,14 @@ export interface UpstreamRecommendedSettings {
     coding_rate: number;
     tx_power: number;
   };
+}
+
+export interface UpstreamChannel {
+  name: string;
+  description: string;
+  order: number;
+  key: string;
+  url: string;
 }
 
 export interface UpstreamRegionCodes {
@@ -80,6 +89,7 @@ export interface UpstreamUtilitiesProvenance {
 }
 
 export const UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS = recommendedSettings as UpstreamRecommendedSettings;
+export const UPSTREAM_UTILITIES_CHANNELS = channels as UpstreamChannel[];
 export const UPSTREAM_UTILITIES_AIRPORTS = airports as UpstreamAirport[];
 export const UPSTREAM_UTILITIES_MUNICIPALITIES = municipalities as UpstreamNamedLocation[];
 export const UPSTREAM_UTILITIES_UNINCORPORATED_AREAS = unincorporatedAreas as UpstreamNamedLocation[];

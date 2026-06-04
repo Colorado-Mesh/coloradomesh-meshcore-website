@@ -64,6 +64,7 @@ describe('upstream parity fixtures', () => {
     expect(UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit).toMatch(/^[0-9a-f]{40}$/);
     expect(UPSTREAM_UTILITIES_PROVENANCE.sources.map((source) => source.upstreamPath)).toEqual([
       'static/data/recommended_settings.json',
+      'static/data/channels.json',
       'static/data/airports.json',
       'static/data/counties.json',
       'static/data/mountains.json',

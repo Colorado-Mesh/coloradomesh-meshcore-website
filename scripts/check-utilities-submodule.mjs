@@ -16,6 +16,7 @@ const requiredFiles = [
   'static/data/default_serial_commands.json',
   'static/data/emojis.json',
   'static/data/recommended_settings.json',
+  'static/data/channels.json',
   'static/data/airports.json',
   'static/data/counties.json',
   'static/data/mountains.json',

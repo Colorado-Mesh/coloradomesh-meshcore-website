@@ -2,12 +2,17 @@
   "upstreamRepository": "Colorado-Mesh/meshcore-utilities-site",
   "upstreamUrl": "https://github.com/Colorado-Mesh/meshcore-utilities-site",
   "submodulePath": "vendor/meshcore-utilities-site",
-  "upstreamCommit": "406dc2a73dc0fac534aa07a44b78153e8482cc98",
+  "upstreamCommit": "e4be835030509d67501f0f3eb73acd6250de01ed",
   "sources": [
     {
       "kind": "recommended-settings",
       "upstreamPath": "static/data/recommended_settings.json",
       "generatedPath": "src/lib/upstream-utilities/generated/recommended-settings.json"
+    },
+    {
+      "kind": "channels",
+      "upstreamPath": "static/data/channels.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/channels.json"
     },
     {
       "kind": "airports",

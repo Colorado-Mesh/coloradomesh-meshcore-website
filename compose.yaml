@@ -1,4 +1,3 @@
-# The site and CoreScope analyzer run inside one Docker container.
 services:
   web:
     build:
@@ -13,72 +12,4 @@ services:
       HOSTNAME: 127.0.0.1
       PORT: "3001"
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
-      CORESCOPE_HOST: 127.0.0.1
-      CORESCOPE_PORT: "3002"
-      CORESCOPE_CONFIG_DIR: /app/corescope
-      CORESCOPE_DB_PATH: /app/corescope/data/meshcore.db
-      CORESCOPE_PUBLIC_DIR: /app/corescope/public
-      CORESCOPE_ENABLE_INGESTOR: ${CORESCOPE_ENABLE_INGESTOR:-auto}
-      CORESCOPE_INGESTOR_STATS: /app/corescope/data/ingestor-stats.json
-      CORESCOPE_API_KEY: ${CORESCOPE_API_KEY:-}
-      CORESCOPE_BRAND_SITE_NAME: ${CORESCOPE_BRAND_SITE_NAME:-Colorado Mesh CoreScope}
-      CORESCOPE_BRAND_TAGLINE: ${CORESCOPE_BRAND_TAGLINE:-Live Colorado Mesh network analyzer}
-      CORESCOPE_DEFAULT_REGION: ${CORESCOPE_DEFAULT_REGION:-CO}
-      CORESCOPE_REGIONS_JSON: '${CORESCOPE_REGIONS_JSON:-{"CO":"Colorado, US"}}'
-      CORESCOPE_MAP_CENTER_LAT: ${CORESCOPE_MAP_CENTER_LAT:-39.5501}
-      CORESCOPE_MAP_CENTER_LON: ${CORESCOPE_MAP_CENTER_LON:--105.7821}
-      CORESCOPE_MAP_ZOOM: ${CORESCOPE_MAP_ZOOM:-7}
-      CORESCOPE_MQTT_BROKER: ${CORESCOPE_MQTT_BROKER:-}
-      CORESCOPE_MQTT_SERVER: ${CORESCOPE_MQTT_SERVER:-mqtt.meshcore.coloradomesh.org}
-      CORESCOPE_MQTT_PORT: ${CORESCOPE_MQTT_PORT:-1883}
-      CORESCOPE_MQTT_TRANSPORT: ${CORESCOPE_MQTT_TRANSPORT:-websockets}
-      CORESCOPE_MQTT_TLS_ENABLED: ${CORESCOPE_MQTT_TLS_ENABLED:-true}
-      CORESCOPE_MQTT_TOPICS: ${CORESCOPE_MQTT_TOPICS:-meshcore/#}
-      CORESCOPE_MQTT_USERNAME: ${CORESCOPE_MQTT_USERNAME:-website}
-      CORESCOPE_MQTT_PASSWORD: ${CORESCOPE_MQTT_PASSWORD:-}
-      CORESCOPE_MQTT_PASSWORD_FILE: ${CORESCOPE_MQTT_PASSWORD_FILE:-/run/secrets/corescope_mqtt_password}
-      CORESCOPE_BOOTSTRAP_NODES: ${CORESCOPE_BOOTSTRAP_NODES:-true}
-      CORESCOPE_BOOTSTRAP_NODES_URL: ${CORESCOPE_BOOTSTRAP_NODES_URL:-https://analyzer.meshcore.coloradomesh.org/api/nodes?limit=1000}
-      CORESCOPE_BOOTSTRAP_NODES_MAX: ${CORESCOPE_BOOTSTRAP_NODES_MAX:-1000}
-      CORESCOPE_BOOTSTRAP_NODES_TIMEOUT_MS: ${CORESCOPE_BOOTSTRAP_NODES_TIMEOUT_MS:-10000}
-      CORESCOPE_MQTT_SOURCE_NAME: ${CORESCOPE_MQTT_SOURCE_NAME:-coloradomesh}
-      CORESCOPE_MQTT_REGION: ${CORESCOPE_MQTT_REGION:-CO}
-      CORESCOPE_MQTT_IATA_FILTER: ${CORESCOPE_MQTT_IATA_FILTER:-}
-      CORESCOPE_MQTT_REJECT_UNAUTHORIZED: ${CORESCOPE_MQTT_REJECT_UNAUTHORIZED:-true}
-      CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC: ${CORESCOPE_MQTT_CONNECT_TIMEOUT_SEC:-45}
-      CORESCOPE_MQTT_SOURCES_JSON: ${CORESCOPE_MQTT_SOURCES_JSON:-}
-      CORESCOPE_CHANNEL_KEYS_JSON: '${CORESCOPE_CHANNEL_KEYS_JSON:-{"Public":"8b3387e9c5cdea6ac9e5edbaa115cd72"}}'
-      CORESCOPE_CHANNEL_KEYS_JSON_FILE: ${CORESCOPE_CHANNEL_KEYS_JSON_FILE:-/run/secrets/corescope_channel_keys_json}
-      CORESCOPE_HASH_CHANNELS: ${CORESCOPE_HASH_CHANNELS:-#bot,#testing,#emergency,#wardriving}
-      CORESCOPE_OBSERVER_IATA_WHITELIST: ${CORESCOPE_OBSERVER_IATA_WHITELIST:-}
-      CORESCOPE_NODE_BLACKLIST: ${CORESCOPE_NODE_BLACKLIST:-}
-      CORESCOPE_OBSERVER_BLACKLIST: ${CORESCOPE_OBSERVER_BLACKLIST:-}
-      CORESCOPE_RETENTION_NODE_DAYS: ${CORESCOPE_RETENTION_NODE_DAYS:-7}
-      CORESCOPE_RETENTION_OBSERVER_DAYS: ${CORESCOPE_RETENTION_OBSERVER_DAYS:-14}
-      CORESCOPE_RETENTION_PACKET_DAYS: ${CORESCOPE_RETENTION_PACKET_DAYS:-1}
-      CORESCOPE_RETENTION_METRICS_DAYS: ${CORESCOPE_RETENTION_METRICS_DAYS:-30}
-      CORESCOPE_PACKET_STORE_MAX_MEMORY_MB: ${CORESCOPE_PACKET_STORE_MAX_MEMORY_MB:-256}
-      CORESCOPE_PACKET_STORE_RETENTION_HOURS: ${CORESCOPE_PACKET_STORE_RETENTION_HOURS:-24}
-      # Dark, low-saturation Carto basemap (free, retina-aware). CoreScope
-      # passes {r} through to Leaflet so HiDPI clients get @2x tiles. The
-      # *_LIGHT_/*_DARK_ overrides pin BOTH theme variants to the same dark
-      # tile so the live map never falls back to colorful OSM, regardless of
-      # the operator's data-theme.
-      CORESCOPE_TILE_URL: ${CORESCOPE_TILE_URL:-https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png}
-      CORESCOPE_TILE_LIGHT_URL: ${CORESCOPE_TILE_LIGHT_URL:-https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png}
-      CORESCOPE_TILE_DARK_URL: ${CORESCOPE_TILE_DARK_URL:-https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png}
-    volumes:
-      - corescope-data:/app/corescope/data
     restart: unless-stopped
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - >-
-          node -e "Promise.all([fetch('http://127.0.0.1:3000/'),fetch('http://127.0.0.1:3000/api/health')]).then(([site,core])=>process.exit(site.ok&&core.ok?0:1)).catch(()=>process.exit(1))"
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
-volumes:
-  corescope-data:

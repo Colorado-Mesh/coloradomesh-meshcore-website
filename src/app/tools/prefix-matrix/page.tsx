@@ -43,7 +43,7 @@ export default function PrefixMatrixPage() {
           </>
         }
         description={PAGE_DESCRIPTION}
-        apiTag="GET /api/nodes?limit=1000"
+        apiTag="GET /api/nodes"
         breadcrumbs={[
           { label: 'Home', href: '/' },
           { label: 'Tools', href: '/tools' },
@@ -57,7 +57,7 @@ export default function PrefixMatrixPage() {
               (<code className="text-mesh">0x00</code>–
               <code className="text-mesh">0xFF</code>) of a MeshCore public key.
               Counts come from CoreScope analyzer nodes at{' '}
-              <code className="text-mesh">/api/nodes?limit=1000</code> shared by the
+              <code className="text-mesh">/api/nodes</code> shared by the
               {' '}{SITE_NAME} map.
             </p>
             <p>

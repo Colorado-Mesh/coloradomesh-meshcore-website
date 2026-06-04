@@ -17,16 +17,6 @@
       ],
       "generatedPath": "src/lib/upstream-utilities/generated/provenance.json",
       "usage": "Submodule-backed source data for generated local utility artifacts and parity checks."
-    },
-    {
-      "name": "Kpa-clawbot/CoreScope",
-      "url": "https://github.com/Kpa-clawbot/CoreScope",
-      "localPath": "vendor/CoreScope",
-      "files": [
-        "cmd/server",
-        "public"
-      ],
-      "usage": "Submodule-backed live map, analyzer API, and Docker runtime source."
     }
   ]
 }

@@ -183,7 +183,7 @@ export const PARITY_MANIFEST: ParityItem[] = [
         path: 'public',
       },
     ],
-    local: ['vendor/CoreScope', 'corescope-overlay/*', 'docker/nginx.conf'],
+    local: ['docker/nginx.conf'],
     status: 'implemented',
     coverage: [
       { type: 'e2e', ref: 'tests/e2e/smoke.spec.ts (/map)' },

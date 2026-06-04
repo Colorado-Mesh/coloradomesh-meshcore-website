@@ -55,7 +55,11 @@ export const PARITY_MANIFEST: ParityItem[] = [
     local: [
       'src/components/NamingWizard.tsx',
       'src/lib/upstream-utilities/generated/recommended-settings.json',
-      'src/lib/upstream-utilities/generated/regions.json',
+      'src/lib/upstream-utilities/generated/airports.json',
+      'src/lib/upstream-utilities/generated/counties.json',
+      'src/lib/upstream-utilities/generated/mountains.json',
+      'src/lib/upstream-utilities/generated/municipalities.json',
+      'src/lib/upstream-utilities/generated/unincorporated_areas.json',
       'src/lib/meshcore-data/settings.ts',
       'src/lib/meshcore-data/regions.ts',
       'src/lib/meshcore-data/node-types.ts',

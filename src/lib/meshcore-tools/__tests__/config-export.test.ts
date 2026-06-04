@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { cities } from '@/lib/data/cities';
 import { COLORADO_MESH_REGION_CODES, COLORADO_MESH_REGIONS } from '@/lib/meshcore-data/regions';
 import {
+  UPSTREAM_UTILITIES_AIRPORTS,
+  UPSTREAM_UTILITIES_MUNICIPALITIES,
   UPSTREAM_UTILITIES_PROVENANCE,
   UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS,
-  UPSTREAM_UTILITIES_REGIONS,
 } from '@/lib/upstream-utilities';
 import {
   COLORADO_MESH_RADIO_COMMANDS,
@@ -46,8 +47,8 @@ describe('MeshCore settings export', () => {
 
   it('keeps canonical regions aligned with upstream airport regions', () => {
     expect(COLORADO_MESH_REGION_CODES).toEqual(
-      UPSTREAM_UTILITIES_REGIONS.airports
-        .map((airport) => airport.code.toLowerCase())
+      UPSTREAM_UTILITIES_AIRPORTS
+        .map((airport) => airport.iata_code.toLowerCase())
         .sort((a, b) => a.localeCompare(b)),
     );
     expect(COLORADO_MESH_REGIONS.find((region) => region.code === 'den')).toEqual({
@@ -58,8 +59,8 @@ describe('MeshCore settings export', () => {
 
   it('keeps selectable repeater city codes aligned with valid upstream five-character city codes', () => {
     expect(cities).toEqual(
-      UPSTREAM_UTILITIES_REGIONS.cities
-        .map((city) => ({ code: city.codes.five, name: city.name }))
+      UPSTREAM_UTILITIES_MUNICIPALITIES
+        .map((city) => ({ code: city.abbreviations.five_letter, name: city.name }))
         .filter((city) => /^[A-Z]{1,5}$/.test(city.code))
         .sort((a, b) => a.name.localeCompare(b.name)),
     );

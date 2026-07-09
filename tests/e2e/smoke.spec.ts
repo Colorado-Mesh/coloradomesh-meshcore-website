@@ -1486,6 +1486,7 @@ test.describe('critical page smoke', () => {
       '/guides/getting-started',
       '/guides/radio-settings',
       '/guides/repeater-setup',
+      '/guides/observer-mqtt',
       '/guides/naming-standard',
       '/guides/troubleshooting',
     ];
@@ -1506,6 +1507,33 @@ test.describe('critical page smoke', () => {
     }
 
     await expect(main.locator('a[href="/tools"]').first()).toBeVisible();
+  });
+
+  test('observer guide documents the Companion-only Colorado MQTT path', async ({ page }) => {
+    await page.goto('/guides/observer-mqtt');
+    const main = page.locator('#main-content');
+
+    await expect(
+      main.getByRole('heading', { level: 1, name: /mesh's ears/i }),
+    ).toBeVisible();
+    await expect(main.getByText('mqtt.meshcore.coloradomesh.org').first()).toBeVisible();
+    await expect(main.getByText('TOML · meshcore-packet-capture · Companion only')).toBeVisible();
+
+    const brokerConfig = main.locator('pre').filter({ hasText: 'name = "Colorado Mesh"' });
+    await expect(brokerConfig).toContainText('port = 1883');
+    await expect(brokerConfig).toContainText('transport = "websockets"');
+    await expect(brokerConfig).toContainText('[broker.tls]');
+    await expect(brokerConfig).toContainText('method = "token"');
+    await expect(brokerConfig).toContainText('audience = "mqtt.meshcore.coloradomesh.org"');
+    await expect(main.getByText(/Contents stay encrypted/i)).toBeVisible();
+    await expect(main.getByText(/without removing any existing broker entries/i)).toBeVisible();
+
+    const installer = main.locator('pre').filter({ hasText: '--tag v2.0.0' });
+    await expect(installer).toContainText('42521260a92feec9ea806eebe1249acde0ef2a7f');
+    await expect(main.getByRole('link', { name: /Observer status/i })).toHaveAttribute(
+      'href',
+      'https://analyzer.meshcore.coloradomesh.org/#/observers',
+    );
   });
 
   test('serial-usb tool previews settings JSON and disables Apply without a connection', async ({ page }) => {
@@ -1591,6 +1619,7 @@ const interactiveToolPages = [
 const representativeDetailPages = [
   '/guides/getting-started',
   '/guides/repeater-setup',
+  '/guides/observer-mqtt',
   '/blog/network-expansion-2026',
 ];
 
@@ -1741,6 +1770,7 @@ test.describe('global navigation', () => {
 
   test('mobile menu opens, lists primary nav, and closes on Escape', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
+    await mockCoreScopeAnalyzer(page);
     await page.goto('/', { waitUntil: 'networkidle' });
 
     const openButton = page.getByRole('button', { name: /Open main menu/i });

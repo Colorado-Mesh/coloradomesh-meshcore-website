@@ -154,6 +154,14 @@ export const SITE_ROUTES: readonly SiteRoute[] = [
     sitemap: { changeFrequency: 'monthly', priority: 0.75 },
   },
   {
+    path: '/guides/observer-mqtt',
+    label: 'Observer & MQTT Setup',
+    description: 'Build a Companion-radio observer and contribute packet observations to Colorado Mesh over MQTT.',
+    section: 'guides',
+    parent: '/guides',
+    sitemap: { changeFrequency: 'monthly', priority: 0.75 },
+  },
+  {
     path: '/guides/naming-standard',
     label: 'Naming Standard',
     description: 'Learn the naming rules for repeaters, companions, and location prefixes.',

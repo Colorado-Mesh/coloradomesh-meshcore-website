@@ -26,6 +26,7 @@ const VISIBLE_SITEMAP_PATHS = [
   '/guides/getting-started',
   '/guides/radio-settings',
   '/guides/repeater-setup',
+  '/guides/observer-mqtt',
   '/guides/naming-standard',
   '/guides/troubleshooting',
   '/why-meshcore',
@@ -92,6 +93,11 @@ describe('site route metadata', () => {
       '/',
       '/guides',
       '/guides/repeater-setup',
+    ]);
+    expect(getBreadcrumbTrail('/guides/observer-mqtt').map((link) => link.href)).toEqual([
+      '/',
+      '/guides',
+      '/guides/observer-mqtt',
     ]);
   });
 

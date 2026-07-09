@@ -74,6 +74,15 @@ const guides: readonly GuideEntry[] = [
     glyph: '◉',
   },
   {
+    title: "Observer & MQTT setup",
+    tag: "CONTRIBUTE",
+    description:
+      "Turn a Companion radio into an always-on observer and securely publish what it hears to Colorado Mesh.",
+    href: "/guides/observer-mqtt",
+    tone: 'sky',
+    glyph: '⌁',
+  },
+  {
     title: "Naming standard",
     tag: "STANDARD",
     description:
@@ -192,7 +201,8 @@ export default function GuidesPage() {
             </h2>
             <p className="mt-3 mb-6 text-sm text-foreground-muted max-w-2xl">
               Teaching and reference pages — onboarding, radio configuration, repeater tuning,
-              naming, and troubleshooting. Use them to build the mental model the tools assume.
+              observer setup, naming, and troubleshooting. Use them to build the mental model
+              the tools assume.
             </p>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {guides.map((guide) => (

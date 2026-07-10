@@ -14,6 +14,7 @@ export const BRAND = {
   meshcoreDocsUrl: 'https://meshcore.io',
   letsMeshUrl: 'https://letsmesh.net',
   githubOrgUrl: 'https://github.com/Colorado-Mesh',
+  coreScopeUrl: 'https://analyzer.meshcore.coloradomesh.org',
   logoPath: '/brand/color/mesh-color.png',
   logoMarkPath: '/brand/color/mesh-color-256.png',
   iconPath: '/favicon.ico',
@@ -40,6 +41,7 @@ export const DISCORD_INVITE_URL = BRAND.discordInviteUrl;
 export const MESHCORE_DOCS_URL = BRAND.meshcoreDocsUrl;
 export const LETSMESH_URL = BRAND.letsMeshUrl;
 export const GITHUB_ORG_URL = BRAND.githubOrgUrl;
+export const CORESCOPE_URL = BRAND.coreScopeUrl;
 
 export const BOT_FIRMWARE_REPO = 'Colorado-Mesh/meshcore-bot-firmware';
 export const BOT_FIRMWARE_REPO_URL = `https://github.com/${BOT_FIRMWARE_REPO}`;
@@ -54,10 +56,10 @@ export const MESHCORE_FLASHER_URL = 'https://flasher.meshcore.io';
 // =============================================================================
 
 export const CORESCOPE_API_ROUTES = {
-  NODES: '/api/nodes?limit=1000',
-  STATS: '/api/stats',
-  PACKETS: '/api/packets',
-  CHANNELS: '/api/channels',
+  NODES: CORESCOPE_URL + '/api/nodes?limit=65536', // max of 2-bytes (16^4) + 1
+  STATS: CORESCOPE_URL + '/api/stats',
+  PACKETS: CORESCOPE_URL + '/api/packets',
+  CHANNELS: CORESCOPE_URL + '/api/channels',
 } as const;
 
 // =============================================================================

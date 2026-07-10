@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync, cpSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,10 +21,40 @@ const sourceDefinitions = [
     validate: validateRecommendedSettings,
   },
   {
-    kind: 'regions',
-    upstreamPath: 'static/data/regions.json',
-    generatedPath: 'src/lib/upstream-utilities/generated/regions.json',
-    validate: validateRegions,
+    kind: 'channels',
+    upstreamPath: 'static/data/channels.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/channels.json',
+    validate: validateChannels,
+  },
+  {
+    kind: 'airports',
+    upstreamPath: 'static/data/airports.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/airports.json',
+    validate: validateAirports,
+  },
+  {
+    kind: 'counties',
+    upstreamPath: 'static/data/counties.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/counties.json',
+    validate: validateNamedLocations,
+  },
+  {
+    kind: 'mountains',
+    upstreamPath: 'static/data/mountains.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/mountains.json',
+    validate: validateNamedLocations,
+  },
+  {
+    kind: 'municipalities',
+    upstreamPath: 'static/data/municipalities.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/municipalities.json',
+    validate: validateNamedLocations,
+  },
+  {
+    kind: 'unincorporated-areas',
+    upstreamPath: 'static/data/unincorporated_areas.json',
+    generatedPath: 'src/lib/upstream-utilities/generated/unincorporated_areas.json',
+    validate: validateNamedLocations,
   },
   {
     kind: 'serial-command-profile',
@@ -99,35 +129,51 @@ function validateRecommendedSettings(value) {
 
 function validateCodeRecord(value, label) {
   const record = assertRecord(value, label);
-  for (const key of ['three', 'five', 'seven', 'fourteen']) {
+  for (const key of ['three_letter', 'five_letter', 'seven_letter', 'fourteen_letter']) {
     if (typeof record[key] !== 'string') fail(`${label}.${key} must be a string.`);
   }
 }
 
-function validateRegions(value) {
-  const root = assertRecord(value, 'regions');
-  const airports = assertArray(root.airports, 'regions.airports');
-  const cities = assertArray(root.cities, 'regions.cities');
-  const counties = assertArray(root.counties, 'regions.counties');
-  const regions = assertArray(root.regions, 'regions.regions');
-  const alternatives = assertArray(root.alternatives, 'regions.alternatives');
+function validateChannels(value) {
+  const root = assertArray(value, 'channels');
 
-  if (airports.length === 0) fail('regions.airports must contain at least one airport.');
-  if (cities.length === 0) fail('regions.cities must contain at least one city.');
+  if (root.length === 0 ) fail('channels must contain at least one channel.');
 
-  for (const [index, airportValue] of airports.entries()) {
-    const airport = assertRecord(airportValue, `regions.airports[${index}]`);
-    assertString(airport.name, `regions.airports[${index}].name`);
-    assertString(airport.city, `regions.airports[${index}].city`);
-    assertString(airport.code, `regions.airports[${index}].code`);
+  for (const [index, channelValue] of root.entries()) {
+    const channel = assertRecord(channelValue, `channels[${index}]`);
+    assertNumber(channel.order, `channels[${index}].order`);
+    assertString(channel.name, `channels[${index}].name`);
+    assertString(channel.description, `channels[${index}].description`);
+    assertString(channel.key, `channels[${index}].key`);
+    assertString(channel.url, `channels[${index}].url`);
   }
 
-  for (const [collectionName, collection] of Object.entries({ cities, counties, regions, alternatives })) {
-    for (const [index, entryValue] of collection.entries()) {
-      const entry = assertRecord(entryValue, `regions.${collectionName}[${index}]`);
-      assertString(entry.name, `regions.${collectionName}[${index}].name`);
-      validateCodeRecord(entry.codes, `regions.${collectionName}[${index}].codes`);
-    }
+  return root;
+}
+
+function validateAirports(value) {
+  const root = assertArray(value, 'airports')
+
+  if (root.length === 0 ) fail('airports must contain at least one airport.');
+
+  for (const [index, airportValue] of root.entries()) {
+    const airport = assertRecord(airportValue, `airports[${index}]`);
+    assertString(airport.name, `airports[${index}].name`);
+    assertString(airport.iata_code, `airports[${index}].iata_code`);
+  }
+
+  return root;
+}
+
+function validateNamedLocations(value, label) {
+  const root = assertArray(value, label);
+
+  if (root.length === 0 ) fail(`${label} must contain at least one airport.`);
+
+  for (const [index, entryValue] of root.entries()) {
+    const entry = assertRecord(entryValue, `${label}[${index}]`);
+    assertString(entry.name, `${label}[${index}].name`);
+    validateCodeRecord(entry.abbreviations, `${label}[${index}].abbreviations`);
   }
 
   return root;
@@ -284,6 +330,15 @@ for (const [relativePath, content] of generatedFiles.entries()) {
     writeFileSync(absolutePath, content);
   }
 }
+
+// Copy channels QR code images
+cpSync(
+    path.join(submodulePath, 'static/data/channels'),
+    path.join(repoRoot, 'public/channels'),
+    {
+      recursive: true,
+      force: true
+    });
 
 if (stale) {
   console.error('Run: npm run utilities:generate');

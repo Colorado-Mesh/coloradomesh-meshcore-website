@@ -2,7 +2,7 @@
   "upstreamRepository": "Colorado-Mesh/meshcore-utilities-site",
   "upstreamUrl": "https://github.com/Colorado-Mesh/meshcore-utilities-site",
   "submodulePath": "vendor/meshcore-utilities-site",
-  "upstreamCommit": "3b8c5d93b8bfac048deee1f214feee32e0a0e053",
+  "upstreamCommit": "e4be835030509d67501f0f3eb73acd6250de01ed",
   "sources": [
     {
       "kind": "recommended-settings",
@@ -10,9 +10,34 @@
       "generatedPath": "src/lib/upstream-utilities/generated/recommended-settings.json"
     },
     {
-      "kind": "regions",
-      "upstreamPath": "static/data/regions.json",
-      "generatedPath": "src/lib/upstream-utilities/generated/regions.json"
+      "kind": "channels",
+      "upstreamPath": "static/data/channels.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/channels.json"
+    },
+    {
+      "kind": "airports",
+      "upstreamPath": "static/data/airports.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/airports.json"
+    },
+    {
+      "kind": "counties",
+      "upstreamPath": "static/data/counties.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/counties.json"
+    },
+    {
+      "kind": "mountains",
+      "upstreamPath": "static/data/mountains.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/mountains.json"
+    },
+    {
+      "kind": "municipalities",
+      "upstreamPath": "static/data/municipalities.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/municipalities.json"
+    },
+    {
+      "kind": "unincorporated-areas",
+      "upstreamPath": "static/data/unincorporated_areas.json",
+      "generatedPath": "src/lib/upstream-utilities/generated/unincorporated_areas.json"
     },
     {
       "kind": "serial-command-profile",

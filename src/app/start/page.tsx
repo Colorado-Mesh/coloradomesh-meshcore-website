@@ -71,6 +71,7 @@ const journeyPaths: readonly JourneyPath[] = [
     supporting: [
       { href: '/guides/radio-settings', label: 'Radio settings & channels' },
       { href: '/guides/naming-standard', label: 'Naming standard' },
+      { href: '/guides/common-channels', label: 'Common channels' },
     ],
   },
   {

@@ -8,21 +8,16 @@
       "files": [
         "static/data/recommended_settings.json",
         "static/data/default_serial_commands.json",
-        "static/data/regions.json",
+        "static/data/channels.json",
+        "static/data/airports.json",
+        "static/data/counties.json",
+        "static/data/mountains.json",
+        "static/data/municipalities.json",
+        "static/data/unincorporated_areas.json",
         "serial_commands.schema.json"
       ],
       "generatedPath": "src/lib/upstream-utilities/generated/provenance.json",
       "usage": "Submodule-backed source data for generated local utility artifacts and parity checks."
-    },
-    {
-      "name": "Kpa-clawbot/CoreScope",
-      "url": "https://github.com/Kpa-clawbot/CoreScope",
-      "localPath": "vendor/CoreScope",
-      "files": [
-        "cmd/server",
-        "public"
-      ],
-      "usage": "Submodule-backed live map, analyzer API, and Docker runtime source."
     }
   ]
 }

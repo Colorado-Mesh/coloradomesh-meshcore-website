@@ -3,6 +3,8 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 const scriptSrc = ["'self'", "'unsafe-inline'", ...(isDevelopment ? ["'unsafe-eval'"] : [])].join(' ');
 const connectSrc = [
   "'self'",
+  'https://*.coloradomesh.org',
+  'https://*.meshcore.coloradomesh.org',
   'https://*.letsmesh.net',
   'https://*.mapbox.com',
   'https://*.supabase.co',

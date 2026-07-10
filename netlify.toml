@@ -44,11 +44,6 @@
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
-[[headers]]
-  for = "/api/*"
-  [headers.values]
-    Cache-Control = "public, max-age=0, s-maxage=30, stale-while-revalidate=60"
-
 [context.deploy-preview]
   command = "rm -rf .next && npm ci && npm run build"
   [context.deploy-preview.environment]

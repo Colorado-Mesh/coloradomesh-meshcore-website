@@ -92,6 +92,15 @@ const guides: readonly GuideEntry[] = [
     glyph: '◊',
   },
   {
+    title: "Common Channels",
+    tag: "CHANNELS",
+    description:
+        "Join the conversation by subscribing to common community channels",
+    href: "/guides/common-channels",
+    tone: 'mesh',
+    glyph: '►',
+  },
+  {
     title: "Troubleshooting",
     tag: "SUPPORT",
     description:

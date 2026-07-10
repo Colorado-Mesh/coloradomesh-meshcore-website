@@ -161,56 +161,6 @@ export default function RadioSettingsPage() {
           </div>
         </section>
 
-        {/* Channels */}
-        <section className="bg-background-secondary py-16 sm:py-20">
-          <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-            <SectionEyebrow tone="mesh" className="mb-3">
-              Channels
-            </SectionEyebrow>
-            <h2 className="text-3xl sm:text-4xl font-semibold text-foreground tracking-tight">
-              Front Range channel keys.
-            </h2>
-            <p className="mt-3 text-foreground-muted max-w-2xl mb-8">
-              Join these channels to communicate with other {COMMUNITY_NAME} operators.
-            </p>
-
-            <div className="panel overflow-hidden">
-              <div className="p-6 border-b border-card-border">
-                <p className="text-foreground-muted text-sm">
-                  Hashtag topic keys are auto-calculated by the system. They&apos;re included here
-                  for devices that can&apos;t type <code className="text-mesh">#</code> or
-                  don&apos;t calculate keys.
-                </p>
-              </div>
-              <table className="w-full">
-                <thead className="bg-night-800/50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Topic</th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-foreground">Key</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-card-border">
-                  {channels.map((channel) => (
-                    <tr key={channel.topic} className="hover:bg-night-800/30 transition-colors">
-                      <td className="px-6 py-3 font-semibold text-mountain-500">{channel.topic}</td>
-                      <td className="px-6 py-3 font-mono text-xs text-foreground-muted break-all">{channel.key}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="mt-8 text-center">
-              <Link href="/guides/repeater-setup" className="btn-primary inline-flex items-center gap-2">
-                Repeater Setup Guide
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </Link>
-            </div>
-          </div>
-        </section>
-
         <section className="px-6 py-16 bg-background-secondary">
           <div className="max-w-5xl mx-auto">
             <h2 className="text-3xl md:text-4xl font-bold mb-4 text-foreground text-center">

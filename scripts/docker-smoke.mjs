@@ -188,75 +188,8 @@ try {
     throw new Error(run.stderr || run.stdout || 'docker run failed');
   }
 
-  // Wait for both upstreams. /api/healthz goes through nginx to corescope;
-  // / goes through nginx to next. Both must be live or nginx 502s on whichever
-  // upstream is still booting.
-  await waitFor(`${baseUrl}/api/healthz`);
   await waitFor(`${baseUrl}/`);
   await expectTextIncludes('/', 'Colorado MeshCore');
-  const mapHtml = await expectTextIncludes('/map', 'denvermc-shell.js?v=denvermc');
-  for (const expected of ['denvermc-leaflet-zoom.js?v=denvermc', 'denvermc-default-route.js?v=denvermc', 'denvermc-shell.css?v=denvermc', 'denvermc-sound.js?v=denvermc']) {
-    if (!mapHtml.includes(expected)) {
-      throw new Error(`/map did not include expected CoreScope overlay asset: ${expected}`);
-    }
-  }
-  await expectTextIncludes('/denvermc-sound.js?v=denvermc', 'window.__coloradoMeshSound');
-  await expectTextIncludes('/sound/denvermc-density-worklet.js', "registerProcessor('colorado-mesh-density'");
-  await expectContentType('/brand/color/mesh-color-256.png', 'image/png');
-  await expectContentType('/favicon-16x16.png', 'image/png');
-  await expectContentType('/favicon-32x32.png', 'image/png');
-  await expectContentType('/apple-touch-icon.png', 'image/png');
-  await expectContentType('/favicon.ico', 'image/');
-
-  const orchestralManifest = await expectJson('/sound/orchestral/manifest.json');
-  const attributionText = await expectTextIncludes('/sound/orchestral/ATTRIBUTION.md', 'Orchestral Ensemble sample attribution');
-  validateOrchestralManifest(orchestralManifest, attributionText);
-  for (const sample of orchestralManifest.samples) {
-    await expectNonEmpty(sample.url);
-  }
-
-  await expectStatus('/api/map/nodes', 404);
-  await expectStatus('/api/map/stats', 404);
-  await expectStatus('/api/live-map/nodes', 404);
-
-  const health = await expectJson('/api/healthz');
-  if (health.ready !== true) {
-    throw new Error('/api/healthz did not report ready=true');
-  }
-
-  const mapConfig = await expectJson('/api/config/map');
-  if (!Array.isArray(mapConfig.center) || mapConfig.center[0] !== 39.5501 || mapConfig.center[1] !== -105.7821) {
-    throw new Error('/api/config/map did not report Colorado defaults');
-  }
-  if (mapConfig.zoom !== 7) {
-    throw new Error('/api/config/map did not report zoom=7');
-  }
-
-  const clientConfig = await expectJson('/api/config/client');
-  for (const variant of ['dark', 'light']) {
-    const tileUrl = clientConfig.tiles?.[variant];
-    if (typeof tileUrl !== 'string' || !tileUrl.includes('{z}') || !tileUrl.includes('{x}') || !tileUrl.includes('{y}')) {
-      throw new Error(`/api/config/client tiles.${variant} did not include Leaflet tile placeholders`);
-    }
-    if (/%7B|%7D/i.test(tileUrl)) {
-      throw new Error(`/api/config/client tiles.${variant} included encoded Leaflet placeholders`);
-    }
-  }
-
-  const stats = await expectJson('/api/stats');
-  if (typeof stats.totalNodes !== 'number' || typeof stats.totalPackets !== 'number') {
-    throw new Error('/api/stats did not include CoreScope numeric counters');
-  }
-
-  const coreNodes = await expectJson('/api/nodes');
-  if (!Array.isArray(coreNodes.nodes)) {
-    throw new Error('/api/nodes did not return a CoreScope nodes array');
-  }
-
-  const packets = await expectJson('/api/packets?limit=1');
-  if (!Array.isArray(packets.packets)) {
-    throw new Error('/api/packets?limit=1 did not return a CoreScope packets array');
-  }
 
   await expectWebSocket('/');
 

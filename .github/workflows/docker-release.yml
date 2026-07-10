@@ -55,7 +55,7 @@ jobs:
             type=raw,value=latest,enable=${{ github.event_name == 'release' && !github.event.release.prerelease }}
           labels: |
             org.opencontainers.image.title=Colorado MeshCore
-            org.opencontainers.image.description=Colorado MeshCore public website and live map
+            org.opencontainers.image.description=Colorado MeshCore public website
             org.opencontainers.image.vendor=Colorado Mesh
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=GPL-3.0-or-later

@@ -5,9 +5,9 @@ import { PARITY_MANIFEST } from '../manifest';
 import { buildParityReport } from '../report';
 import provenance from '../fixtures/provenance.json';
 import {
+  UPSTREAM_UTILITIES_AIRPORTS,
   UPSTREAM_UTILITIES_PROVENANCE,
   UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS,
-  UPSTREAM_UTILITIES_REGIONS,
   UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE,
   UPSTREAM_UTILITIES_SERIAL_COMMAND_SCHEMA,
 } from '@/lib/upstream-utilities';
@@ -51,7 +51,7 @@ describe('upstream parity fixtures', () => {
   it('loads generated utility artifacts and provenance fixtures', () => {
     expect(UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS.radio_settings.frequency).toBe(910525);
     expect(UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE.actions.length).toBeGreaterThan(0);
-    expect(UPSTREAM_UTILITIES_REGIONS.airports.length).toBeGreaterThan(0);
+    expect(UPSTREAM_UTILITIES_AIRPORTS.length).toBeGreaterThan(0);
     expect(provenance.sources.length).toBeGreaterThan(0);
   });
 
@@ -64,7 +64,12 @@ describe('upstream parity fixtures', () => {
     expect(UPSTREAM_UTILITIES_PROVENANCE.upstreamCommit).toMatch(/^[0-9a-f]{40}$/);
     expect(UPSTREAM_UTILITIES_PROVENANCE.sources.map((source) => source.upstreamPath)).toEqual([
       'static/data/recommended_settings.json',
-      'static/data/regions.json',
+      'static/data/channels.json',
+      'static/data/airports.json',
+      'static/data/counties.json',
+      'static/data/mountains.json',
+      'static/data/municipalities.json',
+      'static/data/unincorporated_areas.json',
       'static/data/default_serial_commands.json',
       'serial_commands.schema.json',
     ]);

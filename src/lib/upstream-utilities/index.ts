@@ -1,6 +1,11 @@
 import provenance from './generated/provenance.json';
 import recommendedSettings from './generated/recommended-settings.json';
-import regions from './generated/regions.json';
+import channels from './generated/channels.json';
+import airports from './generated/airports.json';
+import municipalities from './generated/municipalities.json';
+import unincorporatedAreas from './generated/unincorporated_areas.json';
+import counties from './generated/counties.json';
+import mountains from './generated/mountains.json';
 import serialCommandProfile from './generated/serial-command-profile.json';
 import serialCommandSchema from './generated/serial-command-schema.json';
 
@@ -14,30 +19,29 @@ export interface UpstreamRecommendedSettings {
   };
 }
 
+export interface UpstreamChannel {
+  name: string;
+  description: string;
+  order: number;
+  key: string;
+  url: string;
+}
+
 export interface UpstreamRegionCodes {
-  three: string;
-  five: string;
-  seven: string;
-  fourteen: string;
+  three_letter: string;
+  five_letter: string;
+  seven_letter: string;
+  fourteen_letter: string;
 }
 
-export interface UpstreamAirportRegion {
+export interface UpstreamAirport {
   name: string;
-  city: string;
-  code: string;
+  iata_code: string;
 }
 
-export interface UpstreamNamedRegion {
+export interface UpstreamNamedLocation {
   name: string;
-  codes: UpstreamRegionCodes;
-}
-
-export interface UpstreamRegions {
-  airports: UpstreamAirportRegion[];
-  cities: UpstreamNamedRegion[];
-  counties: UpstreamNamedRegion[];
-  regions: UpstreamNamedRegion[];
-  alternatives: UpstreamNamedRegion[];
+  abbreviations: UpstreamRegionCodes;
 }
 
 export interface UpstreamSerialStep {
@@ -85,7 +89,13 @@ export interface UpstreamUtilitiesProvenance {
 }
 
 export const UPSTREAM_UTILITIES_RECOMMENDED_SETTINGS = recommendedSettings as UpstreamRecommendedSettings;
-export const UPSTREAM_UTILITIES_REGIONS = regions as UpstreamRegions;
+export const UPSTREAM_UTILITIES_CHANNELS = channels as UpstreamChannel[];
+export const UPSTREAM_UTILITIES_AIRPORTS = airports as UpstreamAirport[];
+export const UPSTREAM_UTILITIES_MUNICIPALITIES = municipalities as UpstreamNamedLocation[];
+export const UPSTREAM_UTILITIES_UNINCORPORATED_AREAS = unincorporatedAreas as UpstreamNamedLocation[];
+export const UPSTREAM_UTILITIES_ALL_CITIES = UPSTREAM_UTILITIES_MUNICIPALITIES.concat(UPSTREAM_UTILITIES_UNINCORPORATED_AREAS);
+export const UPSTREAM_UTILITIES_MOUNTAINS = mountains as UpstreamNamedLocation[];
+export const UPSTREAM_UTILITIES_COUNTIES = counties as UpstreamNamedLocation[];
 export const UPSTREAM_UTILITIES_SERIAL_COMMAND_PROFILE = serialCommandProfile as UpstreamSerialCommandProfile;
 export const UPSTREAM_UTILITIES_SERIAL_COMMAND_SCHEMA = serialCommandSchema;
 export const UPSTREAM_UTILITIES_PROVENANCE = provenance as UpstreamUtilitiesProvenance;
